@@ -1,0 +1,4 @@
+rapi
+====
+
+Read aligner API
