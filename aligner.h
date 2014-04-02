@@ -15,6 +15,12 @@
 #define ALN_QUALITY_ENCODING_ILLUMINA	64
 
 /* Structs */
+
+typedef struct {
+	 char * name;
+	 void * value;
+} aln_parameter;
+
 typedef struct {
 	int ignore_unsupported;
 	/* Standard Ones - Differently implemented by aligners*/
@@ -29,17 +35,6 @@ typedef struct {
 	aln_parameter * parameters;
 } aln_config;
 
-typedef struct {
-	 char * name;
-	 void * value;
-} aln_parameter;
-
-typedef struct {
-	const char * path;
-	int n_contigs;
-	aln_contig * contigs;
-	void * my_reference;
-} aln_ref;
 
 typedef struct {
 	const char * name;
@@ -49,24 +44,39 @@ typedef struct {
 	const char * species;
 	const char * uri;
 } aln_contig;
-	
-typedef struct {
-	int n_allocated_frags;
-	int n_frags;
-	int n_reads_frag;
-	aln_read * reads;
-} aln_batch;
-
 
 typedef struct {
-	char * id;
-	unsigned char * seq;
-	unsigned char * qual;
-	unsigned int length;
-	unsigned int bp_clipping;
-	aln_alignment alignment;
-} aln_read;
+	const char * path;
+	int n_contigs;
+	aln_contig * contigs;
+	void * my_reference;
+} aln_ref;
 
+typedef struct {
+	uint32_t op:4,
+		 len:28;
+} aln_cigar;
+
+
+typedef struct {
+	char * name;
+	unsigned char type;
+	union {
+		char character;
+		const char * text;
+		long integer;
+		double real;
+		const uint8_t * byte_array;
+		const long * integer_array;
+	} data;
+} aln_tag;
+
+  
+typedef struct {
+	uint8_t type;
+	uint8_t len;
+	const char * data;
+} aln_mismatch;
 
 typedef struct {
 	const char * contig;
@@ -86,33 +96,23 @@ typedef struct {
 	uint8_t	n_gap_extensions;
 	uint16_t	edit_distance;
 	aln_mismatch * mismatches;
-	uint8_t	n_mismatches;
 } aln_alignment;
 
-  
 typedef struct {
-	uint32_t op:4,
-		 len:28;
-} aln_cigar;
+	char * id;
+	unsigned char * seq;
+	unsigned char * qual;
+	unsigned int length;
+	unsigned int bp_clipping;
+	aln_alignment alignment;
+} aln_read;
 
 typedef struct {
-	uint8_t type;
-	uint8_t len;
-	const char * data;
-} aln_mismatch;
-
-typedef struct {
-	char * name;
-	unsigned byte type;
-	union {
-		char character,
-		const char * text,
-		long integer,
-		double real,
-		const uint8_t * byte_array,
-		const long * integer_array
-	} data;
-} aln_tag;
+	int n_allocated_frags;
+	int n_frags;
+	int n_reads_frag;
+	aln_read * reads;
+} aln_batch;
 
 
 /* Init Library */
@@ -138,5 +138,3 @@ int aln_free_reads( aln_batch ** batch );
 
 /* Align */
 int aln_align_reads( aln_batch * batch, aln_config * config );
-
-
