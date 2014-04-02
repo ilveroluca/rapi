@@ -1,5 +1,7 @@
 /*
   aligner.h
+
+  Authors:  Riccardo Berutti, Luca Pireddu, Ridvan Dongelci
 */
 
 #define ALN_TAG_TYPE_CHAR		1
