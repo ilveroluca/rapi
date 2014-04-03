@@ -27,13 +27,26 @@ int aln_init()
 /* Init Library Options */
 int aln_init_ops( aln_opts * my_opts )
 {
- 
+	my_opts->_private = mem_opt_init();
+	my_opts->ignore_unsupported = TRUE;
+	my_opts->mapq_min     = 0;
+	my_opts->trim_quality = 0;
+	my_opts->isize_min    = 0;
+	my_opts->isize_max    = my_opts->_private.max_ins;
+	my_opts->n_parameters = 0;
+	my_opts->parameters   = NULL;
+	return ALN_NO_ERROR;
+}
+
+int aln_free_opts( aln_opts * my_opts ) {
+	free(my_opts->_private);
+	return ALN_NO_ERROR;
 }
 
 /* Load Reference */
 const char * aln_version()
 {
- 
+	return "my version!";
 }
 
 /* Load Reference */
