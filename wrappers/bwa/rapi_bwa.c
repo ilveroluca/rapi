@@ -15,19 +15,31 @@ aln_kv* aln_kv_insert_la(  const char* key, const long* value,    const aln_kv* 
 aln_kv_free_list(aln_kv* list);
 
 
+char* strdup(const char* str)
+{
+	if (NULL == str)
+		return NULL;
+
+	size_t len = strlen(str);
+	char* new_str = malloc(len + 1);
+	if (NULL == new_str)
+		return NULL;
+	return strcpy(new_str, str);
+}
 
 /* Init Library */
 int aln_init()
 {
-  // DO
-
+	// no op
   return ALN_NO_ERROR;
 }
 
 /* Init Library Options */
 int aln_init_ops( aln_opts * my_opts )
 {
+	// create a BWA opt structure and link it to the external one
 	my_opts->_private = mem_opt_init();
+
 	my_opts->ignore_unsupported = TRUE;
 	my_opts->mapq_min     = 0;
 	my_opts->trim_quality = 0;
@@ -35,10 +47,12 @@ int aln_init_ops( aln_opts * my_opts )
 	my_opts->isize_max    = my_opts->_private.max_ins;
 	my_opts->n_parameters = 0;
 	my_opts->parameters   = NULL;
+
 	return ALN_NO_ERROR;
 }
 
-int aln_free_opts( aln_opts * my_opts ) {
+int aln_free_opts( aln_opts * my_opts )
+{
 	free(my_opts->_private);
 	return ALN_NO_ERROR;
 }
@@ -50,26 +64,28 @@ const char * aln_version()
 }
 
 /* Load Reference */
-int aln_load_ref( const char * reference, aln_ref * ref_struct )
+int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
 {
-  ref_struct->handle=bwa_idx_load(reference, BWA_IDX_ALL);
-  if ( ref_struct->handle == 0 )
-  {
+	if ( NULL == ref_struct || NULL == reference_path )
+		return ALN_PARAM_ERROR;
+
+  ref_struct->_private = bwa_idx_load(reference, BWA_IDX_ALL);
+
+  if ( NULL == ref_struct->_private )
     return ALN_REFERENCE_ERROR;
-  }
  
   ref_struct->path=reference;
  
   /* Fill in Contig Information */
   ref_struct->n_contigs = reference->handle->bns->n_seqs;	/* Handle contains bnt_seq_t * bns holding contig information */
-  ref_struct->contigs=calloc( ref_struct->n_contigs, sizeof(aln_contig) );
+  ref_struct->contigs = calloc( ref_struct->n_contigs, sizeof(aln_contig) );
  
-  if ( ref_struct->contigs == 0 )
+  if ( NULL == ref_struct->contigs )
   {
     return ALN_MEMORY_ERROR;
   }
  
-  for ( int contig_loop=0, contig_loop < ref_struct->n; contig_loop++ )
+  for ( int contig_loop = 0, contig_loop < ref_struct->n_contigs; contig_loop++ )
   {
     /* Get Name */
     /* Each bns holds an array of bntann1_t *anns -> holding 	
@@ -79,9 +95,8 @@ int aln_load_ref( const char * reference, aln_ref * ref_struct )
 	uint32_t gi;
 	char *name, *anno;
     */
-    ref_struct->contigs[ contig_loop ].name =  reference->handle->bns->anns[ contig_loop ].name;
+    ref_struct->contigs[ contig_loop ].name = reference->handle->bns->anns[ contig_loop ].name;
     ref_struct->contigs[ contig_loop ].len =  reference->handle->bns->anns[ contig_loop ].len;
-
   }
 
   return ALN_NO_ERROR;
@@ -90,7 +105,9 @@ int aln_load_ref( const char * reference, aln_ref * ref_struct )
 /* Free Reference */
 int aln_free_ref( aln_ref * ref_struct )
 {
-  for ( int contig_loop=0, contig_loop < ref_struct->n; contig_loop++ )
+	free(ref_struct->path);
+
+  for ( int contig_loop = 0, contig_loop < ref_struct->n_contigs; contig_loop++ )
   {
     free (  ref_struct->contigs );
   }
