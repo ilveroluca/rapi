@@ -3,6 +3,8 @@
  */
 
 #include "aligner.h"
+#include "bwamem.h"
+#include <string.h>
 
 
 aln_kv* aln_kv_insert_char(const char* key, char value,           const aln_kv* tail);
@@ -15,6 +17,7 @@ aln_kv* aln_kv_insert_la(  const char* key, const long* value,    const aln_kv* 
 aln_kv_free_list(aln_kv* list);
 
 
+#if 0
 char* strdup(const char* str)
 {
 	if (NULL == str)
@@ -26,6 +29,7 @@ char* strdup(const char* str)
 		return NULL;
 	return strcpy(new_str, str);
 }
+#endif
 
 /* Init Library */
 int aln_init()
@@ -74,7 +78,7 @@ int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
   if ( NULL == ref_struct->_private )
     return ALN_REFERENCE_ERROR;
  
-  ref_struct->path=reference;
+  ref_struct->path = strdup(reference_path);
  
   /* Fill in Contig Information */
   ref_struct->n_contigs = reference->handle->bns->n_seqs;	/* Handle contains bnt_seq_t * bns holding contig information */
@@ -116,23 +120,48 @@ int aln_free_ref( aln_ref * ref_struct )
 /* Allocate reads */
 int aln_alloc_reads( aln_batch * batch, int n_reads_fragment, int n_fragments );
 {
-    batch=calloc( n_reads_fragment * n_fragments, sizeof(aln_batch) );
-    return ( batch == 0 ? ALN_MEMORY_ERROR : ALN_NO_ERROR );
+	if (n_fragments < 0 || n_reads_fragment < 0)
+		return ALN_PARAM_ERROR;
+
+	batch = calloc( n_reads_fragment * n_fragments, sizeof(aln_batch) );
+	batch->n_fragments = n_fragments;
+	batch->n_reads_fragment = n_reads_fragment;
+	return ( batch == 0 ? ALN_MEMORY_ERROR : ALN_NO_ERROR );
 }
 
-int aln_set_read(const aln_batch* batch, int n_frag, int n_read, const char* name, const char* seq, const char* qual, int q_offset) {
+int aln_free_reads( aln_batch * batch )
+{
+	for (int f = 0; f < batch->n_frags; ++f) {
+		for (int r = 0; r < batch->n_reads_frags; ++r) {
+			aln_read* read = aln_get_read(batch, f, r);
+			free(read->id);
+			free(read->seq);
+			free(read->qual);
+		}
+	}
+
+	free(batch->reads);
+	memset(batch, 0, sizeof(*batch));
+
+	return ALN_NO_ERROR;
+}
+
+int aln_set_read(const aln_batch* batch,
+	    int n_frag, int n_read,
+	    const char* name, const char* seq, const char* qual,
+	    int q_offset) {
 	int error_code = 0;
 
 	if (n_frag >= batch->n_frags || n_read >= batch->n_reads_frag)
 		return ALN_PARAM_ERROR;
 
-	aln_read = batch->reads[n_frag * batch->n_reads_frags + n_read];
+	aln_read* seq = aln_get_read(batch, n_frag, n_read);
 	const int name_len = strlen(name);
 	const int seq_len = strlen(seq);
 	seq->length = seq->clip_len = seq_len;
 
-	seq->seq = (ubyte_t*)malloc(seq_len);
-	seq->name = (char*)malloc(name_len+1); // +1 for \0
+	seq->seq = (char*)malloc(seq_len);
+	seq->name = (char*)malloc(name_len + 1); // +1 for \0
 	if (qual)
 		seq->qual = (ubyte_t*)malloc(seq_len);
 	else
@@ -163,7 +192,7 @@ int aln_set_read(const aln_batch* batch, int n_frag, int n_read, const char* nam
 			}
 		}
 	}
-	// j
+
 	// and finally the name
 	strcpy(seq->id, name);
 	// trim /[12]$
