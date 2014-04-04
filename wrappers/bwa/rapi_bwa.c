@@ -35,7 +35,7 @@ char* strdup(const char* str)
 int aln_init()
 {
 	// no op
-  return ALN_NO_ERROR;
+	return ALN_NO_ERROR;
 }
 
 /* Init Library Options */
@@ -73,37 +73,37 @@ int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
 	if ( NULL == ref_struct || NULL == reference_path )
 		return ALN_PARAM_ERROR;
 
-  ref_struct->_private = bwa_idx_load(reference, BWA_IDX_ALL);
+	ref_struct->_private = bwa_idx_load(reference, BWA_IDX_ALL);
 
-  if ( NULL == ref_struct->_private )
-    return ALN_REFERENCE_ERROR;
+	if ( NULL == ref_struct->_private )
+		return ALN_REFERENCE_ERROR;
  
-  ref_struct->path = strdup(reference_path);
+	ref_struct->path = strdup(reference_path);
  
-  /* Fill in Contig Information */
-  ref_struct->n_contigs = reference->handle->bns->n_seqs;	/* Handle contains bnt_seq_t * bns holding contig information */
-  ref_struct->contigs = calloc( ref_struct->n_contigs, sizeof(aln_contig) );
+	/* Fill in Contig Information */
+	ref_struct->n_contigs = reference->handle->bns->n_seqs; /* Handle contains bnt_seq_t * bns holding contig information */
+	ref_struct->contigs = calloc( ref_struct->n_contigs, sizeof(aln_contig) );
  
-  if ( NULL == ref_struct->contigs )
-  {
-    return ALN_MEMORY_ERROR;
-  }
+	if ( NULL == ref_struct->contigs )
+	{
+		return ALN_MEMORY_ERROR;
+	}
  
-  for ( int contig_loop = 0, contig_loop < ref_struct->n_contigs; contig_loop++ )
-  {
-    /* Get Name */
-    /* Each bns holds an array of bntann1_t *anns -> holding 	
-     	int64_t offset;
-	int32_t len;
-	int32_t n_ambs;
-	uint32_t gi;
-	char *name, *anno;
-    */
-    ref_struct->contigs[ contig_loop ].name = reference->handle->bns->anns[ contig_loop ].name;
-    ref_struct->contigs[ contig_loop ].len =  reference->handle->bns->anns[ contig_loop ].len;
-  }
+	for ( int contig_loop = 0, contig_loop < ref_struct->n_contigs; contig_loop++ )
+	{
+		/* Get Name */
+		/* Each bns holds an array of bntann1_t *anns -> holding
+		     int64_t offset;
+		     int32_t len;
+		     int32_t n_ambs;
+		     uint32_t gi;
+		     char *name, *anno;
+		*/
+		ref_struct->contigs[ contig_loop ].name = reference->handle->bns->anns[ contig_loop ].name;
+		ref_struct->contigs[ contig_loop ].len = reference->handle->bns->anns[ contig_loop ].len;
+	}
 
-  return ALN_NO_ERROR;
+	return ALN_NO_ERROR;
 }
 
 /* Free Reference */
@@ -111,10 +111,10 @@ int aln_free_ref( aln_ref * ref_struct )
 {
 	free(ref_struct->path);
 
-  for ( int contig_loop = 0, contig_loop < ref_struct->n_contigs; contig_loop++ )
-  {
-    free (  ref_struct->contigs );
-  }
+	for ( int contig_loop = 0, contig_loop < ref_struct->n_contigs; contig_loop++ )
+	{
+		free (	ref_struct->contigs );
+	}
 }
 
 /* Allocate reads */
@@ -147,9 +147,9 @@ int aln_free_reads( aln_batch * batch )
 }
 
 int aln_set_read(const aln_batch* batch,
-	    int n_frag, int n_read,
-	    const char* name, const char* seq, const char* qual,
-	    int q_offset) {
+			int n_frag, int n_read,
+			const char* name, const char* seq, const char* qual,
+			int q_offset) {
 	int error_code = 0;
 
 	if (n_frag >= batch->n_frags || n_read >= batch->n_reads_frag)
@@ -167,7 +167,7 @@ int aln_set_read(const aln_batch* batch,
 	else
 		seq->qual = NULL;
 
-	if (seq->seq  == NULL || seq->name ==  NULL || (seq->qual ==  NULL && qual != NULL))
+	if (seq->seq == NULL || seq->name == NULL || (seq->qual == NULL && qual != NULL))
 	{
 		fprintf(stderr, "Unable to allocate memory for sequence\n");
 		error_code = ALN_MEMORY_ERROR;
@@ -206,3 +206,12 @@ error:
 	free(seq->seq); free(seq->id); free(seq->qual);
 	return error_code;
 }
+
+int aln_align_reads( aln_batch * batch, const aln_opts * config )
+{
+	// traslate our read structure into BWA reads
+
+	// run the alignment
+	// translate BWA's results back into our structure.
+}
+
