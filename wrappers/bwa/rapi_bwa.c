@@ -2,8 +2,9 @@
  * rapi_bwa.c
  */
 
-#include "aligner.h"
-#include "bwamem.h"
+#include <aligner.h>
+#include <bwamem.h>
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
