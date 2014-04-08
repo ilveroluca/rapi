@@ -110,11 +110,17 @@ int main(int argc, const char* argv[])
 	fprintf(stderr, "\tn_frags: %d; n_reads_frag: %d\n",
 			reads.n_frags, reads.n_reads_frag);
 
-	//error = aln_align_reads(&reads, &opts);
-	//check_error(error, "Failed to align reads!");
+	aln_aligner_state* state;
+	error	= aln_init_aligner_state(&opts, &state);
+	check_error(error, "Failed to initialize aligner state");
+	fprintf(stderr, "initialized aligner state\n");
 
-	//fprintf(stderr, "Reads aligned\n");
+	error = aln_align_reads(&ref, &reads, &opts, state);
+	check_error(error, "Failed to align reads!");
 
+	fprintf(stderr, "Reads aligned\n");
+
+	aln_free_aligner_state(state);
 	aln_free_ref(&ref);
 	aln_free_reads(&reads);
 	aln_free_opts(&opts);

@@ -12,10 +12,11 @@
 /* Error types */
 #define ALN_NO_ERROR                     0
 #define ALN_GENERIC_ERROR               -1
+#define ALN_OP_NOT_SUPPORTED_ERROR      -2
+
 #define ALN_REFERENCE_ERROR            -10
 
-#define ALN_ALIGNMENT_OK                 0
-#define ALN_ALIGNMENT_TAG_NOT_EXISTING -20
+#define ALN_TAG_NOT_EXISTING           -20
 
 #define ALN_MEMORY_ERROR               -30
 #define ALN_PARAM_ERROR                -40
@@ -80,7 +81,12 @@ typedef struct {
 	int isize_min;
 	int isize_max;
 	/* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
-	/* Aligner specific parameters */
+
+	/* Aligner specific parameters in 'parameters' list.
+	 * LP: I'm thinking we might want to drop this list in favour
+	 * of letting the user set aligner-specific options through the
+	 * _private structure below.
+	 */
 	int n_parameters;
 	aln_kv * parameters;
 
@@ -180,15 +186,29 @@ int aln_free_ref( aln_ref * ref_struct );
 /* Allocate reads */
 int aln_alloc_reads( aln_batch * batch, int n_reads_fragment, int n_fragments );
 
-/* set read data */
+/**
+ * Set read data within a batch.
+ *
+ * \param n_frag 0-based fragment number
+ * \param n_read 0-based read number
+ * \param id read name (NULL-terminated)
+ * \param seq base sequence (NULL-terminated)
+ * \param qual per-base quality, or NULL
+ * \param q_offset offset from 0 for the base quality values (e.g., 33 for Sanger, 0 for byte values)
+ */
 int aln_set_read(aln_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
 /* Free reads */
 int aln_free_reads( aln_batch * batch );
 
 /* Align */
-int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * config );
+typedef struct aln_aligner_state aln_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
+int aln_init_aligner_state(const aln_opts* opts, struct aln_aligner_state** ret_state);
+
+int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * config, aln_aligner_state* state );
+
+int aln_free_aligner_state(struct aln_aligner_state* state);
 
 
 inline aln_read* aln_get_read(const aln_batch* batch, int n_fragment, int n_read) {
