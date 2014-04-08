@@ -77,7 +77,6 @@ typedef struct {
 	int ignore_unsupported;
 	/* Standard Ones - Differently implemented by aligners*/
 	int mapq_min;
-	int trim_quality;
 	int isize_min;
 	int isize_max;
 	/* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
@@ -152,7 +151,6 @@ typedef struct {
 	char * seq;
 	uint8_t * qual;
 	unsigned int length;
-	unsigned int clip_len;
 	aln_alignment alignment;
 } aln_read;
 

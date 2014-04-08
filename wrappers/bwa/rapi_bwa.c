@@ -60,7 +60,6 @@ int aln_init_opts( aln_opts * my_opts )
 	my_opts->_private = bwa_opt; // hand the bwa structure onto the external one
 	my_opts->ignore_unsupported = 1;
 	my_opts->mapq_min     = 0;
-	my_opts->trim_quality = 0;
 	my_opts->isize_min    = 0;
 	my_opts->isize_max    = bwa_opt->max_ins;
 	my_opts->n_parameters = 0;
@@ -183,7 +182,7 @@ int aln_set_read(aln_batch* batch,
 	aln_read* read = aln_get_read(batch, n_frag, n_read);
 	const int name_len = strlen(name);
 	const int seq_len = strlen(seq);
-	read->length = read->clip_len = seq_len;
+	read->length = seq_len;
 
 	read->seq = (char*)malloc(seq_len);
 	read->id = (char*)malloc(name_len + 1); // +1 for \0
