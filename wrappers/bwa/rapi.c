@@ -100,7 +100,7 @@ int main(int argc, const char* argv[])
 	for (int f = 0; f < reads.n_frags; ++f) {
 		const char* read_id = read_pair[f][0];
 		for (int r = 0; r < reads.n_reads_frag; ++r) {
-			fprintf(stderr, "setting read (%d, %d, %s, %s, %s\n", f, r, read_id, read_pair[f][1 + 2*r], read_pair[f][2 + 2*r]);
+			fprintf(stderr, "setting read (%d, %d, %s, %s, %s\n)", f, r, read_id, read_pair[f][1 + 2*r], read_pair[f][2 + 2*r]);
 			error = aln_set_read(&reads, f, r, read_id, read_pair[f][1 + 2*r], read_pair[f][2 + 2*r], ALN_QUALITY_ENCODING_SANGER);
 			check_error(error, "Failed to set read");
 		}
