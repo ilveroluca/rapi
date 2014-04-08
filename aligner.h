@@ -105,7 +105,7 @@ typedef struct {
 	char * species;
 	char * uri;
 } aln_contig;
-	
+
 typedef struct {
 	char * path;
 	int n_contigs;

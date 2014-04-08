@@ -145,7 +145,7 @@ int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
 		memset(ref_struct, 0, sizeof(*ref_struct));
 		return ALN_MEMORY_ERROR;
 	}
- 
+
 	/* Fill in Contig Information */
 	ref_struct->n_contigs = bwa_idx->bns->n_seqs; /* Handle contains bnt_seq_t * bns holding contig information */
 	for ( int i = 0; i < ref_struct->n_contigs; ++i )
@@ -246,7 +246,7 @@ static int _batch_to_bwa_seq(const aln_batch* batch, const aln_opts* opts, bwa_b
 			// As we build the objects n_reads keeps the actual number
 			// constructed thus far and thus can be used to free the allocated
 			// structres in case of error.
-			bwa_seqs->n_reads += 1; 
+			bwa_seqs->n_reads += 1;
 			bwa_seqs->n_bases += rapi_read->length;
 		}
 	}
@@ -354,7 +354,7 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 	//mem_alnreg_v bwa_alignment;
 	//bwa_alignment = mem_align1(bwa_opt, bwa_idx->bwt, bwa_idx->bns, bwa_idx->pac, ks->seq.l, ks->seq.s); // get all the hits
 	// translate BWA's results back into our structure.
-	
+
 	_free_bwa_batch_contents(&bwa_seqs);
 
 	return ALN_NO_ERROR;
