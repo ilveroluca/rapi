@@ -4,6 +4,9 @@
 
 #include "../../aligner.h"
 #include <bwamem.h>
+#include <kstring.h>
+#include <kvec.h>
+#include <utils.h>
 
 #include <string.h>
 #include <stdio.h>
@@ -205,7 +208,8 @@ int aln_kv_free_list(aln_kv* list) {
 	return ALN_NO_ERROR;
 }
 
-#if 1 // strdup is not defined if we compile with c99
+#if 0 // strdup is not defined if we compile with c99, but is when I include kvec.h.
+// Is there a preprocessor DEFINE I can use to test whether a function is defined?
 char* strdup(const char* str)
 {
 	if (NULL == str)
@@ -465,111 +469,45 @@ int aln_free_aligner_state(aln_aligner_state* state)
 }
 
 /********** modified BWA code *****************/
+
+/* Copied directly from bwamem_pair */
+inline int mem_infer_dir(int64_t l_pac, int64_t b1, int64_t b2, int64_t *dist)
+{
+	int64_t p2;
+	int r1 = (b1 >= l_pac), r2 = (b2 >= l_pac);
+	p2 = r1 == r2? b2 : (l_pac<<1) - 1 - b2; // p2 is the coordinate of read 2 on the read 1 strand
+	*dist = p2 > b1? p2 - b1 : b1 - p2;
+	return (r1 == r2? 0 : 1) ^ (p2 > b1? 0 : 3);
+}
+
+
 extern mem_alnreg_v mem_align1_core(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bns, const uint8_t *pac, int l_seq, char *seq);
 // IMPORTANT: must run mem_sort_and_dedup() before calling mem_mark_primary_se function (but it's called by mem_align1_core)
 void mem_mark_primary_se(const mem_opt_t *opt, int n, mem_alnreg_t *a, int64_t id);
 
-typedef struct {
-	const mem_opt_t *opt;
-	const aln_ref* rapi_ref;
-	const bwa_batch* read_batch;
-	mem_pestat_t *pes;
-	mem_alnreg_v *regs;
-	int64_t n_processed;
-} bwa_worker_t;
-
-/*
- * This function is the same as worker1 from bwamem.c
- */
-static void bwa_worker_1(void *data, int i, int tid)
-{
-	bwa_worker_t *w = (bwa_worker_t*)data;
-#if TEST
-	fprintf(stderr, "bwa_worker_1 with i %d\n", i);
-	fprintf(stderr, "w->opt = %p;          \n" ,  w->opt        );
-	fprintf(stderr, "w->read_batch = %p;   \n" ,  w->read_batch );
-	fprintf(stderr, "w->regs =  %p;        \n" ,  w->regs       );
-	fprintf(stderr, "w->pes = %p;          \n" ,  w->pes        );
-	fprintf(stderr, "w->n_processed = %ld;  \n" , w->n_processed);
-
-	fprintf(stderr, "alignment ref path = %s\n" , w->rapi_ref->path);
-	fprintf(stderr, "It has %d contigs\n" , w->rapi_ref->n_contigs);
-	for (int i = 0; i < w->rapi_ref->n_contigs; ++i)
-		fprintf(stderr, "%d: %s\n", i, w->rapi_ref->contigs[i].name);
-
-	fprintf(stderr, "opt->flag is %d\n", w->opt->flag);
-#endif
-	const bwaidx_t* const bwaidx = (bwaidx_t*)(w->rapi_ref->_private);
-	const bwt_t*    const bwt    = bwaidx->bwt;
-	const bntseq_t* const bns    = bwaidx->bns;
-	const uint8_t*  const pac    = bwaidx->pac;
-
-	fprintf(stderr, "bwa_worker_1: MEM_F_PE is %sset\n", ((w->opt->flag & MEM_F_PE) == 0 ? "not " : " "));
-	if (w->opt->flag & MEM_F_PE) {
-		int read = 2*i;
-		int mate = 2*i + 1;
-#if TEST
-		fprintf(stderr, "Read: %d: \n", read);
-		fprintf(stderr, "(%d)  %s\n", w->read_batch->seqs[read].l_seq, w->read_batch->seqs[read].seq);
-		fprintf(stderr, "mate: %d: \n", mate);
-		fprintf(stderr, "(%d)  %s\n", w->read_batch->seqs[mate].l_seq, w->read_batch->seqs[mate].seq);
-#endif
-		w->regs[read] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[read].l_seq, w->read_batch->seqs[read].seq);
-		w->regs[mate] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[mate].l_seq, w->read_batch->seqs[mate].seq);
-	} else {
-		w->regs[i] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[i].l_seq, w->read_batch->seqs[i].seq);
-	}
-}
-
-/* based on worker2 from bwamem.c */
-static void bwa_worker_2(void *data, int i, int tid)
-{
-	bwa_worker_t *w = (bwa_worker_t*)data;
-	fprintf(stderr, "bwa_worker_2 with i %d\n", i);
-
-	const bwaidx_t* const bwaidx = (bwaidx_t*)(w->rapi_ref->_private);
-	const bntseq_t* const bns    = bwaidx->bns;
-	const uint8_t*  const pac    = bwaidx->pac;
-
-	if ((w->opt->flag & MEM_F_PE)) {
-		// paired end
-		//mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
-		_bwa_mem_pe(w->opt, w->bns, w->pac, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]:, &w->regs[2 * i]);
-		//free(w->regs[i<<1|0].a); free(w->regs[i<<1|1].a);
-	}
-	else {
-		// single end
-		mem_mark_primary_se(w->opt, w->regs[i].n, w->regs[i].a, w->n_processed + i);
-		//mem_reg2sam_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
-		//_mem_reg2_rapi_aln_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
-		//free(w->regs[i].a);
-	}
-}
-
-#if 0
 /* based on mem_aln2sam */
-static int _bwa_aln_to_rapi_aln(const aln_ref* our_ref, aln_read* our_read, int is_paired,
+static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int is_paired,
 		const bseq1_t *s,
 		const mem_aln_t *const bwa_aln_list, int list_length)
 {
-	const bntseq_t *const bns = (bwaidx_t*)rapi_ref->_private->bns;
+	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
 	if (list_length < 0)
 		return ALN_PARAM_ERROR;
 
-	our_read->alignment = calloc(list_length, sizeof(aln_alignment));
-	if (NULL == our_read->alignment)
+	our_read->alignments = calloc(list_length, sizeof(aln_alignment));
+	if (NULL == our_read->alignments)
 		return ALN_MEMORY_ERROR;
 	our_read->n_alignments = list_length;
 
 	for (int which = 0; which < list_length; ++which)
 	{
-		const mem_aln_t* bwa_aln = &list[which];
-		aln_alignment* our_aln = &our_read->alignment[which];
+		const mem_aln_t* bwa_aln = &bwa_aln_list[which];
+		aln_alignment* our_aln = &our_read->alignments[which];
 
-		if (bwa_aln->rid >= our_ref->n_contigs) { // huh?? Out of bounds
-			fprintf(stderr, "read reference id value %d is out of bounds (n_contigs: %d)\n", bwa_aln->rid, our_ref->n_contigs);
-			free(our_read->alignment);
-			our_read->alignment = our_read->n_alignments = 0;
+		if (bwa_aln->rid >= rapi_ref->n_contigs) { // huh?? Out of bounds
+			fprintf(stderr, "read reference id value %d is out of bounds (n_contigs: %d)\n", bwa_aln->rid, rapi_ref->n_contigs);
+			free(our_read->alignments);
+			our_read->alignments = NULL; our_read->n_alignments = 0;
 			return ALN_GENERIC_ERROR;
 		}
 
@@ -579,12 +517,12 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* our_ref, aln_read* our_read, int 
 		our_aln->prop_paired = 0;
 		our_aln->score = bwa_aln->score;
 		our_aln->mapq = bwa_aln->mapq;
-		our_aln->secondary_aln = bwa_aln->flag & 0x100 != 0;
+		our_aln->secondary_aln = (bwa_aln->flag & 0x100) != 0;
 
 		our_aln->mapped = bwa_aln->rid >= 0;
 		if (bwa_aln->rid >= 0) { // with coordinate
 			our_aln->reverse_strand = bwa_aln->is_rev != 0;
-			our_aln->contig = our_ref->contigs[bwa_aln->rid];
+			our_aln->contig = &rapi_ref->contigs[bwa_aln->rid];
 			our_aln->pos = bwa_aln->pos + 1;
 			our_aln->n_mismatches = bwa_aln->NM;
 			/* TODO: convert cigars
@@ -600,8 +538,8 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* our_ref, aln_read* our_read, int 
 			our_aln->cigar_ops = NULL;
 			our_aln->n_cigar_ops = 0;
 			// TODO: convert mismatch string MD
-			our_aln->mm_def = NULL;
-			our_aln->n_mm_defs = 0;
+			our_aln->mm_ops = NULL;
+			our_aln->n_mm_ops = 0;
 		}
 
 		// TODO: extra tags
@@ -612,13 +550,13 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* our_ref, aln_read* our_read, int 
 		/* this section outputs other primary hits in the SA tag
 		if (!(bwa_aln->flag & 0x100)) { // not multi-hit
 			for (i = 0; i < n; ++i)
-				if (i != which && !(list[i].flag&0x100)) break;
+				if (i != which && !(bwa_aln_list[i].flag&0x100)) break;
 			if (i < n) { // there are other primary hits; output them
 				kputsn("\tSA:Z:", 6, str);
 				for (i = 0; i < n; ++i) {
-					const mem_aln_t *r = &list[i];
+					const mem_aln_t *r = &bwa_aln_list[i];
 					int k;
-					if (i == which || (list[i].flag&0x100)) continue; // proceed if: 1) different from the current; 2) not shadowed multi hit
+					if (i == which || (bwa_aln_list[i].flag&0x100)) continue; // proceed if: 1) different from the current; 2) not shadowed multi hit
 					kputs(bns->anns[r->rid].name, str); kputc(',', str);
 					kputl(r->pos+1, str); kputc(',', str);
 					kputc("+-"[r->is_rev], str); kputc(',', str);
@@ -636,17 +574,16 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* our_ref, aln_read* our_read, int 
 	return ALN_NO_ERROR;
 }
 
-
 /*
  * Based on mem_reg2sam_se.
  * We took out the call to mem_aln2sam and instead write the result to
  * the corresponding aln_read structure.
  */
-static int _mem_reg2_rapi_aln_se(const mem_opt_t *opt, aln_read* our_read, const aln_ref* rapi_ref, bseq1_t *seq, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m)
+static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const aln_ref* rapi_ref, aln_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m)
 {
 	int error = ALN_NO_ERROR;
-	const bntseq_t *const bns = (bwaidx_t*)rapi_ref->_private->bns;
-	const uint8_t *const pac = (bwaidx_t*)rapi_ref->_private->pac;
+	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
+	const uint8_t *const pac = ((bwaidx_t*)rapi_ref->_private)->pac;
 
 	kvec_t(mem_aln_t) aa;
 	int k;
@@ -686,19 +623,22 @@ static int _mem_reg2_rapi_aln_se(const mem_opt_t *opt, aln_read* our_read, const
 	return error;
 }
 
-#endif
 
 #if 1
 #define raw_mapq(diff, a) ((int)(6.02 * (diff) / (a) + .499))
 /*
  * Mostly taken from mem_sam_pe in bwamem_pair.c
  */
-int _bwa_mem_pe(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, const mem_pestat_t pes[4], uint64_t id, bseq1_t s[2], mem_alnreg_v a[2])
+int _bwa_mem_pe(const mem_opt_t *opt, const aln_ref* rapi_ref, const mem_pestat_t pes[4], uint64_t id, bseq1_t s[2], mem_alnreg_v a[2], aln_read out[2])
 {
+	// functions defined in bwamem.c or bwamem_pair.c
 	extern void mem_mark_primary_se(const mem_opt_t *opt, int n, mem_alnreg_t *a, int64_t id);
 	extern int mem_approx_mapq_se(const mem_opt_t *opt, const mem_alnreg_t *a);
-	extern void mem_reg2sam_se(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, bseq1_t *s, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m);
-	extern void mem_aln2sam(const bntseq_t *bns, kstring_t *str, bseq1_t *s, int n, const mem_aln_t *list, int which, const mem_aln_t *m);
+	extern int mem_matesw(const mem_opt_t *opt, int64_t l_pac, const uint8_t *pac, const mem_pestat_t pes[4], const mem_alnreg_t *a, int l_ms, const uint8_t *ms, mem_alnreg_v *ma);
+	extern int mem_pair(const mem_opt_t *opt, int64_t l_pac, const uint8_t *pac, const mem_pestat_t pes[4], bseq1_t s[2], mem_alnreg_v a[2], int id, int *sub, int *n_sub, int z[2]);
+
+	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
+	const uint8_t *const pac = ((bwaidx_t*)rapi_ref->_private)->pac;
 
 	int n = 0, i, j, z[2], o, subo, n_sub, extra_flag = 1;
 	kstring_t str;
@@ -758,13 +698,22 @@ int _bwa_mem_pe(const mem_opt_t *opt, const bntseq_t *bns, const uint8_t *pac, c
 			q_se[0] = mem_approx_mapq_se(opt, &a[0].a[0]);
 			q_se[1] = mem_approx_mapq_se(opt, &a[1].a[0]);
 		}
+
 		// write SAM
 		h[0] = mem_reg2aln(opt, bns, pac, s[0].l_seq, s[0].seq, &a[0].a[z[0]]); h[0].mapq = q_se[0]; h[0].flag |= 0x40 | extra_flag;
 		h[1] = mem_reg2aln(opt, bns, pac, s[1].l_seq, s[1].seq, &a[1].a[z[1]]); h[1].mapq = q_se[1]; h[1].flag |= 0x80 | extra_flag;
-		mem_aln2sam(bns, &str, &s[0], 1, &h[0], 0, &h[1]); s[0].sam = strdup(str.s); str.l = 0;
-		mem_aln2sam(bns, &str, &s[1], 1, &h[1], 0, &h[0]); s[1].sam = str.s;
+		// RAPI: instead of writing sam, convert mem_aln_t into our alignments
+		// XXX: I'm not so sure the alignment I'm passing in.  Review
+		int error1 = _bwa_aln_to_rapi_aln(rapi_ref, &out[0], 1, &s[0], &h[0], 1);
+		int error2 = _bwa_aln_to_rapi_aln(rapi_ref, &out[1], 1, &s[1], &h[1], 1);
+		if (error1 || error2) {
+			err_fatal(__func__, "error %d while converting BWA mem_aln_t for read %d into rapi alignments\n", (error1 ? 1 : 2), (error1 ? error1 : error2));
+			abort();
+		}
+
 		if (strcmp(s[0].name, s[1].name) != 0) err_fatal(__func__, "paired reads have different names: \"%s\", \"%s\"\n", s[0].name, s[1].name);
 		free(h[0].cigar); free(h[1].cigar);
+
 	} else goto no_pairing;
 	return n;
 
@@ -780,12 +729,99 @@ no_pairing:
 		d = mem_infer_dir(bns->l_pac, a[0].a[0].rb, a[1].a[0].rb, &dist);
 		if (!pes[d].failed && dist >= pes[d].low && dist <= pes[d].high) extra_flag |= 2;
 	}
-	mem_reg2sam_se(opt, bns, pac, &s[0], &a[0], 0x41|extra_flag, &h[1]);
-	mem_reg2sam_se(opt, bns, pac, &s[1], &a[1], 0x81|extra_flag, &h[0]);
+	h[0].flag |= 0x41|extra_flag;
+	h[1].flag |= 0x81|extra_flag;
+
+	int error1 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[0], &s[0], &a[0], 0x41|extra_flag, &h[1]);
+	int error2 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[1], &s[1], &a[1], 0x81|extra_flag, &h[0]);
+	if (error1 || error2) {
+		err_fatal(__func__, "error %d while converting *with no pairing* BWA mem_aln_t for read %d into rapi alignments\n", (error1 ? 1 : 2), (error1 ? error1 : error2));
+		abort();
+	}
+
 	if (strcmp(s[0].name, s[1].name) != 0) err_fatal(__func__, "paired reads have different names: \"%s\", \"%s\"\n", s[0].name, s[1].name);
 	free(h[0].cigar); free(h[1].cigar);
 	return n;
 }
+
+typedef struct {
+	const mem_opt_t *opt;
+	const aln_ref* rapi_ref;
+	const bwa_batch* read_batch;
+	aln_read* rapi_reads; // need to pass these along because the code to convert BWA alignments into rapi is nested pretty deep
+	mem_pestat_t *pes;
+	mem_alnreg_v *regs;
+	int64_t n_processed;
+} bwa_worker_t;
+
+/*
+ * This function is the same as worker1 from bwamem.c
+ */
+static void bwa_worker_1(void *data, int i, int tid)
+{
+	bwa_worker_t *w = (bwa_worker_t*)data;
+#if TEST
+	fprintf(stderr, "bwa_worker_1 with i %d\n", i);
+	fprintf(stderr, "w->opt = %p;          \n" ,  w->opt        );
+	fprintf(stderr, "w->read_batch = %p;   \n" ,  w->read_batch );
+	fprintf(stderr, "w->regs =  %p;        \n" ,  w->regs       );
+	fprintf(stderr, "w->pes = %p;          \n" ,  w->pes        );
+	fprintf(stderr, "w->n_processed = %ld;  \n" , w->n_processed);
+
+	fprintf(stderr, "alignment ref path = %s\n" , w->rapi_ref->path);
+	fprintf(stderr, "It has %d contigs\n" , w->rapi_ref->n_contigs);
+	for (int i = 0; i < w->rapi_ref->n_contigs; ++i)
+		fprintf(stderr, "%d: %s\n", i, w->rapi_ref->contigs[i].name);
+
+	fprintf(stderr, "opt->flag is %d\n", w->opt->flag);
+#endif
+	const bwaidx_t* const bwaidx = (bwaidx_t*)(w->rapi_ref->_private);
+	const bwt_t*    const bwt    = bwaidx->bwt;
+	const bntseq_t* const bns    = bwaidx->bns;
+	const uint8_t*  const pac    = bwaidx->pac;
+
+	fprintf(stderr, "bwa_worker_1: MEM_F_PE is %sset\n", ((w->opt->flag & MEM_F_PE) == 0 ? "not " : " "));
+	if (w->opt->flag & MEM_F_PE) {
+		int read = 2*i;
+		int mate = 2*i + 1;
+#if TEST
+		fprintf(stderr, "Read: %d: \n", read);
+		fprintf(stderr, "(%d)  %s\n", w->read_batch->seqs[read].l_seq, w->read_batch->seqs[read].seq);
+		fprintf(stderr, "mate: %d: \n", mate);
+		fprintf(stderr, "(%d)  %s\n", w->read_batch->seqs[mate].l_seq, w->read_batch->seqs[mate].seq);
+#endif
+		w->regs[read] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[read].l_seq, w->read_batch->seqs[read].seq);
+		w->regs[mate] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[mate].l_seq, w->read_batch->seqs[mate].seq);
+	} else {
+		w->regs[i] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[i].l_seq, w->read_batch->seqs[i].seq);
+	}
+}
+
+/* based on worker2 from bwamem.c */
+static void bwa_worker_2(void *data, int i, int tid)
+{
+	bwa_worker_t *w = (bwa_worker_t*)data;
+	fprintf(stderr, "bwa_worker_2 with i %d\n", i);
+
+	//const bwaidx_t* const bwaidx = (bwaidx_t*)(w->rapi_ref->_private);
+	//const bntseq_t* const bns    = bwaidx->bns;
+	//const uint8_t*  const pac    = bwaidx->pac;
+
+	if ((w->opt->flag & MEM_F_PE)) {
+		// paired end
+		//mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
+		_bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
+		free(w->regs[2 * i].a); free(w->regs[2 * i + 1].a);
+	}
+	else {
+		// single end
+		mem_mark_primary_se(w->opt, w->regs[i].n, w->regs[i].a, w->n_processed + i);
+		//mem_reg2sam_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
+		//_mem_reg2_rapi_aln_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
+		//free(w->regs[i].a);
+	}
+}
+
 #endif
 /********** end modified BWA code *****************/
 
@@ -833,6 +869,7 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 	w.pes = state->pes;
 	w.n_processed = state->n_reads_processed;
 	w.rapi_ref = ref;
+	w.rapi_reads = batch->reads;
 
 	fprintf(stderr, "w.opt = %p;          \n" ,  w.opt        );
 	fprintf(stderr, "w.read_batch = %p;   \n" ,  w.read_batch );
