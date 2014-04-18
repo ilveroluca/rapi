@@ -45,26 +45,29 @@ void print_alignments(const aln_batch* batch, FILE* out)
 
 			fprintf(out, "%s", read->id);
 
-			const aln_alignment*const aln = &read->alignment;
-			int flag = 0;
-			flag |= aln->paired         ? SAM_FPD : 0;
-			flag |= aln->prop_paired    ? SAM_FPP : 0;
-			flag |= aln->unmapped       ? SAM_FSU : 0;
-			flag |= aln->reverse_strand ? SAM_FSR : 0;
-			flag |= aln->secondary_aln  ? SAM_FSC : 0;
+			for (int a = 0; a < read->n_alignments; ++a) {
+				fprintf(out, "\tAlignment %d\t", a);
+				const aln_alignment*const aln = &read->alignments[a];
+				int flag = 0;
+				flag |= aln->paired         ? SAM_FPD : 0;
+				flag |= aln->prop_paired    ? SAM_FPP : 0;
+				flag |= (!aln->mapped)      ? SAM_FSU : 0;
+				flag |= aln->reverse_strand ? SAM_FSR : 0;
+				flag |= aln->secondary_aln  ? SAM_FSC : 0;
 
-			fprintf(out, "\t%d", flag);
-			if (aln->unmapped)
-				fprintf(out, "\t*\t*");
-			else
-				fprintf(out, "\t%s\t%ld", aln->contig, aln->pos);
+				fprintf(out, "\t%d", flag);
+				if (aln->mapped)
+					fprintf(out, "\t%s\t%ld", aln->contig->name, aln->pos);
+				else
+					fprintf(out, "\t*\t*");
 
-			fprintf(out, "\t%.*s", read->length, read->seq);
-			if (read->qual)
-				fprintf(out, "\t%.*s", read->length, read->qual);
-			else
-				fprintf(out, "\t*");
-			// more stuff... insert size and tags
+				fprintf(out, "\t%.*s", read->length, read->seq);
+				if (read->qual)
+					fprintf(out, "\t%.*s", read->length, read->qual);
+				else
+					fprintf(out, "\t*");
+				// more stuff... insert size and tags
+			}
 		}
 	}
 }
@@ -100,7 +103,7 @@ int main(int argc, const char* argv[])
 	for (int f = 0; f < reads.n_frags; ++f) {
 		const char* read_id = read_pair[f][0];
 		for (int r = 0; r < reads.n_reads_frag; ++r) {
-			fprintf(stderr, "setting read (%d, %d, %s, %s, %s\n)", f, r, read_id, read_pair[f][1 + 2*r], read_pair[f][2 + 2*r]);
+			fprintf(stderr, "setting read (%d, %d, %s, %s, %s)\n", f, r, read_id, read_pair[f][1 + 2*r], read_pair[f][2 + 2*r]);
 			error = aln_set_read(&reads, f, r, read_id, read_pair[f][1 + 2*r], read_pair[f][2 + 2*r], ALN_QUALITY_ENCODING_SANGER);
 			check_error(error, "Failed to set read");
 		}

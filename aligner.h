@@ -101,9 +101,9 @@ typedef struct {
 	char * name;
 	uint32_t len;
 	char * assembly_identifier;
-	char md5[32];
 	char * species;
 	char * uri;
+	char md5[32];
 } aln_contig;
 
 typedef struct {
@@ -130,34 +130,35 @@ typedef struct {
 
 
 typedef struct {
-	char * contig;
-	unsigned long int pos;
-	aln_kv * tags;
+	aln_contig* contig;
+	unsigned long int pos; // 1-based
 	uint8_t mapq;
+	int score; // aligner-specific score
 
 	uint8_t paired:1,
 	        prop_paired:1,
-	        unmapped:1,
+	        mapped:1,
 	        reverse_strand:1,
 	        secondary_aln:1;
 
 	uint8_t n_mismatches;
 	uint8_t n_gap_opens;
 	uint8_t n_gap_extensions;
-	uint16_t edit_distance;
 
+	aln_kv * tags;
 	aln_cigar * cigar_ops;
 	uint8_t n_cigar_ops;
-	aln_mismatch * mm_def;
-	uint8_t n_mm_defs;
+	aln_mismatch * mm_ops;
+	uint8_t n_mm_ops;
 } aln_alignment;
 
 typedef struct {
-	char * id;
-	char * seq;
-	uint8_t * qual;
+	char * id;   // NULL-terminated
+	char * seq;  // NULL-terminated
+	char * qual; // NULL-terminated, ASCII-encoded in Sanger q+33 format
 	unsigned int length;
-	aln_alignment alignment;
+	aln_alignment* alignments;
+	uint8_t n_alignments;
 } aln_read;
 
 typedef struct {
