@@ -33,123 +33,162 @@ void aln_print_read(FILE* out, const aln_read* read)
  * Format SAM for read, given the alignment at index `which_aln`
  * (currently in aln_read we only have a single alignment instead of a list,
  * so this should always be 0).
- *
- * \param str_handle ptr to ptr to a string buffer. If not allocated, then
- *     *str_handle == NULL. Else, *str_handle must point to a valid buffer
- *     of length `buflen` allocated with malloc.  It may be resized with,
- *     realloc, in which case *str_handle will be reset accordingly.
  */
-void aln_format_sam(aln_read* read, aln_read* mate, int which_aln, char**str_handle, int buflen)
+int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output)
 {
-#if 0
-	/**** code taken from mem_aln2sam in BWA ***/
-	// set flag
-	p->flag |= m? 0x1 : 0; // is paired in sequencing
-	p->flag |= p->rid < 0? 0x4 : 0; // is mapped
-	p->flag |= m && m->rid < 0? 0x8 : 0; // is mate mapped
-	if (p->rid < 0 && m && m->rid >= 0) // copy mate to alignment
-		p->rid = m->rid, p->pos = m->pos, p->is_rev = m->is_rev, p->n_cigar = 0;
-	if (m && m->rid < 0 && p->rid >= 0) // copy alignment to mate
-		m->rid = p->rid, m->pos = p->pos, m->is_rev = p->is_rev, m->n_cigar = 0;
-	p->flag |= p->is_rev? 0x10 : 0; // is on the reverse strand
-	p->flag |= m && m->is_rev? 0x20 : 0; // is mate on the reverse strand
+	/**** code based on mem_aln2sam in BWA ***/
+	aln_alignment tmp_read, tmp_mate;
 
+	if (read->n_alignments > 0)
+		tmp_read = *read->alignments;
+	else
+		memset(&tmp_read, 0, sizeof(tmp_read));
 
-	kputs(s->name, str); kputc('\t', str); // QNAME
-	kputw((p->flag&0xffff) | (p->flag&0x10000? 0x100 : 0), str); kputc('\t', str); // FLAG
-	if (p->rid >= 0) { // with coordinate
-		kputs(bns->anns[p->rid].name, str); kputc('\t', str); // RNAME
-		kputl(p->pos + 1, str); kputc('\t', str); // POS
-		kputw(p->mapq, str); kputc('\t', str); // MAPQ
-		if (p->n_cigar) { // aligned
-			for (i = 0; i < p->n_cigar; ++i) {
-				int c = p->cigar[i]&0xf;
-				if (c == 3 || c == 4) c = which? 4 : 3; // use hard clipping for supplementary alignments
-				kputw(p->cigar[i]>>4, str); kputc("MIDSH"[c], str);
-			}
-		} else kputc('*', str); // having a coordinate but unaligned (e.g. when copy_mate is true)
-	} else kputsn("*\t0\t0\t*", 7, str); // without coordinte
-	kputc('\t', str);
+	if (mate && mate->n_alignments > 0)
+		tmp_mate = *mate->alignments;
+	else
+		memset(&tmp_mate, 0, sizeof(tmp_mate));
 
-	// print the mate position if applicable
-	if (m && m->rid >= 0) {
-		if (p->rid == m->rid) kputc('=', str);
-		else kputs(bns->anns[m->rid].name, str);
-		kputc('\t', str);
-		kputl(m->pos + 1, str); kputc('\t', str);
-		if (p->rid == m->rid) {
-			int64_t p0 = p->pos + (p->is_rev? get_rlen(p->n_cigar, p->cigar) - 1 : 0);
-			int64_t p1 = m->pos + (m->is_rev? get_rlen(m->n_cigar, m->cigar) - 1 : 0);
-			if (m->n_cigar == 0 || p->n_cigar == 0) kputc('0', str);
-			else kputl(-(p0 - p1 + (p0 > p1? 1 : p0 < p1? -1 : 0)), str);
-		} else kputc('0', str);
-	} else kputsn("*\t0\t0", 5, str);
-	kputc('\t', str);
+	if (mate) {
+		tmp_read.paired = 1;
+		tmp_mate.paired = 1;
+	}
+
+	aln_alignment* aln = &tmp_read;
+	aln_alignment* mate_aln = &tmp_mate;
+
+	if (!aln->mapped && mate && mate_aln->mapped) { // copy mate position to read
+		aln->contig         = mate_aln->contig;
+		aln->pos            = mate_aln->pos;
+		aln->reverse_strand = mate_aln->reverse_strand;
+	}
+	else if (aln->mapped && mate && !mate_aln->mapped) { // copy read alignment to mate
+		mate_aln->contig         = aln->contig;
+		mate_aln->pos            = aln->pos;
+		mate_aln->reverse_strand = aln->reverse_strand;
+	}
+
+	int flag = 0;
+	//
+	// XXX: this implementation differs from BWA's behaviour when only one read in a pair is mapped.
+	// In that case, BWA copies the coordinates of the mapped read to the unmapped one.  This
+	// influences the flags printed by BWA, the coordinates and also the cigar.
+
+	flag |= (mate && !mate_aln->mapped) ? 0x8 : 0; // is mate unmapped
+	flag |= (mate && mate_aln->mapped && mate_aln->reverse_strand) ? 0x20 : 0; // is mate on the reverse strand
+
+	flag |= aln->paired ? 0x1 : 0; // is paired in sequencing
+	flag |= aln->mapped ? 0 : 0x4; // is unmapped
+
+	if (aln->mapped)
+	{
+		flag |= aln->prop_paired ? 0x2 : 0;
+		flag |= aln->reverse_strand ? 0x10 : 0; // is on the reverse strand
+		flag |= aln->secondary_aln ? 0x100 : 0; // secondary alignment
+	}
+
+	kputs(read->id, output); kputc('\t', output); // QNAME\t
+	kputw((flag & 0xffff), output); kputc('\t', output); // FLAG
+
+	if (aln->contig) { // with coordinate
+		kputs(aln->contig->name, output); kputc('\t', output); // RNAME
+		kputl(aln->pos, output); kputc('\t', output); // POS
+		kputw(aln->mapq, output); kputc('\t', output); // MAPQ
+		// XXX: BWA forces hard clipping for supplementary alignments -- i.e., additional
+		// alignments that are not marked as secondary. At the moment we're only printing
+		// the first primary alignment.
+		aln_put_cigar(aln->n_cigar_ops, aln->cigar_ops, 0, output);
+	}
+	else
+		kputsn("*\t0\t0\t*", 7, output); // unmapped
+
+	kputc('\t', output);
+
+	// print the mate chr, position, and isize if applicable
+	if (mate_aln->contig) {
+		if (aln->contig == mate_aln->contig)
+			kputc('=', output);
+		else
+			kputs(mate_aln->contig->name, output); // RNAME
+		kputc('\t', output);
+		kputl(mate_aln->pos, output); kputc('\t', output); // mate pos
+
+		if (aln->mapped && (aln->contig == mate_aln->contig))
+			kputl(aln_get_insert_size(aln, mate_aln), output);
+		else
+			kputc('0', output);
+	}
+	else
+		kputsn("*\t0\t0", 5, output);
+	kputc('\t', output);
 
 	// print SEQ and QUAL
-	if (p->flag & 0x100) { // for secondary alignments, don't write SEQ and QUAL
-		kputsn("*\t*", 3, str);
-	} else if (!p->is_rev) { // the forward strand
-		int i, qb = 0, qe = s->l_seq;
-		if (p->n_cigar) {
-			if (which && ((p->cigar[0]&0xf) == 4 || (p->cigar[0]&0xf) == 3)) qb += p->cigar[0]>>4;
-			if (which && ((p->cigar[p->n_cigar-1]&0xf) == 4 || (p->cigar[p->n_cigar-1]&0xf) == 3)) qe -= p->cigar[p->n_cigar-1]>>4;
+	if (aln->secondary_aln) { // for secondary alignments, don't write SEQ and QUAL
+		kputsn("*\t*", 3, output);
+	}
+	else {
+		int i, begin = 0, end = read->length;
+		// Trim the printed sequence -- BWA did this for supplementary alignments
+		// (those after the first in the list and not labelled as secondary 0x100)
+		// if (aln->n_cigar_ops > 0) {
+		// 	if (which && ((p->cigar[0]&0xf) == 4 || (p->cigar[0]&0xf) == 3)) qb += p->cigar[0]>>4;
+		// 	if (which && ((p->cigar[p->n_cigar-1]&0xf) == 4 || (p->cigar[p->n_cigar-1]&0xf) == 3)) qe -= p->cigar[p->n_cigar-1]>>4;
+		// }
+		// ks_resize(str, str->l + (qe - qb) + 1);
+		int resize = output->l + read->length + 1;
+		if (read->qual)
+			resize += read->length + 1; // more room for the qual sequence
+		ks_resize(output, resize);
+
+		if (!aln->reverse_strand) { // the forward strand
+			for (i = begin; i < end; ++i) output->s[output->l++] = "ACGTN"[(int)read->seq[i]];
+			kputc('\t', output);
+			if (read->qual) { // printf qual
+				for (i = begin; i < end; ++i) output->s[output->l++] = read->qual[i];
+				output->s[output->l] = 0;
+			} else kputc('*', output);
+		} else { // the reverse strand
+			for (i = begin-1; i >= begin; --i) output->s[output->l++] = "TGCAN"[(int)read->seq[i]];
+			kputc('\t', output);
+			if (read->qual) { // printf qual
+				for (i = begin-1; i >= begin; --i) output->s[output->l++] = read->qual[i];
+				output->s[output->l] = 0;
+			} else kputc('*', output);
 		}
-		ks_resize(str, str->l + (qe - qb) + 1);
-		for (i = qb; i < qe; ++i) str->s[str->l++] = "ACGTN"[(int)s->seq[i]];
-		kputc('\t', str);
-		if (s->qual) { // printf qual
-			ks_resize(str, str->l + (qe - qb) + 1);
-			for (i = qb; i < qe; ++i) str->s[str->l++] = s->qual[i];
-			str->s[str->l] = 0;
-		} else kputc('*', str);
-	} else { // the reverse strand
-		int i, qb = 0, qe = s->l_seq;
-		if (p->n_cigar) {
-			if (which && ((p->cigar[0]&0xf) == 4 || (p->cigar[0]&0xf) == 3)) qe -= p->cigar[0]>>4;
-			if (which && ((p->cigar[p->n_cigar-1]&0xf) == 4 || (p->cigar[p->n_cigar-1]&0xf) == 3)) qb += p->cigar[p->n_cigar-1]>>4;
-		}
-		ks_resize(str, str->l + (qe - qb) + 1);
-		for (i = qe-1; i >= qb; --i) str->s[str->l++] = "TGCAN"[(int)s->seq[i]];
-		kputc('\t', str);
-		if (s->qual) { // printf qual
-			ks_resize(str, str->l + (qe - qb) + 1);
-			for (i = qe-1; i >= qb; --i) str->s[str->l++] = s->qual[i];
-			str->s[str->l] = 0;
-		} else kputc('*', str);
 	}
 
 	// print optional tags
-	if (p->n_cigar) {
-		kputsn("\tNM:i:", 6, str); kputw(p->NM, str);
-		kputsn("\tMD:Z:", 6, str); kputs((char*)(p->cigar + p->n_cigar), str);
+	if (aln->n_cigar_ops > 0) {
+		kputsn("\tNM:i:", 6, output); kputw(aln->n_mismatches, output);
+		//kputsn("\tMD:Z:", 6, output); kputs((char*)(p->cigar + p->n_cigar), str);
 	}
-	if (p->score >= 0) { kputsn("\tAS:i:", 6, str); kputw(p->score, str); }
-	if (p->sub >= 0) { kputsn("\tXS:i:", 6, str); kputw(p->sub, str); }
-	if (bwa_rg_id[0]) { kputsn("\tRG:Z:", 6, str); kputs(bwa_rg_id, str); }
-	if (!(p->flag & 0x100)) { // not multi-hit
-		for (i = 0; i < n; ++i)
-			if (i != which && !(list[i].flag&0x100)) break;
-		if (i < n) { // there are other primary hits; output them
-			kputsn("\tSA:Z:", 6, str);
-			for (i = 0; i < n; ++i) {
-				const mem_aln_t *r = &list[i];
-				int k;
-				if (i == which || (list[i].flag&0x100)) continue; // proceed if: 1) different from the current; 2) not shadowed multi hit
-				kputs(bns->anns[r->rid].name, str); kputc(',', str);
-				kputl(r->pos+1, str); kputc(',', str);
-				kputc("+-"[r->is_rev], str); kputc(',', str);
-				for (k = 0; k < r->n_cigar; ++k) {
-					kputw(r->cigar[k]>>4, str); kputc("MIDSH"[r->cigar[k]&0xf], str);
-				}
-				kputc(',', str); kputw(r->mapq, str);
-				kputc(',', str); kputw(r->NM, str);
-				kputc(';', str);
-			}
-		}
-	}
-	if (s->comment) { kputc('\t', str); kputs(s->comment, str); }
-#endif
+	if (aln->score >= 0) { kputsn("\tAS:i:", 6, output); kputw(aln->score, output); }
+	//if (p->sub >= 0) { kputsn("\tXS:i:", 6, str); kputw(p->sub, str); }
+	//if (bwa_rg_id[0]) { kputsn("\tRG:Z:", 6, str); kputs(bwa_rg_id, str); }
+	//if (!(aln->flag & 0x100)) { // not multi-hit
+	//	for (i = 0; i < n; ++i)
+	//		if (i != which && !(list[i].flag&0x100)) break;
+	//	if (i < n) { // there are other primary hits; output them
+	//		kputsn("\tSA:Z:", 6, str);
+	//		for (i = 0; i < n; ++i) {
+	//			const mem_aln_t *r = &list[i];
+	//			int k;
+	//			if (i == which || (list[i].flag&0x100)) continue; // proceed if: 1) different from the current; 2) not shadowed multi hit
+	//			kputs(bns->anns[r->rid].name, str); kputc(',', str);
+	//			kputl(r->pos+1, str); kputc(',', str);
+	//			kputc("+-"[r->is_rev], str); kputc(',', str);
+	//			for (k = 0; k < r->n_cigar; ++k) {
+	//				kputw(r->cigar[k]>>4, str); kputc("MIDSH"[r->cigar[k]&0xf], str);
+	//			}
+	//			kputc(',', str); kputw(r->mapq, str);
+	//			kputc(',', str); kputw(r->NM, str);
+	//			kputc(';', str);
+	//		}
+	//	}
+	//}
+	//if (s->comment) { kputc('\t', str); kputs(s->comment, str); }
+
+	return ALN_NO_ERROR;
 }
 
 /**********************************/
@@ -468,6 +507,37 @@ int aln_free_aligner_state(aln_aligner_state* state)
 	return ALN_NO_ERROR;
 }
 
+void aln_put_cigar(int n_ops, const aln_cigar* ops, int force_hard_clip, kstring_t* output)
+{
+	if (n_ops > 0) {
+		for (int i = 0; i < n_ops; ++i) {
+			int c = ops[i].op;
+			if (c == 3 || c == 4) c = force_hard_clip ? 4 : 3;
+			kputw(ops[i].len, output);
+			kputc("MIDSH"[c], output);
+		}
+	}
+	else
+		kputc('*', output);
+}
+
+long aln_get_insert_size(const aln_alignment* read, const aln_alignment* mate)
+{
+	long isize = 0;
+
+	if (read->mapped && mate->mapped && (read->contig == mate->contig))
+	{
+		if (mate->n_cigar_ops == 0 || read->n_cigar_ops == 0)
+			err_fatal(__func__, "No cigar ops for mapped reads! aln->n_cigar_ops: %d; mate_aln->n_cigar_ops: %d\n", read->n_cigar_ops, mate->n_cigar_ops);
+
+		int64_t p0 = read->pos + (read->reverse_strand ? aln_get_rlen(read->n_cigar_ops, read->cigar_ops) - 1 : 0);
+		int64_t p1 = mate->pos + (mate->reverse_strand ? aln_get_rlen(mate->n_cigar_ops, mate->cigar_ops) - 1 : 0);
+		isize = -(p0 - p1 + (p0 > p1? 1 : p0 < p1? -1 : 0));
+	}
+	return isize;
+}
+
+
 /********** modified BWA code *****************/
 
 /* Copied directly from bwamem_pair */
@@ -490,7 +560,6 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 		const bseq1_t *s,
 		const mem_aln_t *const bwa_aln_list, int list_length)
 {
-	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
 	if (list_length < 0)
 		return ALN_PARAM_ERROR;
 
@@ -517,7 +586,9 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 		our_aln->prop_paired = 0;
 		our_aln->score = bwa_aln->score;
 		our_aln->mapq = bwa_aln->mapq;
-		our_aln->secondary_aln = (bwa_aln->flag & 0x100) != 0;
+		// In BWA's code (e.g., mem_aln2sam) when the 0x10000 bit is set the alignment
+		// is printed as a secondary alignment (i.e., the 0x100 bit is set in the flag).
+		our_aln->secondary_aln = ((bwa_aln->flag & 0x100) | (bwa_aln->flag & 0x10000)) != 0;
 
 		our_aln->mapped = bwa_aln->rid >= 0;
 		if (bwa_aln->rid >= 0) { // with coordinate
@@ -802,24 +873,24 @@ static void bwa_worker_2(void *data, int i, int tid)
 {
 	bwa_worker_t *w = (bwa_worker_t*)data;
 	fprintf(stderr, "bwa_worker_2 with i %d\n", i);
-
-	//const bwaidx_t* const bwaidx = (bwaidx_t*)(w->rapi_ref->_private);
-	//const bntseq_t* const bns    = bwaidx->bns;
-	//const uint8_t*  const pac    = bwaidx->pac;
+	int error = ALN_NO_ERROR;
 
 	if ((w->opt->flag & MEM_F_PE)) {
 		// paired end
 		//mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
-		_bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
+		error = _bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
 		free(w->regs[2 * i].a); free(w->regs[2 * i + 1].a);
 	}
 	else {
 		// single end
 		mem_mark_primary_se(w->opt, w->regs[i].n, w->regs[i].a, w->n_processed + i);
 		//mem_reg2sam_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
-		//_mem_reg2_rapi_aln_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
-		//free(w->regs[i].a);
+		//error = _mem_reg2_rapi_aln_se(w->opt, w->rapi_ref, &(w->read_batch->seqs[i]), &w->regs[i], &(w->rapi_reads[i]), 0, 0);
+		free(w->regs[i].a);
 	}
+
+	if (error != ALN_NO_ERROR)
+		err_fatal(__func__, "error %d while running %s end alignments\n", error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
 }
 
 #endif
@@ -889,17 +960,9 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 	kt_for(bwa_opt->n_threads, bwa_worker_2, &w, n_fragments); // generate alignment
 
 	// run the alignment
-	//mem_process_seqs(bwa_opt, bwa_idx->bwt, bwa_idx->bns, bwa_idx->pac, state->n_reads_processed, bwa_seqs.n_reads, bwa_seqs.seqs, &state->pes0);
-
 	state->n_reads_processed += bwa_seqs.n_reads;
 	fprintf(stderr, "processed %ld reads\n", state->n_reads_processed);
 
-	// print the SAM generated by BWA
-	//for (int i = 0; i < bwa_seqs.n_reads; ++i)
-	//	fprintf(stderr, "%s\n", bwa_seqs.seqs[i].sam);
-
-	//mem_alnreg_v bwa_alignment;
-	//bwa_alignment = mem_align1(bwa_opt, bwa_idx->bwt, bwa_idx->bns, bwa_idx->pac, ks->seq.l, ks->seq.s); // get all the hits
 	// translate BWA's results back into our structure.
 
 clean_up:

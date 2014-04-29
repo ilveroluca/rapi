@@ -2,6 +2,7 @@
 
 #include "../../aligner.h"
 
+#include <kstring.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -72,7 +73,6 @@ void print_alignments(const aln_batch* batch, FILE* out)
 	}
 }
 
-
 int main(int argc, const char* argv[])
 {
 	int error = 0;
@@ -121,7 +121,34 @@ int main(int argc, const char* argv[])
 	error = aln_align_reads(&ref, &reads, &opts, state);
 	check_error(error, "Failed to align reads!");
 
-	fprintf(stderr, "Reads aligned\n");
+	fprintf(stderr, "Reads aligned.  Now printing\n");
+
+	kstring_t sam_buffer = { 0, 0, NULL };
+	aln_read* read = NULL;
+	aln_read* mate = NULL;
+
+	for (int frag = 0; frag < reads.n_frags; ++frag) {
+		sam_buffer.l = 0;
+		if (reads.n_reads_frag == 1) {
+			// SE
+			read = reads.reads + frag;
+			mate = NULL;
+			aln_format_sam(read, mate, &sam_buffer);
+			printf("%.*s\n", (int)sam_buffer.l, sam_buffer.s);
+		}
+		else if (reads.n_reads_frag == 2) {
+			// PE
+			read = reads.reads + (2 * frag);
+			mate = reads.reads + (2 * frag + 1);
+			aln_format_sam(read, mate, &sam_buffer);
+			printf("%.*s\n", (int)sam_buffer.l, sam_buffer.s);
+			sam_buffer.l = 0;
+			aln_format_sam(mate, read, &sam_buffer);
+			printf("%.*s\n", (int)sam_buffer.l, sam_buffer.s);
+		}
+		else
+			check_error(1, "Unsupported number of reads per fragment!"); // TODO: weak error message!
+	}
 
 	aln_free_aligner_state(state);
 	aln_free_ref(&ref);
