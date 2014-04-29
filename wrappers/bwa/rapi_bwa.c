@@ -596,18 +596,16 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 			our_aln->contig = &rapi_ref->contigs[bwa_aln->rid];
 			our_aln->pos = bwa_aln->pos + 1;
 			our_aln->n_mismatches = bwa_aln->NM;
-			/* TODO: convert cigars
 			if (bwa_aln->n_cigar) { // aligned
-				for (i = 0; i < bwa_aln->n_cigar; ++i) {
-					int c = bwa_aln->cigar[i]&0xf;
-					if (c == 3 || c == 4) c = which? 4 : 3; // use hard clipping for supplementary alignments
-					kputw(bwa_aln->cigar[i]>>4, str); kputc("MIDSH"[c], str);
+				our_aln->cigar_ops = malloc(bwa_aln->n_cigar * sizeof(our_aln->cigar_ops[0]));
+				if (NULL == our_aln->cigar_ops)
+					err_fatal(__func__, "Failed to allocate cigar space");
+				our_aln->n_cigar_ops = bwa_aln->n_cigar;
+				for (int i = 0; i < bwa_aln->n_cigar; ++i) {
+					our_aln->cigar_ops[i].op = bwa_aln->cigar[i]&0xf;
+					our_aln->cigar_ops[i].len = bwa_aln->cigar[i] >> 4;
 				}
-			} else kputc('*', str); // having a coordinate but unaligned (e.g. when copy_mate is true)
-			*/
-			// setting NULL is redundant since we did a memset earlier
-			our_aln->cigar_ops = NULL;
-			our_aln->n_cigar_ops = 0;
+			}
 			// TODO: convert mismatch string MD
 			our_aln->mm_ops = NULL;
 			our_aln->n_mm_ops = 0;
