@@ -155,7 +155,7 @@ typedef struct {
 
 typedef struct {
 	char * id;   // NULL-terminated
-	char * seq;  // NULL-terminated
+	char * seq;  // NULL-terminated, capital letters in [AGCTN]
 	char * qual; // NULL-terminated, ASCII-encoded in Sanger q+33 format
 	unsigned int length;
 	aln_alignment* alignments;

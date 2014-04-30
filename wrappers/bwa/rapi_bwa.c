@@ -833,21 +833,7 @@ typedef struct {
 static void bwa_worker_1(void *data, int i, int tid)
 {
 	bwa_worker_t *w = (bwa_worker_t*)data;
-#if TEST
-	fprintf(stderr, "bwa_worker_1 with i %d\n", i);
-	fprintf(stderr, "w->opt = %p;          \n" ,  w->opt        );
-	fprintf(stderr, "w->read_batch = %p;   \n" ,  w->read_batch );
-	fprintf(stderr, "w->regs =  %p;        \n" ,  w->regs       );
-	fprintf(stderr, "w->pes = %p;          \n" ,  w->pes        );
-	fprintf(stderr, "w->n_processed = %ld;  \n" , w->n_processed);
 
-	fprintf(stderr, "alignment ref path = %s\n" , w->rapi_ref->path);
-	fprintf(stderr, "It has %d contigs\n" , w->rapi_ref->n_contigs);
-	for (int i = 0; i < w->rapi_ref->n_contigs; ++i)
-		fprintf(stderr, "%d: %s\n", i, w->rapi_ref->contigs[i].name);
-
-	fprintf(stderr, "opt->flag is %d\n", w->opt->flag);
-#endif
 	const bwaidx_t* const bwaidx = (bwaidx_t*)(w->rapi_ref->_private);
 	const bwt_t*    const bwt    = bwaidx->bwt;
 	const bntseq_t* const bns    = bwaidx->bns;
@@ -857,12 +843,6 @@ static void bwa_worker_1(void *data, int i, int tid)
 	if (w->opt->flag & MEM_F_PE) {
 		int read = 2*i;
 		int mate = 2*i + 1;
-#if TEST
-		fprintf(stderr, "Read: %d: \n", read);
-		fprintf(stderr, "(%d)  %s\n", w->read_batch->seqs[read].l_seq, w->read_batch->seqs[read].seq);
-		fprintf(stderr, "mate: %d: \n", mate);
-		fprintf(stderr, "(%d)  %s\n", w->read_batch->seqs[mate].l_seq, w->read_batch->seqs[mate].seq);
-#endif
 		w->regs[read] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[read].l_seq, w->read_batch->seqs[read].seq);
 		w->regs[mate] = mem_align1_core(w->opt, bwt, bns, pac, w->read_batch->seqs[mate].l_seq, w->read_batch->seqs[mate].seq);
 	} else {
@@ -944,12 +924,6 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 	w.rapi_ref = ref;
 	w.rapi_reads = batch->reads;
 
-	fprintf(stderr, "w.opt = %p;          \n" ,  w.opt        );
-	fprintf(stderr, "w.read_batch = %p;   \n" ,  w.read_batch );
-	fprintf(stderr, "w.regs =  %p;        \n" ,  w.regs       );
-	fprintf(stderr, "w.pes = %p;          \n" ,  w.pes        );
-	fprintf(stderr, "w.n_processed = %ld;  \n" , w.n_processed);
-
 	fprintf(stderr, "Calling bwa_worker_1. bwa_opt->flag: %d\n", bwa_opt->flag);
 	int n_fragments = (bwa_opt->flag & MEM_F_PE) ? bwa_seqs.n_reads / 2 : bwa_seqs.n_reads;
 	kt_for(bwa_opt->n_threads, bwa_worker_1, &w, n_fragments); // find mapping positions
@@ -964,8 +938,6 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 	// run the alignment
 	state->n_reads_processed += bwa_seqs.n_reads;
 	fprintf(stderr, "processed %ld reads\n", state->n_reads_processed);
-
-	// translate BWA's results back into our structure.
 
 clean_up:
 	free(regs);
@@ -1044,7 +1016,7 @@ int aln_set_read(aln_batch* batch,
 	// copy name
 	strcpy(read->id, name);
 
-	// sequence
+	// sequence, placed right after the name
 	read->seq = read->id + name_len + 1;
 	strcpy(read->seq, seq);
 
