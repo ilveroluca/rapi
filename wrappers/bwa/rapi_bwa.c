@@ -20,6 +20,10 @@
  */
 char* bwa_pg = "rapi";
 
+// Table to convert from base letter to an index in the range [0,4].
+// Defined in bntseq.c
+extern unsigned char nst_nt4_table[256];
+
 /******** Utility functions *******/
 void aln_print_read(FILE* out, const aln_read* read)
 {
@@ -141,14 +145,14 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 		ks_resize(output, resize);
 
 		if (!aln->reverse_strand) { // the forward strand
-			for (i = begin; i < end; ++i) output->s[output->l++] = "ACGTN"[(int)read->seq[i]];
+			kputsn(read->seq, read->length, output);
 			kputc('\t', output);
 			if (read->qual) { // printf qual
 				for (i = begin; i < end; ++i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
 			} else kputc('*', output);
 		} else { // the reverse strand
-			for (i = begin-1; i >= begin; --i) output->s[output->l++] = "TGCAN"[(int)read->seq[i]];
+			for (i = begin-1; i >= begin; --i) output->s[output->l++] = "TGCAN"[nst_nt4_table[(int)read->seq[i]]];
 			kputc('\t', output);
 			if (read->qual) { // printf qual
 				for (i = begin-1; i >= begin; --i) output->s[output->l++] = read->qual[i];
