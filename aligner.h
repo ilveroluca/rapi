@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <kstring.h>
+#include <kvec.h>
 
 /* Error types */
 #define ALN_NO_ERROR                     0
@@ -21,6 +22,7 @@
 
 #define ALN_MEMORY_ERROR               -30
 #define ALN_PARAM_ERROR                -40
+#define ALN_TYPE_ERROR                 -50
 
 /* Key-value TYPES */
 
@@ -28,48 +30,129 @@
 #define ALN_VTYPE_TEXT       2
 #define ALN_VTYPE_INT        3
 #define ALN_VTYPE_REAL       4
-#define ALN_VTYPE_BYTE_ARRAY 5
-#define ALN_VTYPE_INT_ARRAY  6
 
-/* FASTQ Quality Encoding */
+/* Constants */
 
-#define ALN_QUALITY_ENCODING_SANGER 33
+#define ALN_QUALITY_ENCODING_SANGER   33
 #define ALN_QUALITY_ENCODING_ILLUMINA 64
+#define ALN_MAX_TAG_LEN                7
 
 
-/* Key-value list */
-typedef struct aln_kv {
-	const char * key;
+static inline void aln_init_kstr(kstring_t* s) {
+	s->l = s->m = 0;
+	s->s = NULL;
+}
+
+
+typedef struct aln_param {
+	kstring_t name;
 	uint8_t type;
 	union {
 		char character;
-		const char * text;
+		char* text; // if set, type should be set to TEXT and the str will be freed by aln_param_clear
 		long integer;
 		double real;
-		const uint8_t * byte_array;
-		const long * integer_array;
 	} value;
+} aln_param;
 
-	const struct aln_kv * next;
-} aln_kv;
+static inline void aln_param_init(aln_param* kv) {
+	memset(kv, 0, sizeof(*kv));
+}
 
-aln_kv* aln_kv_insert_char(const char* key, char value,           const aln_kv* tail);
-aln_kv* aln_kv_insert_str( const char* key, const char* value,    const aln_kv* tail);
-aln_kv* aln_kv_insert_long(const char* key, long value,           const aln_kv* tail);
-aln_kv* aln_kv_insert_dbl( const char* key, double value,         const aln_kv* tail);
-aln_kv* aln_kv_insert_ba(  const char* key, const uint8_t* value, const aln_kv* tail);
-aln_kv* aln_kv_insert_la(  const char* key, const long* value,    const aln_kv* tail);
+static inline void aln_param_clear(aln_param* kv) {
+	free(kv->name.s);
+	kv->name.l = kv->name.m = 0;
+	kv->name.s = NULL;
+	if (kv->type == ALN_VTYPE_TEXT) {
+		free(kv->value.text);
+		kv->value.text = NULL;
+	}
+}
 
-int aln_kv_get_char(const aln_kv* kv_list, const char* key, char * value         );
-int aln_kv_get_str( const aln_kv* kv_list, const char* key, const char** value   );
-int aln_kv_get_long(const aln_kv* kv_list, const char* key, long * value         );
-int aln_kv_get_dbl( const aln_kv* kv_list, const char* key, double * value       );
-int aln_kv_get_ba(  const aln_kv* kv_list, const char* key, const uint8_t** value);
-int aln_kv_get_la(  const aln_kv* kv_list, const char* key, const long** value   );
+static inline void aln_param_set_name( aln_param* kv, const char* key) { kputs(key, &kv->name); }
+
+#define KV_SET_IMPL(value_type, value_field) \
+{\
+	kv->type = (value_type);\
+	(kv->value_field) = value;\
+}
 
 
-// free the key and values??
-int aln_kv_free_list(aln_kv* list);
+static inline void aln_param_set_char(aln_param* kv, char value       ) KV_SET_IMPL(ALN_VTYPE_CHAR, value.character)
+static inline void aln_param_set_text(aln_param* kv, char* value) KV_SET_IMPL(ALN_VTYPE_TEXT, value.text)
+static inline void aln_param_set_long(aln_param* kv, long value       ) KV_SET_IMPL(ALN_VTYPE_INT,  value.integer)
+static inline void aln_param_set_dbl( aln_param* kv, double value     ) KV_SET_IMPL(ALN_VTYPE_REAL, value.real)
+
+static inline const char* aln_param_get_name(const aln_param* kv) { return kv->name.s; }
+
+#define KV_GET_IMPL(value_type, value_field) \
+{\
+	if (kv->type == (value_type)) {\
+		*value = (kv->value_field);\
+		return ALN_NO_ERROR;\
+	}\
+	else\
+		return ALN_TYPE_ERROR;\
+}
+
+static inline int aln_param_get_char(const aln_param* kv, char * value      ) KV_GET_IMPL(ALN_VTYPE_CHAR, value.character)
+static inline int aln_param_get_text(const aln_param* kv, const char** value) KV_GET_IMPL(ALN_VTYPE_TEXT, value.text)
+static inline int aln_param_get_long(const aln_param* kv, long * value      ) KV_GET_IMPL(ALN_VTYPE_INT,  value.integer)
+static inline int aln_param_get_dbl( const aln_param* kv, double * value    ) KV_GET_IMPL(ALN_VTYPE_REAL, value.real)
+
+/* Key-value list */
+typedef struct aln_tag {
+	char key[ALN_MAX_TAG_LEN]; // not necessarily null-terminated
+	uint8_t type;
+	union {
+		char character;
+		kstring_t text;
+		long integer;
+		double real;
+	} value;
+} aln_tag;
+
+
+static inline void aln_tag_set_key(aln_tag* kv, const char* s) {
+	strncpy(kv->key, s, sizeof(kv->key) / sizeof(kv->key[0]));
+}
+
+static inline void aln_tag_clear(aln_tag* kv) {
+	if (kv->type == ALN_VTYPE_TEXT) {
+		free(kv->value.text.s);
+		kv->value.text.s = NULL;
+	}
+	kv->type = 0;
+}
+
+/**
+ * Set the tag value to TEXT type and copy `value` into it.
+ *
+ * If you need to write non-string data, call this fn with a `value` of ""
+ * and then use the kstring functions directly with kv->value.text.
+ */
+static inline void aln_tag_set_text(aln_tag* kv, const char* value) {
+	kv->type = ALN_VTYPE_TEXT;
+	aln_init_kstr(&kv->value.text);
+	kputs(value, &kv->value.text);
+}
+
+static inline void aln_tag_set_char(aln_tag* kv, char value       ) KV_SET_IMPL(ALN_VTYPE_CHAR, value.character)
+static inline void aln_tag_set_long(aln_tag* kv, long value       ) KV_SET_IMPL(ALN_VTYPE_INT,  value.integer)
+static inline void aln_tag_set_dbl( aln_tag* kv, double value     ) KV_SET_IMPL(ALN_VTYPE_REAL, value.real)
+
+static inline int aln_tag_get_text(const aln_tag* kv, const char** value) {
+	if (kv->type == ALN_VTYPE_TEXT) {
+		*value = kv->value.text.s;
+		return ALN_NO_ERROR;
+	}
+	else
+		return ALN_TYPE_ERROR;
+}
+
+static inline int aln_tag_get_char(const aln_tag* kv, char * value      ) KV_GET_IMPL(ALN_VTYPE_CHAR, value.character)
+static inline int aln_tag_get_long(const aln_tag* kv, long * value      ) KV_GET_IMPL(ALN_VTYPE_INT,  value.integer)
+static inline int aln_tag_get_dbl( const aln_tag* kv, double * value    ) KV_GET_IMPL(ALN_VTYPE_REAL, value.real)
 
 
 /**
@@ -88,8 +171,7 @@ typedef struct {
 	 * of letting the user set aligner-specific options through the
 	 * _private structure below.
 	 */
-	int n_parameters;
-	aln_kv * parameters;
+	kvec_t(aln_param) parameters;
 
 	void * _private; /**< can be used for aligner-specific data */
 } aln_opts;
@@ -124,13 +206,6 @@ typedef struct {
 } aln_cigar;
 
 typedef struct {
-	uint8_t type;
-	uint8_t len;
-	char * data;
-} aln_mismatch;
-
-
-typedef struct {
 	aln_contig* contig;
 	unsigned long int pos; // 1-based
 	uint8_t mapq;
@@ -146,11 +221,10 @@ typedef struct {
 	uint8_t n_gap_opens;
 	uint8_t n_gap_extensions;
 
-	aln_kv * tags;
 	aln_cigar * cigar_ops;
 	uint8_t n_cigar_ops;
-	aln_mismatch * mm_ops;
-	uint8_t n_mm_ops;
+
+	kvec_t(aln_tag) tags;
 } aln_alignment;
 
 typedef struct {
@@ -200,7 +274,6 @@ int aln_alloc_reads( aln_batch * batch, int n_reads_fragment, int n_fragments );
  */
 int aln_set_read(aln_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
-/* Free reads */
 int aln_free_reads( aln_batch * batch );
 
 /* Align */

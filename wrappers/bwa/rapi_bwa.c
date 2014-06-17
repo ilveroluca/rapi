@@ -236,22 +236,9 @@ struct aln_aligner_state {
 	mem_pestat_t pes[4];
 };
 
-#if 0
-aln_kv* aln_kv_insert_char(const char* key, char value,           const aln_kv* tail);
-aln_kv* aln_kv_insert_str( const char* key, const char* value,    const aln_kv* tail);
-aln_kv* aln_kv_insert_long(const char* key, long value,           const aln_kv* tail);
-aln_kv* aln_kv_insert_dbl( const char* key, double value,         const aln_kv* tail);
-aln_kv* aln_kv_insert_ba(  const char* key, const uint8_t* value, const aln_kv* tail);
-aln_kv* aln_kv_insert_la(  const char* key, const long* value,    const aln_kv* tail);
 
-#endif
 
-int aln_kv_free_list(aln_kv* list) {
-	fprintf(stderr, "Warning: aln_kv_free_list NOT IMPLEMENTED\n");
-	return ALN_NO_ERROR;
-}
-
-#if 0 // strdup is not defined if we compile with c99, but is when I include kvec.h.
+#if 1 // strdup is not defined if we compile with c99, but is when I include kvec.h.
 // Is there a preprocessor DEFINE I can use to test whether a function is defined?
 char* strdup(const char* str)
 {
@@ -311,8 +298,7 @@ int aln_init_opts( aln_opts * my_opts )
 	my_opts->mapq_min     = 0;
 	my_opts->isize_min    = 0;
 	my_opts->isize_max    = bwa_opt->max_ins;
-	my_opts->n_parameters = 0;
-	my_opts->parameters   = NULL;
+	kv_init(my_opts->parameters);
 
 	return ALN_NO_ERROR;
 }
@@ -612,16 +598,18 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 					our_aln->cigar_ops[i].len = bwa_aln->cigar[i] >> 4;
 				}
 			}
-			// TODO: convert mismatch string MD
-			our_aln->mm_ops = NULL;
-			our_aln->n_mm_ops = 0;
+		}
+
+		aln_tag tag;
+
+		if (bwa_aln->sub >= 0) {
+			aln_tag_set_key(&tag, "XS");
+			aln_tag_set_text(&tag, "");
+			kputw(bwa_aln->sub, &tag.value.text);
+			kv_push(aln_tag, our_aln->tags, tag);
 		}
 
 		// TODO: extra tags
-		our_aln->tags = NULL;
-
-		//if (bwa_aln->sub >= 0) { kputsn("\tXS:i:", 6, str); kputw(bwa_aln->sub, str); }
-
 		/* this section outputs other primary hits in the SA tag
 		if (!(bwa_aln->flag & 0x100)) { // not multi-hit
 			for (i = 0; i < n; ++i)
@@ -974,9 +962,10 @@ int aln_free_reads( aln_batch * batch )
 			// the reads use a single chunk of memory for id, seq and quality
 			free(read->id);
 			for (int a = 0; a < read->n_alignments; ++a) {
-				aln_kv_free_list(read->alignments[a].tags);
+				for (int t = 0; t < read->alignments[a].tags.n; ++t)
+					aln_tag_clear(&read->alignments[a].tags.a[t]);
+				kv_destroy(read->alignments[a].tags);
 				free(read->alignments[a].cigar_ops);
-				free(read->alignments[a].mm_ops);
 			}
 			free(read->alignments);
 			read->n_alignments = 0;
