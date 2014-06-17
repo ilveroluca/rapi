@@ -594,7 +594,7 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 					err_fatal(__func__, "Failed to allocate cigar space");
 				our_aln->n_cigar_ops = bwa_aln->n_cigar;
 				for (int i = 0; i < bwa_aln->n_cigar; ++i) {
-					our_aln->cigar_ops[i].op = bwa_aln->cigar[i]&0xf;
+					our_aln->cigar_ops[i].op = bwa_aln->cigar[i] & 0xf;
 					our_aln->cigar_ops[i].len = bwa_aln->cigar[i] >> 4;
 				}
 			}
