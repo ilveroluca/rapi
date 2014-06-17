@@ -285,16 +285,13 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 
 int aln_free_aligner_state(struct aln_aligner_state* state);
 
-
-inline aln_read* aln_get_read(const aln_batch* batch, int n_fragment, int n_read) {
+static inline aln_read* aln_get_read(const aln_batch* batch, int n_fragment, int n_read) {
 	return batch->reads + (n_fragment * batch->n_reads_frag + n_read);
 }
 
-int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output);
-
 long aln_get_insert_size(const aln_alignment* read, const aln_alignment* mate);
 
-inline int aln_get_rlen(int n_cigar, const aln_cigar* cigar_ops)
+static inline int aln_get_rlen(int n_cigar, const aln_cigar* cigar_ops)
 {
 	int len = 0;
 	for (int k = 0; k < n_cigar; ++k) {
