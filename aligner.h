@@ -302,6 +302,8 @@ static inline int aln_get_rlen(int n_cigar, const aln_cigar* cigar_ops)
 	return len;
 }
 
+int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output);
+
 void aln_put_cigar(int n_ops, const aln_cigar* ops, int force_hard_clip, kstring_t* output);
 
 #endif
