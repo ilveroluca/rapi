@@ -150,6 +150,7 @@ int main(int argc, const char* argv[])
 			check_error(1, "Unsupported number of reads per fragment!"); // TODO: weak error message!
 	}
 
+	free(sam_buffer.s);
 	aln_free_aligner_state(state);
 	aln_free_ref(&ref);
 	aln_free_reads(&reads);
