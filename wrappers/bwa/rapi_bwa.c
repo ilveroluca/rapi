@@ -278,6 +278,8 @@ int aln_init_opts( aln_opts * my_opts )
 {
 	// create a BWA opt structure
 	mem_opt_t*const bwa_opt = mem_opt_init();
+	if (NULL == bwa_opt)
+		return ALN_MEMORY_ERROR;
 
 	// Default values copied from bwamem.c in 0.7.8
 	bwa_opt->flag = 0;
