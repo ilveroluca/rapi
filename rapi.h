@@ -1,7 +1,7 @@
 /*
  * RAPI - the Read aligner API
  *
- * Authors:  Luca Pireddu, Riccardo Berutti, Ridvan Dongelci
+ * Authors:  Luca Pireddu, Riccardo Berutti
  */
 
 #ifndef __RAPI_H__
