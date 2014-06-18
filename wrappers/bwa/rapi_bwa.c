@@ -13,6 +13,15 @@
 #include <stdlib.h>
 #include <math.h>
 
+
+const char vtype_char[] = {
+	'0',
+	'A', // ALN_VTYPE_CHAR       1
+	'Z', // ALN_VTYPE_TEXT       2
+	'i', // ALN_VTYPE_INT        3
+	'f'  // ALN_VTYPE_REAL       4
+};
+
 /**
  * The 'bwa_pg' string is statically allocated in some BWA file that we're not
  * linking, so we need to define it here.  I think it's the string that the
@@ -31,6 +40,52 @@ void aln_print_read(FILE* out, const aln_read* read)
 	fprintf(out, "read length: %d\n", read->length);
 	fprintf(out, "read seq: %s\n", read->seq);
 	fprintf(out, "read qual: %s\n", read->qual);
+}
+
+
+int aln_format_tag(const aln_tag* tag, kstring_t* str) {
+	// in theory we should check the return values of all these kput functions
+	// and ensure they're != EOF
+	int error = ALN_NO_ERROR;
+
+	kputs(tag->key, str);
+	kputc(':', str);
+	kputc(vtype_char[tag->type], str);
+	kputc(':', str);
+	switch (tag->type) {
+		case ALN_VTYPE_CHAR: {
+			char c;
+			error = aln_tag_get_char(tag, &c);
+			if (error) return ALN_TYPE_ERROR;
+			kputc(c, str);
+			break;
+		 }
+		case ALN_VTYPE_TEXT: {
+			const kstring_t* s;
+			error = aln_tag_get_text(tag, &s);
+			if (error) return ALN_TYPE_ERROR;
+			kputsn(s->s, s->l, str);
+			break;
+		}
+		case ALN_VTYPE_INT: {
+			long i;
+			error = aln_tag_get_long(tag, &i);
+			if (error) return ALN_TYPE_ERROR;
+			kputl(i, str);
+			break;
+		}
+		case ALN_VTYPE_REAL: {
+			double d;
+			error = aln_tag_get_dbl(tag, &d);
+			if (error) return ALN_TYPE_ERROR;
+			ksprintf(str, "%f", d);
+			break;
+		}
+		default:
+			err_fatal(__func__, "Unrecognized tag type id %d\n", tag->type);
+			abort();
+	};
+	return error;
 }
 
 /*
@@ -166,9 +221,16 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 		kputsn("\tNM:i:", 6, output); kputw(aln->n_mismatches, output);
 		//kputsn("\tMD:Z:", 6, output); kputs((char*)(p->cigar + p->n_cigar), str);
 	}
+
 	if (aln->score >= 0) { kputsn("\tAS:i:", 6, output); kputw(aln->score, output); }
-	//if (p->sub >= 0) { kputsn("\tXS:i:", 6, str); kputw(p->sub, str); }
-	//if (bwa_rg_id[0]) { kputsn("\tRG:Z:", 6, str); kputs(bwa_rg_id, str); }
+
+	int error = ALN_NO_ERROR;
+
+	for (int t = 0; t < kv_size(aln->tags); ++t) {
+		kputc('\t', output);
+		error = aln_format_tag(&kv_A(aln->tags, t), output);
+	}
+
 	//if (!(aln->flag & 0x100)) { // not multi-hit
 	//	for (i = 0; i < n; ++i)
 	//		if (i != which && !(list[i].flag&0x100)) break;
@@ -190,9 +252,8 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 	//		}
 	//	}
 	//}
-	//if (s->comment) { kputc('\t', str); kputs(s->comment, str); }
 
-	return ALN_NO_ERROR;
+	return error;
 }
 
 /**********************************/
