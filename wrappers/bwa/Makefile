@@ -9,7 +9,7 @@ LIBS = -lm -lz -lpthread
 
 # these depend on BWA_PATH
 INCLUDES := -I../../ -I$(BWA_PATH)
-SOURCES := rapi_bwa.c rapi.c $(BWA_PATH)/bwamem.c
+SOURCES := rapi_bwa.c rapi_test.c $(BWA_PATH)/bwamem.c
 # we define the object names from the source names, substituting the
 # extension and keeping online the file name (removing the directory part)
 OBJS := $(notdir $(SOURCES:.c=.o))
