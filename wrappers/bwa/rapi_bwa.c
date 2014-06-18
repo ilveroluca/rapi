@@ -16,10 +16,10 @@
 
 const char vtype_char[] = {
 	'0',
-	'A', // ALN_VTYPE_CHAR       1
-	'Z', // ALN_VTYPE_TEXT       2
-	'i', // ALN_VTYPE_INT        3
-	'f'  // ALN_VTYPE_REAL       4
+	'A', // RAPI_VTYPE_CHAR       1
+	'Z', // RAPI_VTYPE_TEXT       2
+	'i', // RAPI_VTYPE_INT        3
+	'f'  // RAPI_VTYPE_REAL       4
 };
 
 /**
@@ -34,7 +34,7 @@ char* bwa_pg = "rapi";
 extern unsigned char nst_nt4_table[256];
 
 /******** Utility functions *******/
-void aln_print_read(FILE* out, const aln_read* read)
+void rapi_print_read(FILE* out, const rapi_read* read)
 {
 	fprintf(out, "read id: %s\n", read->id);
 	fprintf(out, "read length: %d\n", read->length);
@@ -43,41 +43,41 @@ void aln_print_read(FILE* out, const aln_read* read)
 }
 
 
-int aln_format_tag(const aln_tag* tag, kstring_t* str) {
+int rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
 	// in theory we should check the return values of all these kput functions
 	// and ensure they're != EOF
-	int error = ALN_NO_ERROR;
+	int error = RAPI_NO_ERROR;
 
 	kputs(tag->key, str);
 	kputc(':', str);
 	kputc(vtype_char[tag->type], str);
 	kputc(':', str);
 	switch (tag->type) {
-		case ALN_VTYPE_CHAR: {
+		case RAPI_VTYPE_CHAR: {
 			char c;
-			error = aln_tag_get_char(tag, &c);
-			if (error) return ALN_TYPE_ERROR;
+			error = rapi_tag_get_char(tag, &c);
+			if (error) return RAPI_TYPE_ERROR;
 			kputc(c, str);
 			break;
 		 }
-		case ALN_VTYPE_TEXT: {
+		case RAPI_VTYPE_TEXT: {
 			const kstring_t* s;
-			error = aln_tag_get_text(tag, &s);
-			if (error) return ALN_TYPE_ERROR;
+			error = rapi_tag_get_text(tag, &s);
+			if (error) return RAPI_TYPE_ERROR;
 			kputsn(s->s, s->l, str);
 			break;
 		}
-		case ALN_VTYPE_INT: {
+		case RAPI_VTYPE_INT: {
 			long i;
-			error = aln_tag_get_long(tag, &i);
-			if (error) return ALN_TYPE_ERROR;
+			error = rapi_tag_get_long(tag, &i);
+			if (error) return RAPI_TYPE_ERROR;
 			kputl(i, str);
 			break;
 		}
-		case ALN_VTYPE_REAL: {
+		case RAPI_VTYPE_REAL: {
 			double d;
-			error = aln_tag_get_dbl(tag, &d);
-			if (error) return ALN_TYPE_ERROR;
+			error = rapi_tag_get_dbl(tag, &d);
+			if (error) return RAPI_TYPE_ERROR;
 			ksprintf(str, "%f", d);
 			break;
 		}
@@ -90,13 +90,13 @@ int aln_format_tag(const aln_tag* tag, kstring_t* str) {
 
 /*
  * Format SAM for read, given the alignment at index `which_aln`
- * (currently in aln_read we only have a single alignment instead of a list,
+ * (currently in rapi_read we only have a single alignment instead of a list,
  * so this should always be 0).
  */
-int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output)
+int rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output)
 {
 	/**** code based on mem_aln2sam in BWA ***/
-	aln_alignment tmp_read, tmp_mate;
+	rapi_alignment tmp_read, tmp_mate;
 
 	if (read->n_alignments > 0)
 		tmp_read = *read->alignments;
@@ -113,8 +113,8 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 		tmp_mate.paired = 1;
 	}
 
-	aln_alignment* aln = &tmp_read;
-	aln_alignment* mate_aln = &tmp_mate;
+	rapi_alignment* aln = &tmp_read;
+	rapi_alignment* mate_aln = &tmp_mate;
 
 	if (!aln->mapped && mate && mate_aln->mapped) { // copy mate position to read
 		aln->contig         = mate_aln->contig;
@@ -156,7 +156,7 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 		// XXX: BWA forces hard clipping for supplementary alignments -- i.e., additional
 		// alignments that are not marked as secondary. At the moment we're only printing
 		// the first primary alignment.
-		aln_put_cigar(aln->n_cigar_ops, aln->cigar_ops, 0, output);
+		rapi_put_cigar(aln->n_cigar_ops, aln->cigar_ops, 0, output);
 	}
 	else
 		kputsn("*\t0\t0\t*", 7, output); // unmapped
@@ -173,7 +173,7 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 		kputl(mate_aln->pos, output); kputc('\t', output); // mate pos
 
 		if (aln->mapped && (aln->contig == mate_aln->contig))
-			kputl(aln_get_insert_size(aln, mate_aln), output);
+			kputl(rapi_get_insert_size(aln, mate_aln), output);
 		else
 			kputc('0', output);
 	}
@@ -224,11 +224,11 @@ int aln_format_sam(const aln_read* read, const aln_read* mate, kstring_t* output
 
 	if (aln->score >= 0) { kputsn("\tAS:i:", 6, output); kputw(aln->score, output); }
 
-	int error = ALN_NO_ERROR;
+	int error = RAPI_NO_ERROR;
 
 	for (int t = 0; t < kv_size(aln->tags); ++t) {
 		kputc('\t', output);
-		error = aln_format_tag(&kv_A(aln->tags, t), output);
+		error = rapi_format_tag(&kv_A(aln->tags, t), output);
 	}
 
 	//if (!(aln->flag & 0x100)) { // not multi-hit
@@ -291,7 +291,7 @@ void _print_bwa_batch(FILE* out, const bwa_batch* read_batch)
 /**
  * Definition of the aligner state structure.
  */
-struct aln_aligner_state {
+struct rapi_aligner_state {
 	int64_t n_reads_processed;
 	// paired-end stats
 	mem_pestat_t pes[4];
@@ -315,19 +315,19 @@ char* strdup(const char* str)
 #endif
 
 /* Init Library */
-int aln_init(const aln_opts* opts)
+int rapi_init(const rapi_opts* opts)
 {
 	// no op
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
 /* Init Library Options */
-int aln_init_opts( aln_opts * my_opts )
+int rapi_init_opts( rapi_opts * my_opts )
 {
 	// create a BWA opt structure
 	mem_opt_t*const bwa_opt = mem_opt_init();
 	if (NULL == bwa_opt)
-		return ALN_MEMORY_ERROR;
+		return RAPI_MEMORY_ERROR;
 
 	// Default values copied from bwamem.c in 0.7.8
 	bwa_opt->flag = 0;
@@ -361,34 +361,34 @@ int aln_init_opts( aln_opts * my_opts )
 	my_opts->isize_max    = bwa_opt->max_ins;
 	kv_init(my_opts->parameters);
 
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
-int aln_free_opts( aln_opts * my_opts )
+int rapi_free_opts( rapi_opts * my_opts )
 {
 	free(my_opts->_private);
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
 /* Load Reference */
-const char * aln_version()
+const char * rapi_version()
 {
 	return "my version!";
 }
 
 /* Load Reference */
-int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
+int rapi_load_ref( const char * reference_path, rapi_ref * ref_struct )
 {
 	if ( NULL == ref_struct || NULL == reference_path )
-		return ALN_PARAM_ERROR;
+		return RAPI_PARAM_ERROR;
 
 	const bwaidx_t*const bwa_idx = bwa_idx_load(reference_path, BWA_IDX_ALL);
 	if ( NULL == bwa_idx )
-		return ALN_REFERENCE_ERROR;
+		return RAPI_REFERENCE_ERROR;
 
 	// allocate memory
 	ref_struct->path = strdup(reference_path);
-	ref_struct->contigs = calloc( bwa_idx->bns->n_seqs, sizeof(aln_contig) );
+	ref_struct->contigs = calloc( bwa_idx->bns->n_seqs, sizeof(rapi_contig) );
 	if ( NULL == ref_struct->path || NULL == ref_struct->contigs )
 	{
 		// if either allocations we free everything and return an error
@@ -396,14 +396,14 @@ int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
 		free(ref_struct->path);
 		free(ref_struct->contigs);
 		memset(ref_struct, 0, sizeof(*ref_struct));
-		return ALN_MEMORY_ERROR;
+		return RAPI_MEMORY_ERROR;
 	}
 
 	/* Fill in Contig Information */
 	ref_struct->n_contigs = bwa_idx->bns->n_seqs; /* Handle contains bnt_seq_t * bns holding contig information */
 	for ( int i = 0; i < ref_struct->n_contigs; ++i )
 	{
-		aln_contig* c = &ref_struct->contigs[i];
+		rapi_contig* c = &ref_struct->contigs[i];
 		c->len = bwa_idx->bns->anns[i].len;
 		c->name = bwa_idx->bns->anns[i].name; // points to BWA string
 		c->assembly_identifier = NULL;
@@ -412,11 +412,11 @@ int aln_load_ref( const char * reference_path, aln_ref * ref_struct )
 	}
 	ref_struct->_private = (bwaidx_t*)bwa_idx;
 
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
 /* Free Reference */
-int aln_free_ref( aln_ref * ref )
+int rapi_free_ref( rapi_ref * ref )
 {
 	// free bwa's part
 	bwa_idx_destroy(ref->_private);
@@ -427,7 +427,7 @@ int aln_free_ref( aln_ref * ref )
 	if (ref->contigs) {
 		for ( int i = 0; i < ref->n_contigs; ++i )
 		{
-			aln_contig* c = &ref->contigs[i];
+			rapi_contig* c = &ref->contigs[i];
 			// *Don't* free name since it points to BWA's string
 			free(c->assembly_identifier);
 			free(c->species);
@@ -436,7 +436,7 @@ int aln_free_ref( aln_ref * ref )
 		free (ref->contigs);
 	}
 	memset(ref, 0, sizeof(*ref));
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
 void _free_bwa_batch_contents(bwa_batch* batch)
@@ -452,7 +452,7 @@ void _free_bwa_batch_contents(bwa_batch* batch)
 }
 
 
-static int _batch_to_bwa_seq(const aln_batch* batch, const aln_opts* opts, bwa_batch* bwa_seqs)
+static int _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* opts, bwa_batch* bwa_seqs)
 {
 	bwa_seqs->n_bases = 0;
 	bwa_seqs->n_reads = 0;
@@ -462,14 +462,14 @@ static int _batch_to_bwa_seq(const aln_batch* batch, const aln_opts* opts, bwa_b
 	bwa_seqs->seqs = calloc(batch->n_frags * batch->n_reads_frag, sizeof(bseq1_t));
 	if (NULL == bwa_seqs->seqs) {
 		fprintf(stderr, "Allocation failed!\n");
-		return ALN_MEMORY_ERROR;
+		return RAPI_MEMORY_ERROR;
 	}
 
 	for (int f = 0; f < batch->n_frags; ++f)
 	{
 		for (int r = 0; r < batch->n_reads_frag; ++r)
 		{
-			const aln_read* rapi_read = aln_get_read(batch, f, r);
+			const rapi_read* rapi_read = rapi_get_read(batch, f, r);
 			bseq1_t* bwa_read = bwa_seqs->seqs + bwa_seqs->n_reads;
 
 			// -- In bseq1_t, all strings are null-terminated.
@@ -491,12 +491,12 @@ static int _batch_to_bwa_seq(const aln_batch* batch, const aln_opts* opts, bwa_b
 			bwa_seqs->n_bases += rapi_read->length;
 		}
 	}
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 
 failed_allocation:
 	fprintf(stderr, "Failed to allocate while constructing sequences! Freeing and returning\n");
 	_free_bwa_batch_contents(bwa_seqs);
-	return ALN_MEMORY_ERROR;
+	return RAPI_MEMORY_ERROR;
 }
 
 /*
@@ -510,7 +510,7 @@ failed_allocation:
  * So, if you change 'a' set the 'override' accordingly and call this function.  E.g.,
  *
  * <pre>
- *   aln_opts* opt = aln_init_opts();
+ *   rapi_opts* opt = rapi_init_opts();
  *   mem_opt_t* bwa_opts = (mem_opt_t*) opt->_private;
  *   bwa_opts->a = 2;
  *   bwa_opts->b = 5;
@@ -536,31 +536,31 @@ void adjust_bwa_opts(mem_opt_t* opt, const mem_opt_t* override)
 	}
 }
 
-static int _convert_opts(const aln_opts* opts, mem_opt_t* bwa_opts)
+static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
 {
 	bwa_opts->T = opts->mapq_min;
 	bwa_opts->max_ins = opts->isize_max;
 
 	// TODO: other options provided through 'parameters' field
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
-int aln_init_aligner_state(const aln_opts* opts, struct aln_aligner_state** ret_state)
+int rapi_init_aligner_state(const rapi_opts* opts, struct rapi_aligner_state** ret_state)
 {
 	// allocate and zero the structure
-	aln_aligner_state* state = *ret_state = calloc(1, sizeof(aln_aligner_state));
+	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
 	if (NULL == state)
-		return ALN_MEMORY_ERROR;
-	return ALN_NO_ERROR;
+		return RAPI_MEMORY_ERROR;
+	return RAPI_NO_ERROR;
 }
 
-int aln_free_aligner_state(aln_aligner_state* state)
+int rapi_free_aligner_state(rapi_aligner_state* state)
 {
 	free(state);
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
-void aln_put_cigar(int n_ops, const aln_cigar* ops, int force_hard_clip, kstring_t* output)
+void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstring_t* output)
 {
 	if (n_ops > 0) {
 		for (int i = 0; i < n_ops; ++i) {
@@ -574,7 +574,7 @@ void aln_put_cigar(int n_ops, const aln_cigar* ops, int force_hard_clip, kstring
 		kputc('*', output);
 }
 
-long aln_get_insert_size(const aln_alignment* read, const aln_alignment* mate)
+long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate)
 {
 	long isize = 0;
 
@@ -583,8 +583,8 @@ long aln_get_insert_size(const aln_alignment* read, const aln_alignment* mate)
 		if (mate->n_cigar_ops == 0 || read->n_cigar_ops == 0)
 			err_fatal(__func__, "No cigar ops for mapped reads! aln->n_cigar_ops: %d; mate_aln->n_cigar_ops: %d\n", read->n_cigar_ops, mate->n_cigar_ops);
 
-		int64_t p0 = read->pos + (read->reverse_strand ? aln_get_rlen(read->n_cigar_ops, read->cigar_ops) - 1 : 0);
-		int64_t p1 = mate->pos + (mate->reverse_strand ? aln_get_rlen(mate->n_cigar_ops, mate->cigar_ops) - 1 : 0);
+		int64_t p0 = read->pos + (read->reverse_strand ? rapi_get_rlen(read->n_cigar_ops, read->cigar_ops) - 1 : 0);
+		int64_t p1 = mate->pos + (mate->reverse_strand ? rapi_get_rlen(mate->n_cigar_ops, mate->cigar_ops) - 1 : 0);
 		isize = -(p0 - p1 + (p0 > p1? 1 : p0 < p1? -1 : 0));
 	}
 	return isize;
@@ -609,28 +609,28 @@ extern mem_alnreg_v mem_align1_core(const mem_opt_t *opt, const bwt_t *bwt, cons
 void mem_mark_primary_se(const mem_opt_t *opt, int n, mem_alnreg_t *a, int64_t id);
 
 /* based on mem_aln2sam */
-static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int is_paired,
+static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, int is_paired,
 		const bseq1_t *s,
 		const mem_aln_t *const bwa_aln_list, int list_length)
 {
 	if (list_length < 0)
-		return ALN_PARAM_ERROR;
+		return RAPI_PARAM_ERROR;
 
-	our_read->alignments = calloc(list_length, sizeof(aln_alignment));
+	our_read->alignments = calloc(list_length, sizeof(rapi_alignment));
 	if (NULL == our_read->alignments)
-		return ALN_MEMORY_ERROR;
+		return RAPI_MEMORY_ERROR;
 	our_read->n_alignments = list_length;
 
 	for (int which = 0; which < list_length; ++which)
 	{
 		const mem_aln_t* bwa_aln = &bwa_aln_list[which];
-		aln_alignment* our_aln = &our_read->alignments[which];
+		rapi_alignment* our_aln = &our_read->alignments[which];
 
 		if (bwa_aln->rid >= rapi_ref->n_contigs) { // huh?? Out of bounds
 			fprintf(stderr, "read reference id value %d is out of bounds (n_contigs: %d)\n", bwa_aln->rid, rapi_ref->n_contigs);
 			free(our_read->alignments);
 			our_read->alignments = NULL; our_read->n_alignments = 0;
-			return ALN_GENERIC_ERROR;
+			return RAPI_GENERIC_ERROR;
 		}
 
 		// set flags
@@ -661,13 +661,13 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 			}
 		}
 
-		aln_tag tag;
+		rapi_tag tag;
 
 		if (bwa_aln->sub >= 0) {
-			aln_tag_set_key(&tag, "XS");
-			aln_tag_set_text(&tag, "");
+			rapi_tag_set_key(&tag, "XS");
+			rapi_tag_set_text(&tag, "");
 			kputw(bwa_aln->sub, &tag.value.text);
-			kv_push(aln_tag, our_aln->tags, tag);
+			kv_push(rapi_tag, our_aln->tags, tag);
 		}
 
 		// TODO: extra tags
@@ -695,17 +695,17 @@ static int _bwa_aln_to_rapi_aln(const aln_ref* rapi_ref, aln_read* our_read, int
 		}
 		*/
 	}
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
 /*
  * Based on mem_reg2sam_se.
  * We took out the call to mem_aln2sam and instead write the result to
- * the corresponding aln_read structure.
+ * the corresponding rapi_read structure.
  */
-static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const aln_ref* rapi_ref, aln_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m)
+static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref, rapi_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m)
 {
-	int error = ALN_NO_ERROR;
+	int error = RAPI_NO_ERROR;
 	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
 	const uint8_t *const pac = ((bwaidx_t*)rapi_ref->_private)->pac;
 
@@ -753,7 +753,7 @@ static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const aln_ref* rapi_ref, 
 /*
  * Mostly taken from mem_sam_pe in bwamem_pair.c
  */
-int _bwa_mem_pe(const mem_opt_t *opt, const aln_ref* rapi_ref, const mem_pestat_t pes[4], uint64_t id, bseq1_t s[2], mem_alnreg_v a[2], aln_read out[2])
+int _bwa_mem_pe(const mem_opt_t *opt, const rapi_ref* rapi_ref, const mem_pestat_t pes[4], uint64_t id, bseq1_t s[2], mem_alnreg_v a[2], rapi_read out[2])
 {
 	// functions defined in bwamem.c or bwamem_pair.c
 	extern void mem_mark_primary_se(const mem_opt_t *opt, int n, mem_alnreg_t *a, int64_t id);
@@ -870,9 +870,9 @@ no_pairing:
 
 typedef struct {
 	const mem_opt_t *opt;
-	const aln_ref* rapi_ref;
+	const rapi_ref* rapi_ref;
 	const bwa_batch* read_batch;
-	aln_read* rapi_reads; // need to pass these along because the code to convert BWA alignments into rapi is nested pretty deep
+	rapi_read* rapi_reads; // need to pass these along because the code to convert BWA alignments into rapi is nested pretty deep
 	mem_pestat_t *pes;
 	mem_alnreg_v *regs;
 	int64_t n_processed;
@@ -906,7 +906,7 @@ static void bwa_worker_2(void *data, int i, int tid)
 {
 	bwa_worker_t *w = (bwa_worker_t*)data;
 	fprintf(stderr, "bwa_worker_2 with i %d\n", i);
-	int error = ALN_NO_ERROR;
+	int error = RAPI_NO_ERROR;
 
 	if ((w->opt->flag & MEM_F_PE)) {
 		// paired end
@@ -922,22 +922,22 @@ static void bwa_worker_2(void *data, int i, int tid)
 		free(w->regs[i].a);
 	}
 
-	if (error != ALN_NO_ERROR)
+	if (error != RAPI_NO_ERROR)
 		err_fatal(__func__, "error %d while running %s end alignments\n", error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
 }
 
 #endif
 /********** end modified BWA code *****************/
 
-int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * config, aln_aligner_state* state )
+int rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts * config, rapi_aligner_state* state )
 {
-	int error = ALN_NO_ERROR;
+	int error = RAPI_NO_ERROR;
 
 	if (batch->n_reads_frag > 2)
-		return ALN_OP_NOT_SUPPORTED_ERROR;
+		return RAPI_OP_NOT_SUPPORTED_ERROR;
 
 	if (batch->n_reads_frag <= 0)
-		return ALN_PARAM_ERROR;
+		return RAPI_PARAM_ERROR;
 
 	// "extract" BWA-specific structures
 	mem_opt_t*const bwa_opt = (mem_opt_t*) config->_private;
@@ -960,7 +960,7 @@ int aln_align_reads( const aln_ref* ref,  aln_batch * batch, const aln_opts * co
 	fprintf(stderr, "Going to process.\n");
 	mem_alnreg_v *regs = malloc(bwa_seqs.n_reads * sizeof(mem_alnreg_v));
 	if (NULL == regs) {
-		error = ALN_MEMORY_ERROR;
+		error = RAPI_MEMORY_ERROR;
 		goto clean_up;
 	}
 	fprintf(stderr, "Allocated %d mem_alnreg_v structures\n", bwa_seqs.n_reads);
@@ -1002,29 +1002,29 @@ clean_up:
  *************************************/
 
 /* Allocate reads */
-int aln_alloc_reads( aln_batch * batch, int n_reads_fragment, int n_fragments )
+int rapi_alloc_reads( rapi_batch * batch, int n_reads_fragment, int n_fragments )
 {
 	if (n_fragments < 0 || n_reads_fragment < 0)
-		return ALN_PARAM_ERROR;
+		return RAPI_PARAM_ERROR;
 
-	batch->reads = calloc( n_reads_fragment * n_fragments, sizeof(aln_read) );
+	batch->reads = calloc( n_reads_fragment * n_fragments, sizeof(rapi_read) );
 	if (NULL == batch->reads)
-		return ALN_MEMORY_ERROR;
+		return RAPI_MEMORY_ERROR;
 	batch->n_frags = n_fragments;
 	batch->n_reads_frag = n_reads_fragment;
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
-int aln_free_reads( aln_batch * batch )
+int rapi_free_reads( rapi_batch * batch )
 {
 	for (int f = 0; f < batch->n_frags; ++f) {
 		for (int r = 0; r < batch->n_reads_frag; ++r) {
-			aln_read* read = aln_get_read(batch, f, r);
+			rapi_read* read = rapi_get_read(batch, f, r);
 			// the reads use a single chunk of memory for id, seq and quality
 			free(read->id);
 			for (int a = 0; a < read->n_alignments; ++a) {
 				for (int t = 0; t < read->alignments[a].tags.n; ++t)
-					aln_tag_clear(&read->alignments[a].tags.a[t]);
+					rapi_tag_clear(&read->alignments[a].tags.a[t]);
 				kv_destroy(read->alignments[a].tags);
 				free(read->alignments[a].cigar_ops);
 			}
@@ -1037,19 +1037,19 @@ int aln_free_reads( aln_batch * batch )
 	free(batch->reads);
 	memset(batch, 0, sizeof(*batch));
 
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 }
 
-int aln_set_read(aln_batch* batch,
+int rapi_set_read(rapi_batch* batch,
 			int n_frag, int n_read,
 			const char* name, const char* seq, const char* qual,
 			int q_offset) {
-	int error_code = ALN_NO_ERROR;
+	int error_code = RAPI_NO_ERROR;
 
 	if (n_frag >= batch->n_frags || n_read >= batch->n_reads_frag)
-		return ALN_PARAM_ERROR;
+		return RAPI_PARAM_ERROR;
 
-	aln_read* read = aln_get_read(batch, n_frag, n_read);
+	rapi_read* read = rapi_get_read(batch, n_frag, n_read);
 	const int name_len = strlen(name);
 	const int seq_len = strlen(seq);
 	read->length = seq_len;
@@ -1062,7 +1062,7 @@ int aln_set_read(aln_batch* batch,
 	read->id = malloc(buf_size);
 	if (NULL == read->id) { // failed allocation
 		fprintf(stderr, "Unable to allocate memory for sequence\n");
-		return ALN_MEMORY_ERROR;
+		return RAPI_MEMORY_ERROR;
 	}
 
 	// copy name
@@ -1082,7 +1082,7 @@ int aln_set_read(aln_batch* batch,
 			if (read->qual[i] > 127)
 			{ // qual is unsigned, by Sanger base qualities have an allowed range of [0,94], and 94+33=127
 				fprintf(stderr, "Invalid base quality score %d\n", read->qual[i]);
-				error_code = ALN_PARAM_ERROR;
+				error_code = RAPI_PARAM_ERROR;
 				goto error;
 			}
 		}
@@ -1094,7 +1094,7 @@ int aln_set_read(aln_batch* batch,
 	if (t > 2 && read->id[t-2] == '/' && (read->id[t-1] == '1' || read->id[t-1] == '2'))
 		read->id[t-2] = '\0';
 
-	return ALN_NO_ERROR;
+	return RAPI_NO_ERROR;
 
 error:
 	// In case of error, free any allocated memory and return the error
