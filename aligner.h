@@ -35,7 +35,7 @@
 
 #define ALN_QUALITY_ENCODING_SANGER   33
 #define ALN_QUALITY_ENCODING_ILLUMINA 64
-#define ALN_MAX_TAG_LEN                7
+#define ALN_MAX_TAG_LEN                6
 
 
 static inline void aln_init_kstr(kstring_t* s) {
@@ -102,7 +102,7 @@ static inline int aln_param_get_dbl( const aln_param* kv, double * value    ) KV
 
 /* Key-value list */
 typedef struct aln_tag {
-	char key[ALN_MAX_TAG_LEN]; // not necessarily null-terminated
+	char key[ALN_MAX_TAG_LEN + 1]; // null-terminated
 	uint8_t type;
 	union {
 		char character;
@@ -114,7 +114,8 @@ typedef struct aln_tag {
 
 
 static inline void aln_tag_set_key(aln_tag* kv, const char* s) {
-	strncpy(kv->key, s, sizeof(kv->key) / sizeof(kv->key[0]));
+	strncpy(kv->key, s, ALN_MAX_TAG_LEN);
+	kv->key[ALN_MAX_TAG_LEN] = '\0'; // null terminate, always
 }
 
 static inline void aln_tag_clear(aln_tag* kv) {
@@ -141,9 +142,9 @@ static inline void aln_tag_set_char(aln_tag* kv, char value       ) KV_SET_IMPL(
 static inline void aln_tag_set_long(aln_tag* kv, long value       ) KV_SET_IMPL(ALN_VTYPE_INT,  value.integer)
 static inline void aln_tag_set_dbl( aln_tag* kv, double value     ) KV_SET_IMPL(ALN_VTYPE_REAL, value.real)
 
-static inline int aln_tag_get_text(const aln_tag* kv, const char** value) {
+static inline int aln_tag_get_text(const aln_tag* kv, const kstring_t** value) {
 	if (kv->type == ALN_VTYPE_TEXT) {
-		*value = kv->value.text.s;
+		*value = &kv->value.text;
 		return ALN_NO_ERROR;
 	}
 	else
