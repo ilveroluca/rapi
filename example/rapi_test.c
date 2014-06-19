@@ -1,6 +1,6 @@
 
 
-#include "../../rapi.h"
+#include <rapi.h>
 
 #include <kstring.h>
 #include <stdio.h>

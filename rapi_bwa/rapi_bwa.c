@@ -2,7 +2,7 @@
  * rapi_bwa.c
  */
 
-#include "../../aligner.h"
+#include <rapi.h>
 #include <bwamem.h>
 #include <kstring.h>
 #include <kvec.h>
