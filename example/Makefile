@@ -6,8 +6,9 @@ CFLAGS := -g -Wall -O2 -Wno-unused-function -std=c99
 DFLAGS := -DHAVE_PTHREAD $(WRAP_MALLOC)
 LIBS := -lm -lz -lpthread
 
-# these depend on BWA_PATH
+# the includes depend on BWA_PATH
 INCLUDES := -I../include/
+
 SOURCES := rapi_test.c
 # we define the object names from the source names, substituting the
 # extension and keeping online the file name (removing the directory part)
@@ -25,6 +26,7 @@ RAPI_LIB := ../rapi_bwa/librapi_bwa.a
 all: $(EXE)
 
 $(EXE): bwa $(BWA_PATH)/libbwa.a $(RAPI_LIB) $(OBJS)
+	# we need to link to our static librapi_bwa.a as well as BWA's static library
 	$(CC) $(CFLAGS) $(OBJS) -o $(EXE) -L$(BWA_PATH) -L$(dir $(RAPI_LIB)) -lrapi_bwa -lbwa $(LIBS) 
 
 bwa:

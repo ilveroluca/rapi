@@ -8,9 +8,10 @@ DFLAGS := -DHAVE_PTHREAD $(WRAP_MALLOC)
 LIBS := -lm -lz -lpthread
 RAPI_LIB := librapi_bwa.a
 
-# these depend on BWA_PATH
+# the includes depend on BWA_PATH
 INCLUDES := -I../include/ -I$(BWA_PATH)
-SOURCES := $(wildcard *.c) $(BWA_PATH)/bwamem.c
+
+SOURCES := $(wildcard *.c)
 # we define the object names from the source names, substituting the
 # extension and keeping online the file name (removing the directory part)
 OBJS := $(notdir $(SOURCES:.c=.o))
@@ -24,15 +25,12 @@ OBJS := $(notdir $(SOURCES:.c=.o))
 
 all: $(RAPI_LIB)
 
-$(RAPI_LIB): bwa $(BWA_PATH)/libbwa.a $(OBJS)
+$(RAPI_LIB): $(OBJS)
 	$(AR) -csru $@ $(OBJS)
 
 bwa:
 	@echo "BWA_PATH is $(BWA_PATH)"
-	$(if $(BWA_PATH),, $(error "You need to set the BWA_PATH variable on the cmd line to point to the compiled BWA source code (e.g., make BWA_PATH=/tmp/bwa)"))
-
-bwamem.o: bwa $(BWA_PATH)/bwamem.c
-	$(CC) -c $(CFLAGS) $(INCLUDES) $(DFLAGS) $(BWA_PATH)/bwamem.c -o $@
+	$(if $(BWA_PATH),, $(error "You need to set the BWA_PATH variable on the cmd line to point to the BWA source code (e.g., make BWA_PATH=/tmp/bwa)"))
 
 clean:
 	rm -f $(OBJS) $(RAPI_LIB)
