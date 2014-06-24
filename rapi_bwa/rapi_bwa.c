@@ -370,10 +370,15 @@ int rapi_free_opts( rapi_opts * my_opts )
 	return RAPI_NO_ERROR;
 }
 
-/* Load Reference */
-const char * rapi_version()
+const char* rapi_aligner_name()
 {
-	return "my version!";
+	return "bwa-mem";
+}
+
+const char* rapi_aligner_version()
+{
+	/* TODO: change build system to extract PACKAGE_VERSION macro from main.c in BWA project */
+	return "0.7.8-r455";
 }
 
 /* Load Reference */

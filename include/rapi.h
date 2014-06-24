@@ -7,6 +7,8 @@
 #ifndef __RAPI_H__
 #define __RAPI_H__
 
+#define RAPI_API_VERSION "0.0"
+
 #include <stdint.h>
 #include <kstring.h>
 #include <kvec.h>
@@ -247,7 +249,8 @@ int rapi_free_opts( rapi_opts * my_opts );
 int rapi_init(const rapi_opts* opts);
 
 /* Aligner Version */
-const char * rapi_version();
+const char* rapi_aligner_name();
+const char* rapi_aligner_version();
 
 /* Load reference */
 int rapi_load_ref( const char * reference_path, rapi_ref * ref_struct );
