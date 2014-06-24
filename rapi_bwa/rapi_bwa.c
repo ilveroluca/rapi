@@ -384,7 +384,7 @@ int rapi_load_ref( const char * reference_path, rapi_ref * ref_struct )
 
 	const bwaidx_t*const bwa_idx = bwa_idx_load(reference_path, BWA_IDX_ALL);
 	if ( NULL == bwa_idx )
-		return RAPI_REFERENCE_ERROR;
+		return RAPI_GENERIC_ERROR;
 
 	// allocate memory
 	ref_struct->path = strdup(reference_path);

@@ -12,14 +12,9 @@
 #include <kvec.h>
 
 /* Error types */
-#define RAPI_NO_ERROR                     0
-#define RAPI_GENERIC_ERROR               -1
-#define RAPI_OP_NOT_SUPPORTED_ERROR      -2
-
-#define RAPI_REFERENCE_ERROR            -10
-
-#define RAPI_TAG_NOT_EXISTING           -20
-
+#define RAPI_NO_ERROR                    0
+#define RAPI_GENERIC_ERROR              -1
+#define RAPI_OP_NOT_SUPPORTED_ERROR     -20
 #define RAPI_MEMORY_ERROR               -30
 #define RAPI_PARAM_ERROR                -40
 #define RAPI_TYPE_ERROR                 -50
