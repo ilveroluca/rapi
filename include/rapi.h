@@ -34,6 +34,7 @@
 #define RAPI_QUALITY_ENCODING_ILLUMINA 64
 #define RAPI_MAX_TAG_LEN                6
 
+/************************* parameter and tag structures and functions **************/
 
 static inline void rapi_init_kstr(kstring_t* s) {
 	s->l = s->m = 0;
@@ -175,6 +176,8 @@ typedef struct {
 } rapi_opts;
 
 
+/************************* The meat starts **************/
+
 /**
  * Reference
  */
@@ -196,7 +199,7 @@ typedef struct {
 
 
 /**
- * Read and alignment
+ * Alignment
  */
 typedef struct {
 	uint32_t op:4,
@@ -225,6 +228,9 @@ typedef struct {
 	kvec_t(rapi_tag) tags;
 } rapi_alignment;
 
+/**
+ * Reads
+ */
 typedef struct {
 	char * id;   // NULL-terminated
 	char * seq;  // NULL-terminated, capital letters in [AGCTN]
@@ -234,11 +240,17 @@ typedef struct {
 	uint8_t n_alignments;
 } rapi_read;
 
+/**
+ * Batches of reads
+ */
 typedef struct {
 	int n_frags;
 	int n_reads_frag;
 	rapi_read * reads;
 } rapi_batch;
+
+
+/*************************** functions *******************************/
 
 /* Init Options */
 int rapi_init_opts( rapi_opts * my_opts );
