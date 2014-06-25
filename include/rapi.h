@@ -67,7 +67,10 @@ static inline void rapi_param_free(rapi_param* kv) {
 	}
 }
 
-static inline void rapi_param_set_name( rapi_param* kv, const char* key) { kputs(key, &kv->name); }
+static inline void rapi_param_set_name( rapi_param* kv, const char* key) {
+  kv->name.l = 0; // reset cursor position to start
+  kputs(key, &kv->name);
+}
 
 #define KV_SET_IMPL(value_type, value_field) \
 {\
