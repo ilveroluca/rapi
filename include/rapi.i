@@ -64,6 +64,13 @@ void* rapi_malloc(size_t nbytes) {
 
 %}
 
+/*
+Remove rapi_ prefix from function names.
+Make sure this general rename come before the ignore clauses below
+or they won't have effect.
+*/
+%rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
+
 // ignore functions from klib
 %rename("$ignore", regextarget=1) "^k";
 %rename("$ignore", regextarget=1) "^K";
