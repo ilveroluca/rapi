@@ -28,6 +28,8 @@ started calling swig with the "-builtin" option.
 #include <stddef.h>
 #include <stdio.h>
 
+#define PDEBUG(...) { fprintf(stderr, "%s(%d): ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
+
 /* Helper to convert RAPI errors to Python errors */
 PyObject* rapi_py_error_type(int rapi_code) {
   PyObject* type = 0;
@@ -66,7 +68,7 @@ void* rapi_malloc(size_t nbytes) {
 
 /*
 Remove rapi_ prefix from function names.
-Make sure this general rename come before the ignore clauses below
+Make sure this general rename comes before the ignore clauses below
 or they won't have effect.
 */
 %rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
@@ -101,4 +103,14 @@ or they won't have effect.
       return NULL;
     }
   }
+
+  ~rapi_opts() {
+    int error = rapi_free_opts($self);
+    if (error != RAPI_NO_ERROR) {
+      PDEBUG("Problem destroying opts (error code %d)\n", error);
+      // TODO: should we raise exceptions in case of errors when freeing/destroying?
+    }
+  }
 };
+
+// vim: set et sw=2 ts=2
