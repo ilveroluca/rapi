@@ -187,7 +187,7 @@ typedef struct {
 	char * assembly_identifier;
 	char * species;
 	char * uri;
-	char md5[32];
+	char * md5;
 } rapi_contig;
 
 typedef struct {

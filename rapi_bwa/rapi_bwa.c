@@ -414,6 +414,7 @@ int rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 		c->assembly_identifier = NULL;
 		c->species = NULL;
 		c->uri = NULL;
+		c->md5 = NULL;
 	}
 	ref_struct->_private = (bwaidx_t*)bwa_idx;
 
@@ -437,6 +438,7 @@ int rapi_ref_free( rapi_ref * ref )
 			free(c->assembly_identifier);
 			free(c->species);
 			free(c->uri);
+			free(c->md5);
 		}
 		free (ref->contigs);
 	}
