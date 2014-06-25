@@ -42,7 +42,7 @@ static inline void rapi_kstr_init(kstring_t* s) {
 }
 
 
-typedef struct rapi_param {
+typedef struct {
 	kstring_t name;
 	uint8_t type;
 	union {
@@ -99,7 +99,7 @@ static inline int rapi_param_get_long(const rapi_param* kv, long * value      ) 
 static inline int rapi_param_get_dbl( const rapi_param* kv, double * value    ) KV_GET_IMPL(RAPI_VTYPE_REAL, value.real)
 
 /* Key-value list */
-typedef struct rapi_tag {
+typedef struct {
 	char key[RAPI_MAX_TAG_LEN + 1]; // null-terminated
 	uint8_t type;
 	union {
