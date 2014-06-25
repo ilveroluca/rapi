@@ -100,7 +100,7 @@ or they won't have effect.
   }
 
   ~rapi_param() {
-    rapi_param_clear($self);
+    rapi_param_free($self);
   }
 };
 
@@ -109,7 +109,7 @@ or they won't have effect.
     rapi_opts* opts = (rapi_opts*) rapi_malloc(sizeof(rapi_opts));
     if (!opts) return NULL;
 
-    int error = rapi_init_opts(opts);
+    int error = rapi_opts_init(opts);
     if (error == RAPI_NO_ERROR)
       return opts;
     else {
@@ -120,7 +120,7 @@ or they won't have effect.
   }
 
   ~rapi_opts() {
-    int error = rapi_free_opts($self);
+    int error = rapi_opts_free($self);
     if (error != RAPI_NO_ERROR) {
       PDEBUG("Problem destroying opts (error code %d)\n", error);
       // TODO: should we raise exceptions in case of errors when freeing/destroying?

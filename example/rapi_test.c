@@ -78,7 +78,7 @@ int main(int argc, const char* argv[])
 	int error = 0;
 
 	rapi_opts opts;
-	error = rapi_init_opts(&opts);
+	error = rapi_opts_init(&opts);
 	check_error(error, "Failed to init opts");
 
 	//const rapi_kv* tail = opts.parameters;
@@ -88,16 +88,17 @@ int main(int argc, const char* argv[])
 	error = rapi_init(&opts);
 	check_error(error, "Failed to initialize");
 
-	fprintf(stderr, "Initialized library version '%s'\n", rapi_version());
+	fprintf(stderr, "Initialized API version '%s'\n", RAPI_API_VERSION);
+	fprintf(stderr, "Using aligner '%s', version '%s'\n", rapi_aligner_name(), rapi_aligner_version());
 
 	rapi_ref ref;
-	error = rapi_load_ref("/u/pireddu/Projects/bwa_wrapper/mini_ref/mini_ref.fasta", &ref);
+	error = rapi_ref_load("/u/pireddu/Projects/bwa_wrapper/mini_ref/mini_ref.fasta", &ref);
 	check_error(error, "Failed to load reference");
 
 	fprintf(stderr, "This reference has %d contigs\n", ref.n_contigs);
 
 	rapi_batch reads;
-	error = rapi_alloc_reads(&reads, 2, 1);//sizeof(read_pair) / (3 * sizeof(char*)));
+	error = rapi_reads_alloc(&reads, 2, 1);//sizeof(read_pair) / (3 * sizeof(char*)));
 	check_error(error, "Failed to allocate read batch");
 
 	for (int f = 0; f < reads.n_frags; ++f) {
@@ -114,7 +115,7 @@ int main(int argc, const char* argv[])
 			reads.n_frags, reads.n_reads_frag);
 
 	rapi_aligner_state* state;
-	error	= rapi_init_aligner_state(&opts, &state);
+	error	= rapi_aligner_state_init(&opts, &state);
 	check_error(error, "Failed to initialize aligner state");
 	fprintf(stderr, "initialized aligner state\n");
 
@@ -151,10 +152,10 @@ int main(int argc, const char* argv[])
 	}
 
 	free(sam_buffer.s);
-	rapi_free_aligner_state(state);
-	rapi_free_ref(&ref);
-	rapi_free_reads(&reads);
-	rapi_free_opts(&opts);
+	rapi_aligner_state_free(state);
+	rapi_ref_free(&ref);
+	rapi_reads_free(&reads);
+	rapi_opts_free(&opts);
 
 	return 0;
 }

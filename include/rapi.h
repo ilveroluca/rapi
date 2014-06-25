@@ -36,7 +36,7 @@
 
 /************************* parameter and tag structures and functions **************/
 
-static inline void rapi_init_kstr(kstring_t* s) {
+static inline void rapi_kstr_init(kstring_t* s) {
 	s->l = s->m = 0;
 	s->s = NULL;
 }
@@ -57,7 +57,7 @@ static inline void rapi_param_init(rapi_param* kv) {
 	memset(kv, 0, sizeof(*kv));
 }
 
-static inline void rapi_param_clear(rapi_param* kv) {
+static inline void rapi_param_free(rapi_param* kv) {
 	free(kv->name.s);
 	kv->name.l = kv->name.m = 0;
 	kv->name.s = NULL;
@@ -132,7 +132,7 @@ static inline void rapi_tag_clear(rapi_tag* kv) {
  */
 static inline void rapi_tag_set_text(rapi_tag* kv, const char* value) {
 	kv->type = RAPI_VTYPE_TEXT;
-	rapi_init_kstr(&kv->value.text);
+	rapi_kstr_init(&kv->value.text);
 	kputs(value, &kv->value.text);
 }
 
@@ -253,9 +253,9 @@ typedef struct {
 /*************************** functions *******************************/
 
 /* Init Options */
-int rapi_init_opts( rapi_opts * my_opts );
+int rapi_opts_init( rapi_opts * my_opts );
 
-int rapi_free_opts( rapi_opts * my_opts );
+int rapi_opts_free( rapi_opts * my_opts );
 
 /* Init Library */
 int rapi_init(const rapi_opts* opts);
@@ -265,13 +265,13 @@ const char* rapi_aligner_name();
 const char* rapi_aligner_version();
 
 /* Load reference */
-int rapi_load_ref( const char * reference_path, rapi_ref * ref_struct );
+int rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
 
 /* Free reference */
-int rapi_free_ref( rapi_ref * ref_struct );
+int rapi_ref_free( rapi_ref * ref_struct );
 
 /* Allocate reads */
-int rapi_alloc_reads( rapi_batch * batch, int n_reads_fragment, int n_fragments );
+int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
 
 /**
  * Set read data within a batch.
@@ -285,16 +285,16 @@ int rapi_alloc_reads( rapi_batch * batch, int n_reads_fragment, int n_fragments 
  */
 int rapi_set_read(rapi_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
-int rapi_free_reads( rapi_batch * batch );
+int rapi_reads_free( rapi_batch * batch );
 
 /* Align */
 typedef struct rapi_aligner_state rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
-int rapi_init_aligner_state(const rapi_opts* opts, struct rapi_aligner_state** ret_state);
+int rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state);
 
 int rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts * config, rapi_aligner_state* state );
 
-int rapi_free_aligner_state(struct rapi_aligner_state* state);
+int rapi_aligner_state_free(struct rapi_aligner_state* state);
 
 static inline rapi_read* rapi_get_read(const rapi_batch* batch, int n_fragment, int n_read) {
 	return batch->reads + (n_fragment * batch->n_reads_frag + n_read);

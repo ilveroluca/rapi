@@ -322,7 +322,7 @@ int rapi_init(const rapi_opts* opts)
 }
 
 /* Init Library Options */
-int rapi_init_opts( rapi_opts * my_opts )
+int rapi_opts_init( rapi_opts * my_opts )
 {
 	// create a BWA opt structure
 	mem_opt_t*const bwa_opt = mem_opt_init();
@@ -364,7 +364,7 @@ int rapi_init_opts( rapi_opts * my_opts )
 	return RAPI_NO_ERROR;
 }
 
-int rapi_free_opts( rapi_opts * my_opts )
+int rapi_opts_free( rapi_opts * my_opts )
 {
 	free(my_opts->_private);
 	return RAPI_NO_ERROR;
@@ -382,7 +382,7 @@ const char* rapi_aligner_version()
 }
 
 /* Load Reference */
-int rapi_load_ref( const char * reference_path, rapi_ref * ref_struct )
+int rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 {
 	if ( NULL == ref_struct || NULL == reference_path )
 		return RAPI_PARAM_ERROR;
@@ -421,7 +421,7 @@ int rapi_load_ref( const char * reference_path, rapi_ref * ref_struct )
 }
 
 /* Free Reference */
-int rapi_free_ref( rapi_ref * ref )
+int rapi_ref_free( rapi_ref * ref )
 {
 	// free bwa's part
 	bwa_idx_destroy(ref->_private);
@@ -550,7 +550,7 @@ static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
 	return RAPI_NO_ERROR;
 }
 
-int rapi_init_aligner_state(const rapi_opts* opts, struct rapi_aligner_state** ret_state)
+int rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state)
 {
 	// allocate and zero the structure
 	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
@@ -559,7 +559,7 @@ int rapi_init_aligner_state(const rapi_opts* opts, struct rapi_aligner_state** r
 	return RAPI_NO_ERROR;
 }
 
-int rapi_free_aligner_state(rapi_aligner_state* state)
+int rapi_aligner_state_free(rapi_aligner_state* state)
 {
 	free(state);
 	return RAPI_NO_ERROR;
@@ -1007,7 +1007,7 @@ clean_up:
  *************************************/
 
 /* Allocate reads */
-int rapi_alloc_reads( rapi_batch * batch, int n_reads_fragment, int n_fragments )
+int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments )
 {
 	if (n_fragments < 0 || n_reads_fragment < 0)
 		return RAPI_PARAM_ERROR;
@@ -1020,7 +1020,7 @@ int rapi_alloc_reads( rapi_batch * batch, int n_reads_fragment, int n_fragments 
 	return RAPI_NO_ERROR;
 }
 
-int rapi_free_reads( rapi_batch * batch )
+int rapi_reads_free( rapi_batch * batch )
 {
 	for (int f = 0; f < batch->n_frags; ++f) {
 		for (int r = 0; r < batch->n_reads_frag; ++r) {
