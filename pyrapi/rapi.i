@@ -84,10 +84,25 @@ or they won't have effect.
 
 // opts are initialized when they're created.
 %ignore "rapi_init_opts";
+%ignore "rapi_param_init";
 
 %include "kvec.h";
 %include "kstring.h";
 %include "rapi.h";
+
+
+%extend rapi_param {
+  rapi_param() {
+    rapi_param* param = (rapi_param*) rapi_malloc(sizeof(rapi_param));
+    if (!param) return NULL;
+    rapi_param_init(param);
+    return param;
+  }
+
+  ~rapi_param() {
+    rapi_param_clear($self);
+  }
+};
 
 %extend rapi_opts {
   rapi_opts() {
