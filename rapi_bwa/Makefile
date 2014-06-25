@@ -25,8 +25,11 @@ OBJS := $(notdir $(SOURCES:.c=.o))
 
 all: $(RAPI_LIB)
 
+
 $(RAPI_LIB): $(OBJS)
 	$(AR) -csru $@ $(OBJS)
+
+$(OBJS): bwa
 
 bwa:
 	@echo "BWA_PATH is $(BWA_PATH)"
