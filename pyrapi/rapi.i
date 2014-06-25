@@ -18,6 +18,7 @@ started calling swig with the "-builtin" option.
 
 
 %module rapi
+
 %{
 /* Includes the header in the wrapper code */
 #include "rapi.h"
@@ -80,26 +81,42 @@ or they won't have effect.
 // also ignore anything that starts with an underscore
 %rename("$ignore", regextarget=1) "^_";
 
-%ignore "rapi_init_kstr";
-
-// opts are initialized when they're created.
-%ignore "rapi_init_opts";
-%ignore "rapi_param_init";
-%ignore "rapi_ref_load";
-
+%include "stdint.i"; // needed to tell swig about types such as uint32_t, uint8_t, etc.
+// This %includes are needed since we have some structure elements that are kvec_t
 %include "kvec.h";
-%include "kstring.h";
-%include "rapi.h";
+
+%inline %{
+  /* rewrite rapi_init to launch an exception instead of returning an error */
+  void init(const rapi_opts* opts) {
+    int error = rapi_init(opts);
+    if (error != RAPI_NO_ERROR)
+      PyErr_SetString(rapi_py_error_type(error), "Error initializing library");
+  }
+%};
+
 
 /*
 These are wrapped automatically by SWIG -- the wrapper doesn't try to free the
 strings since they are "const".
-
+*/
 const char* rapi_aligner_name();
 const char* rapi_aligner_version();
-*/
+
+/**** rapi_param ****/
+typedef struct {
+	uint8_t type;
+	union {
+		char character;
+		char* text; // if set, type should be set to TEXT and the str will be freed by rapi_param_clear
+		long integer;
+		double real;
+	} value;
+} rapi_param;
+
 
 %extend rapi_param {
+  const char* name; // kstring_t accessed as a const char*
+
   rapi_param() {
     rapi_param* param = (rapi_param*) rapi_malloc(sizeof(rapi_param));
     if (!param) return NULL;
@@ -111,6 +128,30 @@ const char* rapi_aligner_version();
     rapi_param_free($self);
   }
 };
+
+%{
+const char* rapi_param_name_get(const rapi_param *p) {
+  return rapi_param_get_name(p);
+}
+
+void rapi_param_name_set(rapi_param *p, const char *val) {
+  rapi_param_set_name(p, val);
+}
+%}
+
+/********* rapi_opts *******/
+typedef struct {
+	int ignore_unsupported;
+	/* Standard Ones - Differently implemented by aligners*/
+	int mapq_min;
+	int isize_min;
+	int isize_max;
+	/* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
+
+  // TODO: how to wrap this thing?
+	kvec_t(rapi_param) parameters;
+} rapi_opts;
+
 
 %extend rapi_opts {
   rapi_opts() {
@@ -135,6 +176,26 @@ const char* rapi_aligner_version();
     }
   }
 };
+
+/****** rapi_contig and rapi_ref *******/
+
+%immutable;
+typedef struct {
+	char * name;
+	uint32_t len;
+	char * assembly_identifier;
+	char * species;
+	char * uri;
+	char * md5;
+} rapi_contig;
+
+
+typedef struct {
+	char * path;
+	rapi_contig * contigs;
+} rapi_ref;
+%mutable;
+
 
 %extend rapi_ref {
   rapi_ref(const char* reference_path) {
