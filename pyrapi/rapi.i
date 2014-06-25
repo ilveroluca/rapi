@@ -11,7 +11,7 @@
 // This leaves me writing one interface per target language.
 
 /******* swig -builtin option *******
-PyExc_SetString wouldn't raise a Python exception until I
+PyErr_SetString wouldn't raise a Python exception until I
 started calling swig with the "-builtin" option.
 
 *************************************/
@@ -85,11 +85,19 @@ or they won't have effect.
 // opts are initialized when they're created.
 %ignore "rapi_init_opts";
 %ignore "rapi_param_init";
+%ignore "rapi_ref_load";
 
 %include "kvec.h";
 %include "kstring.h";
 %include "rapi.h";
 
+/*
+These are wrapped automatically by SWIG -- the wrapper doesn't try to free the
+strings since they are "const".
+
+const char* rapi_aligner_name();
+const char* rapi_aligner_version();
+*/
 
 %extend rapi_param {
   rapi_param() {
@@ -125,6 +133,41 @@ or they won't have effect.
       PDEBUG("Problem destroying opts (error code %d)\n", error);
       // TODO: should we raise exceptions in case of errors when freeing/destroying?
     }
+  }
+};
+
+%extend rapi_ref {
+  rapi_ref(const char* reference_path) {
+    rapi_ref* ref = (rapi_ref*) rapi_malloc(sizeof(rapi_ref));
+    if (!ref) return NULL;
+
+    int error = rapi_ref_load(reference_path, ref);
+    if (error == RAPI_NO_ERROR)
+      return ref;
+    else {
+      free(ref);
+      const char* msg;
+      if (error == RAPI_MEMORY_ERROR)
+        msg = "Insufficient memory available to load the reference.";
+      else if (error == RAPI_GENERIC_ERROR)
+        msg = "Library failed to load reference. Check paths and reference format.";
+      else
+        msg = "";
+
+      PyErr_SetString(rapi_py_error_type(error), msg);
+      return NULL;
+    }
+  }
+
+  void unload() {
+    int error = rapi_ref_free($self);
+    if (error != RAPI_NO_ERROR) {
+      PDEBUG("Problem destroying reference (error code %d)\n", error);
+    }
+  }
+
+  ~rapi_ref() {
+    rapi_ref_unload($self);
   }
 };
 
