@@ -15,8 +15,8 @@ SHARED := _rapi.so
 
 all: $(SHARED)
 
-rapi_wrap.c: ../include/rapi.h ../include/rapi.i
-	swig -builtin -python $(INCLUDES) -o rapi_wrap.c ../include/rapi.i
+rapi_wrap.c: ../include/rapi.h rapi.i
+	swig -builtin -python $(INCLUDES) -o rapi_wrap.c rapi.i
 
 rapi_wrap.o: rapi_wrap.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c rapi_wrap.c
