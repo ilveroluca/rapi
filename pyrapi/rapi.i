@@ -190,12 +190,17 @@ typedef struct {
 } rapi_contig;
 
 
+/* Without these %feature statements the __len__ and __getitem__ methods
+   will be defined but they won't work.  You'll get errors like:
+
+----> len(r)
+TypeError: object of type 'ref' has no len()
+*/
+%feature("python:slot", "sq_length", functype="lenfunc") rapi_ref::rapi___len__;
+%feature("python:slot", "mp_subscript", functype="binaryfunc") rapi_ref::rapi___getitem__;
 typedef struct {
 	char * path;
-	rapi_contig * contigs;
 } rapi_ref;
-%mutable;
-
 
 %extend rapi_ref {
   rapi_ref(const char* reference_path) {
@@ -230,6 +235,22 @@ typedef struct {
   ~rapi_ref() {
     rapi_ref_unload($self);
   }
+
+  size_t rapi___len__() { return $self->n_contigs; }
+
+  rapi_contig* rapi_get_contig(size_t i) {
+    if (i >= $self->n_contigs) {
+      PyErr_SetString(PyExc_IndexError, "index out of bounds");
+      return NULL;
+    }
+    else
+      return $self->contigs + i;
+  }
+
+  rapi_contig* rapi___getitem__(size_t i) { return rapi_ref_rapi_get_contig($self, i); }
 };
+
+%mutable;
+
 
 // vim: set et sw=2 ts=2
