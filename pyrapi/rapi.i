@@ -196,6 +196,15 @@ typedef struct {
 ----> len(r)
 TypeError: object of type 'ref' has no len()
 */
+/*
+We're wrapping rapi_ref as a container of contigs.  In other words, the rapi_contig
+elements are accessed by indexing into the rapi_ref.  Though I'd prefer it, I haven't
+figured out how to expose the contigs attribute as an array of structures, supporting
+usage like:
+
+    > ref = rapi.ref('some path')
+    > c1 = ref.contigs[0]
+*/
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_ref::rapi___len__;
 %feature("python:slot", "mp_subscript", functype="binaryfunc") rapi_ref::rapi___getitem__;
 typedef struct {
@@ -249,7 +258,6 @@ typedef struct {
 
   rapi_contig* rapi___getitem__(size_t i) { return rapi_ref_rapi_get_contig($self, i); }
 };
-
 %mutable;
 
 
