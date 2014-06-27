@@ -189,13 +189,46 @@ typedef struct {
 	char * md5;
 } rapi_contig;
 
+%inline %{
+typedef struct {
+  rapi_contig* next_item;
+  size_t n_left;
+} ref_contig_iter;
+%}
 
 /* Without these %feature statements the __len__ and __getitem__ methods
-   will be defined but they won't work.  You'll get errors like:
+   will be defined but they won't work (at least when calling swig with -builtin).
+   You'll get errors like:
 
 ----> len(r)
 TypeError: object of type 'ref' has no len()
 */
+%feature("python:slot", "tp_iter", functype="getiterfunc") ref_contig_iter::rapi___iter__;
+%feature("python:slot", "tp_iternext", functype="iternextfunc") ref_contig_iter::next;
+%extend ref_contig_iter {
+  ref_contig_iter(rapi_contig* array, size_t len) {
+    ref_contig_iter* iter = (ref_contig_iter*) rapi_malloc(sizeof(ref_contig_iter));
+    if (!iter) return NULL;
+
+    iter->next_item = array;
+    iter->n_left = len;
+    return iter;
+  }
+
+  ref_contig_iter* rapi___iter__() { return $self; }
+
+  rapi_contig* next() {
+    if ($self->n_left > 0) {
+      $self->n_left -= 1;
+      return $self->next_item++;
+    }
+    else {
+      PyErr_SetString(PyExc_StopIteration, "");
+      return NULL;
+    }
+  }
+};
+
 /*
 We're wrapping rapi_ref as a container of contigs.  In other words, the rapi_contig
 elements are accessed by indexing into the rapi_ref.  Though I'd prefer it, I haven't
@@ -208,9 +241,11 @@ usage like:
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_ref::rapi___len__;
 %feature("python:slot", "mp_subscript", functype="binaryfunc") rapi_ref::rapi___getitem__;
 typedef struct {
-	char * path;
+  char * path;
+  int n_contigs;
 } rapi_ref;
 
+%feature("python:slot", "tp_iter", functype="getiterfunc") rapi_ref::rapi___iter__;
 %extend rapi_ref {
   rapi_ref(const char* reference_path) {
     rapi_ref* ref = (rapi_ref*) rapi_malloc(sizeof(rapi_ref));
@@ -257,6 +292,8 @@ typedef struct {
   }
 
   rapi_contig* rapi___getitem__(size_t i) { return rapi_ref_rapi_get_contig($self, i); }
+
+  ref_contig_iter* rapi___iter__() { return new_ref_contig_iter($self->contigs, $self->n_contigs); }
 };
 %mutable;
 
