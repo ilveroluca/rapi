@@ -104,13 +104,13 @@ const char* rapi_aligner_version();
 
 /**** rapi_param ****/
 typedef struct {
-	uint8_t type;
-	union {
-		char character;
-		char* text; // if set, type should be set to TEXT and the str will be freed by rapi_param_clear
-		long integer;
-		double real;
-	} value;
+  uint8_t type;
+  union {
+    char character;
+    char* text; // if set, type should be set to TEXT and the str will be freed by rapi_param_clear
+    long integer;
+    double real;
+  } value;
 } rapi_param;
 
 
@@ -141,15 +141,15 @@ void rapi_param_name_set(rapi_param *p, const char *val) {
 
 /********* rapi_opts *******/
 typedef struct {
-	int ignore_unsupported;
-	/* Standard Ones - Differently implemented by aligners*/
-	int mapq_min;
-	int isize_min;
-	int isize_max;
-	/* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
+  int ignore_unsupported;
+  /* Standard Ones - Differently implemented by aligners*/
+  int mapq_min;
+  int isize_min;
+  int isize_max;
+  /* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
 
   // TODO: how to wrap this thing?
-	kvec_t(rapi_param) parameters;
+  kvec_t(rapi_param) parameters;
 } rapi_opts;
 
 
@@ -181,12 +181,12 @@ typedef struct {
 
 %immutable;
 typedef struct {
-	char * name;
-	uint32_t len;
-	char * assembly_identifier;
-	char * species;
-	char * uri;
-	char * md5;
+  char * name;
+  uint32_t len;
+  char * assembly_identifier;
+  char * species;
+  char * uri;
+  char * md5;
 } rapi_contig;
 
 %inline %{
