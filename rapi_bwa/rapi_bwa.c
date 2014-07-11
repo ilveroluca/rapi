@@ -1022,6 +1022,30 @@ int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments 
 	return RAPI_NO_ERROR;
 }
 
+int rapi_reads_reserve(rapi_batch * batch, int n_fragments)
+{
+	if (n_fragments < 0)
+		return RAPI_PARAM_ERROR;
+	if (n_fragments == 0)
+		return RAPI_NO_ERROR;
+
+	if (n_fragments > batch->n_frags)
+	{
+		// Current space insufficient.  Need to reallocate.
+		int old_n_reads = batch->n_frags * batch->n_reads_frag;
+		int new_n_reads = n_fragments * batch->n_reads_frag;
+		rapi_read* space = realloc(batch->reads, new_n_reads * sizeof(batch->reads[0]));
+		if (space == NULL)
+			return RAPI_MEMORY_ERROR;
+		else {
+			memset(space + old_n_reads, 0, (new_n_reads - old_n_reads) * sizeof(batch->reads[0]));
+			batch->n_frags = n_fragments;
+			batch->reads = space;
+		}
+	}
+	return RAPI_NO_ERROR;
+}
+
 int rapi_reads_free( rapi_batch * batch )
 {
 	for (int f = 0; f < batch->n_frags; ++f) {

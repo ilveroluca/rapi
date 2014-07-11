@@ -276,6 +276,21 @@ int rapi_ref_free( rapi_ref * ref_struct );
 /* Allocate reads */
 int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
 
+/* Reserve sufficient space for n_fragments.
+ *
+ * If n_fragments is greater than the number of fragments that can be currently
+ * stored in the rapi_batch (i.e., greater than n_reads_frag*n_frags), this
+ * function reallocates the space to fit them.  The new space will be
+ * initialized to 0, like rapi_reads_alloc * does.
+ *
+ * This function will not reduce the space occupied by the batch;
+ * if n_fragments is less than what can be already stored then the function
+ * does nothing.
+ *
+ * In case of error, the batch is not modified.
+ */
+int rapi_reads_reserve(rapi_batch * batch, int n_fragments);
+
 /**
  * Set read data within a batch.  The strings are copied into the read batch.
  *
