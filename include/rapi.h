@@ -238,7 +238,7 @@ typedef struct {
 	char * id;   // NULL-terminated
 	char * seq;  // NULL-terminated, capital letters in [AGCTN]
 	char * qual; // NULL-terminated, ASCII-encoded in Sanger q+33 format
-	unsigned int length;
+	unsigned int length; // sequence length
 	rapi_alignment* alignments;
 	uint8_t n_alignments;
 } rapi_read;
@@ -277,7 +277,7 @@ int rapi_ref_free( rapi_ref * ref_struct );
 int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
 
 /**
- * Set read data within a batch.
+ * Set read data within a batch.  The strings are copied into the read batch.
  *
  * \param n_frag 0-based fragment number
  * \param n_read 0-based read number
