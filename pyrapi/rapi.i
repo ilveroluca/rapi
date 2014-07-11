@@ -181,7 +181,8 @@ typedef struct {
 
 /****** rapi_contig and rapi_ref *******/
 
-%immutable;
+%immutable; /** don't let the user modify the reference through the wrapper */
+
 typedef struct {
   char * name;
   uint32_t len;
@@ -215,6 +216,10 @@ TypeError: object of type 'ref' has no len()
     iter->next_item = array;
     iter->n_left = len;
     return iter;
+  }
+
+  ~ref_contig_iter() {
+    free($self);
   }
 
   ref_contig_iter* rapi___iter__() { return $self; }
@@ -284,6 +289,10 @@ typedef struct {
 
   size_t rapi___len__() { return $self->n_contigs; }
 
+  /* XXX: I worry about memory management here.  We're returning a pointer to the rapi_ref's
+    chunk of memory.  I don't think there's anything preventing the interpreter from deciding
+    to free the underlying memory and making everything blow up.
+  */
   rapi_contig* rapi_get_contig(size_t i) {
     if (i >= $self->n_contigs) {
       PyErr_SetString(PyExc_IndexError, "index out of bounds");
@@ -297,6 +306,155 @@ typedef struct {
 
   ref_contig_iter* rapi___iter__() { return new_ref_contig_iter($self->contigs, $self->n_contigs); }
 };
+
+/****** rapi_batch and rapi_reads *******/
+
+%feature("python:slot", "sq_length", functype="lenfunc") rapi_read::rapi___len__;
+typedef struct {
+  char * id;
+  char * seq;
+  char * qual;
+  unsigned int length;
+  rapi_alignment* alignments;
+  uint8_t n_alignments;
+} rapi_read;
+
+%extend rapi_read {
+  size_t rapi___len__() { return $self->length; }
+};
+
+
+//%rename("batch") "rapi_batch_wrap"; // how do I make this rename work properly?
+
+%feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
+%inline %{
+  typedef struct {
+    rapi_batch* batch;
+    size_t len; // number of reads inserted in batch (as opposed to the space reserved)
+  } rapi_batch_wrap;
+%}
+
+%extend rapi_batch_wrap {
+  rapi_batch_wrap(int n_reads_per_frag) {
+    if (n_reads_per_frag <= 0) {
+      PyErr_SetString(PyExc_ValueError, "number of reads per fragment must be greater than or equal to 0");
+      return NULL;
+    }
+
+    rapi_batch_wrap* wrapper = (rapi_batch_wrap*) rapi_malloc(sizeof(rapi_batch_wrap));
+    if (!wrapper) return NULL;
+
+    wrapper->batch = (rapi_batch*) rapi_malloc(sizeof(rapi_batch));
+    if (!wrapper->batch) {
+      free(wrapper);
+      return NULL;
+    }
+
+    wrapper->len = 0;
+
+    int error = rapi_reads_alloc(wrapper->batch, n_reads_per_frag, 0); // zero-sized allocation to initialize
+
+    if (error != RAPI_NO_ERROR) {
+      free(wrapper->batch);
+      free(wrapper);
+      PyErr_SetString(rapi_py_error_type(error), "Error allocating space for reads");
+      return NULL;
+    }
+    else
+      return wrapper;
+  }
+
+  ~rapi_batch_wrap() {
+    int error = rapi_reads_free($self->batch);
+    free($self);
+    if (error != RAPI_NO_ERROR) {
+      PDEBUG("Problem destroying read batch (error code %d)\n", error);
+      // TODO: should we raise exceptions in case of errors when freeing/destroying?
+    }
+  }
+
+  /** Number of reads inserted in batch (as opposed to the space reserved).
+   *  This is actually index + 1 of the "forward-most" read to have been inserted.
+   */
+  int rapi___len__() { return $self->len; }
+
+  /** Number of reads for which we have allocated memory. */
+  int capacity() { return $self->batch->n_frags * $self->batch->n_reads_frag; }
+
+  void reserve(int n_reads) {
+    if (n_reads < 0)
+      PyErr_SetString(rapi_py_error_type(RAPI_PARAM_ERROR), "number of reads to reserve must be >= 0");
+
+    int n_fragments = n_reads / $self->batch->n_reads_frag;
+    // If the reads don't fit completely in n_fragments, add one more
+    if (n_reads % $self->batch->n_reads_frag != 0)
+      n_fragments +=  1;
+
+    int error = rapi_reads_reserve($self->batch, n_fragments);
+
+    if (error != RAPI_NO_ERROR)
+      PyErr_SetString(rapi_py_error_type(error), "Failed to reserve space");
+    else {
+      for (int i = 0; i < $self->len; ++i) {
+        PDEBUG("i: %d; n_alignments: %d\n", i, $self->batch->reads[i].n_alignments);
+      }
+    }
+  }
+
+  void append(const char* id, const char* seq, const char* qual, int q_offset) {
+    int fragment_num = $self->len / $self->batch->n_reads_frag;
+    int read_num = $self->len % $self->batch->n_reads_frag;
+
+    size_t read_capacity = rapi_batch_wrap_capacity($self);
+    if (read_capacity < $self->len + 1) {
+      // grow space
+      size_t new_capacity = read_capacity > 0 ? read_capacity * 2 : 2;
+      rapi_batch_wrap_reserve($self, new_capacity);
+      // We let the reserve function run.  Though it doesn't have a return value,
+      // it will set exceptions if it has problems.  So, we re-check whethet our
+      // capacity is sufficient (meaning that it has been incremented).  If it
+      // hasn't we return without appending the read and let the system raise
+      // the exception set by rapi_batch_wrap_reserve()
+      if (rapi_batch_wrap_capacity($self) < $self->len + 1) {
+        return;
+      }
+    }
+    PDEBUG("Setting read %d of fragment %d\n", read_num, fragment_num);
+    int error = rapi_set_read($self->batch, fragment_num, read_num, id, seq, qual, q_offset);
+    if (error != RAPI_NO_ERROR) {
+      PyErr_SetString(rapi_py_error_type(error), "Error inserting read.");
+    }
+    else
+      ++$self->len;
+  }
+
+  void set_read(int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset) {
+    if (n_frag < 0 || n_read < 0) {
+      PyErr_SetString(rapi_py_error_type(RAPI_PARAM_ERROR), "read and fragment indices cannot be negative");
+      return;
+    }
+
+    int error = rapi_set_read($self->batch, n_frag, n_read, id, seq, qual, q_offset);
+    if (error != RAPI_NO_ERROR) {
+      PyErr_SetString(rapi_py_error_type(error), "Error setting read data");
+    } else {
+      // If the user set a read that is beyond the current batch length, reset the
+      // batch length to the new limit.
+      int index = n_frag * $self->batch->n_reads_frag + n_read;
+      if ($self->len < index)
+        $self->len = index + 1;
+    }
+  }
+
+  rapi_read* get_read(int n_fragment, int n_read) {
+    //return rapi_get_read($self->batch, n_fragment, n_read);
+    rapi_read* r = rapi_get_read($self->batch, n_fragment, n_read);
+    PDEBUG("number of alignments in this read: %d\n", r->n_alignments);
+    return r;
+  }
+}
+
+
 %mutable;
 
 
