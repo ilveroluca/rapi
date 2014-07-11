@@ -40,6 +40,7 @@ void rapi_print_read(FILE* out, const rapi_read* read)
 	fprintf(out, "read length: %d\n", read->length);
 	fprintf(out, "read seq: %s\n", read->seq);
 	fprintf(out, "read qual: %s\n", read->qual);
+	fprintf(out, "read n_alignments: %u\n", read->n_alignments);
 }
 
 
