@@ -94,6 +94,8 @@ or they won't have effect.
   }
 %};
 
+#define QENC_SANGER   33
+#define QENC_ILLUMINA 64
 
 /*
 These are wrapped automatically by SWIG -- the wrapper doesn't try to free the
