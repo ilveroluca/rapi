@@ -22,8 +22,12 @@ rapi_wrap.o: rapi_wrap.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c rapi_wrap.c
 
 $(SHARED): bwa rapi_wrap.o
-	# to build the shared library, we link against our static rapi_lib and the static BWA library, libbwa.a
-	$(CC) -shared $(CFLAGS) -o $@ rapi_wrap.o -L$(dir $(RAPI_BWA)) -lrapi_bwa -L$(BWA_PATH) -lbwa
+# to build the shared library, we link against our static rapi_lib and the static BWA library, libbwa.a
+ifneq ($(UNAME), Darwin)
+	$(CC) -shared $(CFLAGS) -o $@ rapi_wrap.o -L$(dir $(RAPI_BWA)) -lrapi_bwa -L$(BWA_PATH) -lbwa -lpython -lz
+else
+	$(CC) -shared $(CFLAGS) -o $@ rapi_wrap.o -L$(dir $(RAPI_BWA)) -lrapi_bwa -L$(BWA_PATH) -lbwa -lz
+endif
 
 bwa:
 	@echo "BWA_PATH is $(BWA_PATH)"
