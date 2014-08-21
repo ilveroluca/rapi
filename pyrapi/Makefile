@@ -7,6 +7,8 @@ CFLAGS := -g -Wall -O2 -Wno-unused-function -std=c99 -fPIC
 RAPI_BWA := ../rapi_bwa/librapi_bwa.a
 SHARED := _rapi.so
 UNAME := $(shell uname)
+PYTHON_PREFIX := $(shell python-config --prefix)
+PYTHON_LIBS := $(shell python-config --libs)
 
 .SUFFIXES:.c .o
 .PHONY: bwa clean
@@ -25,7 +27,7 @@ rapi_wrap.o: rapi_wrap.c
 $(SHARED): bwa rapi_wrap.o
 # to build the shared library, we link against our static rapi_lib and the static BWA library, libbwa.a
 ifeq ($(UNAME), Darwin)
-	$(CC) -shared $(CFLAGS) -o $@ rapi_wrap.o -L$(dir $(RAPI_BWA)) -lrapi_bwa -L$(BWA_PATH) -lbwa -lpython -lz
+	$(CC) -shared $(CFLAGS) -o $@ rapi_wrap.o -L$(dir $(RAPI_BWA)) -lrapi_bwa -L$(BWA_PATH) -lbwa L$(PYTHON_PREFIX)/lib $(PYTHON_LIB) -lz
 else
 	$(CC) -shared $(CFLAGS) -o $@ rapi_wrap.o -L$(dir $(RAPI_BWA)) -lrapi_bwa -L$(BWA_PATH) -lbwa -lz
 endif
