@@ -323,6 +323,11 @@ int rapi_init(const rapi_opts* opts)
 	return RAPI_NO_ERROR;
 }
 
+int rapi_shutdown() {
+	/* no op */
+	return RAPI_NO_ERROR;
+}
+
 /* Init Library Options */
 int rapi_opts_init( rapi_opts * my_opts )
 {

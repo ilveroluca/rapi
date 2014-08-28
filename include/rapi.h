@@ -260,8 +260,9 @@ int rapi_opts_init( rapi_opts * my_opts );
 
 int rapi_opts_free( rapi_opts * my_opts );
 
-/* Init Library */
+/* Init and tear down library */
 int rapi_init(const rapi_opts* opts);
+int rapi_shutdown();
 
 /* Aligner Version */
 const char* rapi_aligner_name();

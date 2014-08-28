@@ -86,11 +86,17 @@ or they won't have effect.
 %include "kvec.h";
 
 %inline %{
-  /* rewrite rapi_init to launch an exception instead of returning an error */
+  /* rewrite rapi_init and rapi_shutdown to launch an exception instead of returning an error */
   void init(const rapi_opts* opts) {
     int error = rapi_init(opts);
     if (error != RAPI_NO_ERROR)
-      PyErr_SetString(rapi_py_error_type(error), "Error initializing library");
+      PyErr_SetString(rapi_py_error_type(error), "Error initializing rapi library");
+  }
+
+  void shutdown() {
+    int error = rapi_shutdown();
+    if (error != RAPI_NO_ERROR)
+      PyErr_SetString(rapi_py_error_type(error), "problem shutting down rapi library");
   }
 %};
 
