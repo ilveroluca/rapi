@@ -8,6 +8,7 @@
 #include <kvec.h>
 #include <utils.h>
 
+#include <inttypes.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -996,7 +997,7 @@ int rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts 
 
 	// run the alignment
 	state->n_reads_processed += bwa_seqs.n_reads;
-	fprintf(stderr, "processed %lld reads\n", state->n_reads_processed);
+	fprintf(stderr, "processed %" PRId64 " reads\n", state->n_reads_processed);
 
 clean_up:
 	free(regs);
