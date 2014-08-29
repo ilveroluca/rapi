@@ -1045,6 +1045,7 @@ int rapi_reads_reserve(rapi_batch * batch, int n_fragments)
 		if (space == NULL)
 			return RAPI_MEMORY_ERROR;
 		else {
+			// set new space to 0
 			memset(space + old_n_reads, 0, (new_n_reads - old_n_reads) * sizeof(batch->reads[0]));
 			batch->n_frags = n_fragments;
 			batch->reads = space;
@@ -1138,6 +1139,7 @@ int rapi_set_read(rapi_batch* batch,
 error:
 	// In case of error, free any allocated memory and return the error
 	free(read->id);
+	read->id = NULL;
 	return error_code;
 }
 
