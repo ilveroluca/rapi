@@ -17,8 +17,19 @@ MiniRef = \
             os.path.join(
                 os.path.dirname(__file__), '../mini_ref/mini_ref.fasta'))
 
-print "MiniRef: ", MiniRef
+SequencesTxt = \
+        os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__), '../seqs.txt'))
 
+def read_sequences():
+    """
+    Read a tab-separated file of sequences::
+
+        ID	SEQ1	Q1	SEQ2	Q2
+    """
+    with open(SequencesTxt) as f:
+        return [ line.rstrip('\n').split('\t') for line in f ]
 
 class TestPyrapi(unittest.TestCase):
     def setUp(self):
@@ -51,6 +62,59 @@ class TestPyrapi(unittest.TestCase):
                 self.assertIsNone(v)
         finally:
             r.unload()
+
+    def test_batch_wrap_create_(self):
+        w = rapi.batch_wrap(2)
+        self.assertEquals(2, w.n_reads_per_frag())
+        self.assertEquals(0, len(w))
+
+        w = rapi.batch_wrap(1)
+        self.assertEquals(1, w.n_reads_per_frag())
+
+    def test_batch_wrap_reserve(self):
+        w = rapi.batch_wrap(2)
+        w.reserve(10)
+        self.assertGreaterEqual(10, w.capacity())
+        w.reserve(100)
+        self.assertGreaterEqual(100, w.capacity())
+
+    def test_batch_wrap_append_one(self):
+        w = rapi.batch_wrap(2)
+        seq_pair = read_sequences()[0]
+        # insert one read
+        w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
+        self.assertEquals(1, len(w))
+        read1 = w.get_read(0, 0)
+        self.assertEquals(seq_pair[0], read1.id)
+        self.assertEquals(seq_pair[1], read1.seq)
+        self.assertEquals(seq_pair[2], read1.qual)
+        self.assertEquals(len(seq_pair[1]), len(read1))
+
+    def test_batch_wrap_append_illumina(self):
+        w = rapi.batch_wrap(2)
+        seq_pair = read_sequences()[0]
+        # convert the base qualities from sanger to illumina encoding
+        # (subtract sanger offset and add illumina offset)
+        illumina_qualities = ''.join([ chr(ord(c) - 33 + 64) for c in seq_pair[2] ])
+        w.append(seq_pair[0], seq_pair[1], illumina_qualities, rapi.QENC_ILLUMINA)
+        read1 = w.get_read(0, 0)
+        # Internally base qualities should be converted to sanger format
+        self.assertEquals(seq_pair[2], read1.qual)
+
+    def test_batch_wrap_append_baseq_out_of_range(self):
+        w = rapi.batch_wrap(2)
+        seq_pair = read_sequences()[0]
+
+        new_q = chr(32)*len(seq_pair[1]) # sanger encoding goes down to 33
+        self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
+
+        new_q = chr(127)*len(seq_pair[1]) # and up to 126
+        self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
+
+        new_q = chr(63)*len(seq_pair[1]) # illumina encoding goes down to 64
+        self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
+
+
 
 def suite():
     return unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
