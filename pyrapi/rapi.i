@@ -2,8 +2,9 @@
 
 /* SWIG interface for rapi.h */
 
+%include "exception.i"
+
 /******* Language-independent exceptions *******/
-//%include "exception.i"
 //SWIG_exception(SWIG_MemoryError, "Not enough memory");
 // LP: I can't get SWIG_exception to work. It generates a "goto fail;"
 // statement without defining the "fail" label, thus resulting in a
@@ -330,7 +331,20 @@ typedef struct {
 };
 
 
-//%rename("batch") "rapi_batch_wrap"; // how do I make this rename work properly?
+
+/******************************************
+ * start:api_batch_wrap
+ ******************************************/
+
+/*
+ * We wrap the rapi_batch in a shell class to implement some higher level
+ * functionality -- principally appending.  To append we need to keep track
+ * of how many reads have already been inserted (not just of allocated capacity,
+ * which is what the bare rapi_batch C structure provides.  To add this new
+ * member variable we have use this strategy.
+*/
+
+//%rename("batch") "rapi_batch_wrap"; // XXX: how do I make this rename work properly?
 
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
 %inline %{
@@ -341,6 +355,7 @@ typedef struct {
 %}
 
 %extend rapi_batch_wrap {
+
   rapi_batch_wrap(int n_reads_per_frag) {
     if (n_reads_per_frag <= 0) {
       PyErr_SetString(PyExc_ValueError, "number of reads per fragment must be greater than or equal to 0");
@@ -379,6 +394,9 @@ typedef struct {
     }
   }
 
+  /** Number of reads per fragment */
+  int n_reads_per_frag() { return $self->batch->n_reads_frag; }
+
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.
    */
@@ -387,9 +405,30 @@ typedef struct {
   /** Number of reads for which we have allocated memory. */
   int capacity() { return $self->batch->n_frags * $self->batch->n_reads_frag; }
 
-  void reserve(int n_reads) {
-    if (n_reads < 0)
+  rapi_read* get_read(int n_fragment, int n_read)
+  {
+    //return rapi_get_read($self->batch, n_fragment, n_read);
+    rapi_read* r = rapi_get_read($self->batch, n_fragment, n_read);
+    PDEBUG("number of alignments in this read: %d\n", r->n_alignments);
+    return r;
+  }
+}
+
+/** Set exception handler for methods that return an error code */
+%exception {
+  int error = $action;
+  if (error != RAPI_NO_ERROR) {
+    SWIG_fail;
+  }
+}
+
+%extend rapi_batch_wrap {
+
+  int reserve(int n_reads) {
+    if (n_reads < 0) {
       PyErr_SetString(rapi_py_error_type(RAPI_PARAM_ERROR), "number of reads to reserve must be >= 0");
+      return RAPI_PARAM_ERROR;
+    }
 
     int n_fragments = n_reads / $self->batch->n_reads_frag;
     // If the reads don't fit completely in n_fragments, add one more
@@ -398,46 +437,47 @@ typedef struct {
 
     int error = rapi_reads_reserve($self->batch, n_fragments);
 
-    if (error != RAPI_NO_ERROR)
+    if (error != RAPI_NO_ERROR) {
       PyErr_SetString(rapi_py_error_type(error), "Failed to reserve space");
-    else {
+    }
+    /*else {
       for (int i = 0; i < $self->len; ++i) {
         PDEBUG("i: %d; n_alignments: %d\n", i, $self->batch->reads[i].n_alignments);
       }
-    }
+    }*/
+    return error;
   }
 
-  void append(const char* id, const char* seq, const char* qual, int q_offset) {
+  int append(const char* id, const char* seq, const char* qual, int q_offset)
+  {
     int fragment_num = $self->len / $self->batch->n_reads_frag;
     int read_num = $self->len % $self->batch->n_reads_frag;
+    int error = RAPI_NO_ERROR;
 
     size_t read_capacity = rapi_batch_wrap_capacity($self);
     if (read_capacity < $self->len + 1) {
-      // grow space
+      // double the space
       size_t new_capacity = read_capacity > 0 ? read_capacity * 2 : 2;
-      rapi_batch_wrap_reserve($self, new_capacity);
-      // We let the reserve function run.  Though it doesn't have a return value,
-      // it will set exceptions if it has problems.  So, we re-check whethet our
-      // capacity is sufficient (meaning that it has been incremented).  If it
-      // hasn't we return without appending the read and let the system raise
-      // the exception set by rapi_batch_wrap_reserve()
-      if (rapi_batch_wrap_capacity($self) < $self->len + 1) {
-        return;
+      error = rapi_batch_wrap_reserve($self, new_capacity);
+      if (error != RAPI_NO_ERROR) {
+        return error;
       }
     }
-    PDEBUG("Setting read %d of fragment %d\n", read_num, fragment_num);
-    int error = rapi_set_read($self->batch, fragment_num, read_num, id, seq, qual, q_offset);
+    error = rapi_set_read($self->batch, fragment_num, read_num, id, seq, qual, q_offset);
     if (error != RAPI_NO_ERROR) {
       PyErr_SetString(rapi_py_error_type(error), "Error inserting read.");
     }
     else
       ++$self->len;
+
+    return error;
   }
 
-  void set_read(int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset) {
+  int set_read(int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset)
+  {
     if (n_frag < 0 || n_read < 0) {
       PyErr_SetString(rapi_py_error_type(RAPI_PARAM_ERROR), "read and fragment indices cannot be negative");
-      return;
+      return RAPI_PARAM_ERROR;
     }
 
     int error = rapi_set_read($self->batch, n_frag, n_read, id, seq, qual, q_offset);
@@ -450,15 +490,19 @@ typedef struct {
       if ($self->len < index)
         $self->len = index + 1;
     }
-  }
-
-  rapi_read* get_read(int n_fragment, int n_read) {
-    //return rapi_get_read($self->batch, n_fragment, n_read);
-    rapi_read* r = rapi_get_read($self->batch, n_fragment, n_read);
-    PDEBUG("number of alignments in this read: %d\n", r->n_alignments);
-    return r;
+    return error;
   }
 }
+
+/** Clear exception handler */
+%exception;
+
+
+
+/******************************************
+ * end:rapi_batch_wrap
+ ******************************************/
+
 
 
 %mutable;
