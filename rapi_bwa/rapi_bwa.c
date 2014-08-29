@@ -1119,8 +1119,8 @@ int rapi_set_read(rapi_batch* batch,
 		read->qual = read->seq + seq_len + 1;
 		for (int i = 0; i < seq_len; ++i) {
 			read->qual[i] = (int)qual[i] - q_offset + 33; // 33 is the Sanger offset.  BWA expects it this way.
-			if (read->qual[i] > 127)
-			{ // qual is unsigned, by Sanger base qualities have an allowed range of [0,94], and 94+33=127
+			if (read->qual[i] < 33 || read->qual[i] > 126)
+			{ // Sanger base qualities have an allowed range of [0,93], and 93+33=126
 				fprintf(stderr, "Invalid base quality score %d\n", read->qual[i]);
 				error_code = RAPI_PARAM_ERROR;
 				goto error;
