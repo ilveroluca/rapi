@@ -8,6 +8,7 @@
 #include <kvec.h>
 #include <utils.h>
 
+#include <inttypes.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -319,6 +320,11 @@ char* strdup(const char* str)
 int rapi_init(const rapi_opts* opts)
 {
 	// no op
+	return RAPI_NO_ERROR;
+}
+
+int rapi_shutdown() {
+	/* no op */
 	return RAPI_NO_ERROR;
 }
 
@@ -996,7 +1002,7 @@ int rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts 
 
 	// run the alignment
 	state->n_reads_processed += bwa_seqs.n_reads;
-	fprintf(stderr, "processed %lld reads\n", state->n_reads_processed);
+	fprintf(stderr, "processed %" PRId64 " reads\n", state->n_reads_processed);
 
 clean_up:
 	free(regs);
@@ -1039,6 +1045,7 @@ int rapi_reads_reserve(rapi_batch * batch, int n_fragments)
 		if (space == NULL)
 			return RAPI_MEMORY_ERROR;
 		else {
+			// set new space to 0
 			memset(space + old_n_reads, 0, (new_n_reads - old_n_reads) * sizeof(batch->reads[0]));
 			batch->n_frags = n_fragments;
 			batch->reads = space;
@@ -1112,8 +1119,8 @@ int rapi_set_read(rapi_batch* batch,
 		read->qual = read->seq + seq_len + 1;
 		for (int i = 0; i < seq_len; ++i) {
 			read->qual[i] = (int)qual[i] - q_offset + 33; // 33 is the Sanger offset.  BWA expects it this way.
-			if (read->qual[i] > 127)
-			{ // qual is unsigned, by Sanger base qualities have an allowed range of [0,94], and 94+33=127
+			if (read->qual[i] < 33 || read->qual[i] > 126)
+			{ // Sanger base qualities have an allowed range of [0,93], and 93+33=126
 				fprintf(stderr, "Invalid base quality score %d\n", read->qual[i]);
 				error_code = RAPI_PARAM_ERROR;
 				goto error;
@@ -1132,6 +1139,7 @@ int rapi_set_read(rapi_batch* batch,
 error:
 	// In case of error, free any allocated memory and return the error
 	free(read->id);
+	read->id = NULL;
 	return error_code;
 }
 
