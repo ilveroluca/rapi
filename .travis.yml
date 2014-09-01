@@ -5,8 +5,6 @@ python:
 before_install:
     - sudo apt-get update -qq
     - sudo apt-get install -qq swig
-    - tests/ci/setup_bwa.sh "${PWD}/bwa-build"
-    - export BWA_PATH="${PWD}/bwa-build"
 
 install: make clean all
 
