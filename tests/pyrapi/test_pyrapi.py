@@ -114,10 +114,13 @@ class TestPyrapi(unittest.TestCase):
         new_q = chr(63)*len(seq_pair[1]) # illumina encoding goes down to 64
         self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
 
-
-
 def suite():
     return unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
 
+def main():
+    result = unittest.TextTestRunner(verbosity=2).run(suite())
+    if not result.wasSuccessful():
+        sys.exit(1)
+
 if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
+    main()
