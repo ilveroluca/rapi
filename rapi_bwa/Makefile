@@ -26,8 +26,16 @@ OBJS := $(notdir $(SOURCES:.c=.o))
 all: $(RAPI_LIB)
 
 
-$(RAPI_LIB): $(OBJS)
-	$(AR) -csru $@ $(OBJS)
+# We create the static rapi_bwa library ("RAPI_LIB") as a thin ar archive that
+# also indexes the symbols in the static libbwa.a.  In this way we can link client
+# only to our static library, without having to keep track of where libbwa.a is.
+#
+# XXX: Note that our *thin* archive doesn't contain the bwa code but merely
+# references the static archive, so when the client code is built libbwa.a must
+# still be in its original location.
+$(RAPI_LIB): $(OBJS) $(BWA_PATH)/libbwa.a
+	rm -f $@
+	$(AR) -crT $@ $(OBJS) $(BWA_PATH)/libbwa.a
 
 $(OBJS): bwa
 
