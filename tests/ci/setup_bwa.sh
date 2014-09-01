@@ -11,7 +11,7 @@ if [ $# -eq 0 ]; then
 else
     BWA_DIR="${1}"
 fi
-echo "Using BWA build dir $BWA_DIR"
+echo "Using BWA build directory $BWA_DIR"
 
 git clone "${BWA_REPO}" "${BWA_DIR}"
 
