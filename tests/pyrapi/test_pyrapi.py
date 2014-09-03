@@ -39,6 +39,14 @@ class TestPyrapi(unittest.TestCase):
     def tearDown(self):
         rapi.shutdown()
 
+    def test_init(self):
+        r = rapi.init(self.opts)
+        self.assertIsNone(r)
+
+    def test_shutdown(self):
+        r = rapi.shutdown()
+        self.assertIsNone(r)
+
     def test_bad_ref_path(self):
         self.assertRaises(RuntimeError, rapi.ref, 'bad/path')
 
@@ -113,6 +121,13 @@ class TestPyrapi(unittest.TestCase):
 
         new_q = chr(63)*len(seq_pair[1]) # illumina encoding goes down to 64
         self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
+
+    def test_n_reads_per_frag(self):
+        w = rapi.batch_wrap(2)
+        self.assertEquals(2, w.n_reads_per_frag())
+        w = rapi.batch_wrap(1)
+        self.assertEquals(1, w.n_reads_per_frag())
+
 
 def suite():
     return unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)

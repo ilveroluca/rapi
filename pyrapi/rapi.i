@@ -25,6 +25,19 @@ started calling swig with the "-builtin" option.
 #include "rapi.h"
 %}
 
+typedef int rapi_error_t;
+
+%typemap(out) rapi_error_t {
+  if ($1 != RAPI_NO_ERROR) {
+    SWIG_exception(rapi_swig_error_type($1), "");
+    //PyErr_SetString(rapi_py_error_type($1), "");
+  }
+  else {
+    $result = VOID_Object;
+  }
+}
+
+
 %header %{
 
 #include <stddef.h>
@@ -33,7 +46,34 @@ started calling swig with the "-builtin" option.
 #define PDEBUG(...) { fprintf(stderr, "%s(%d): ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
 
 /* Helper to convert RAPI errors to Python errors */
-PyObject* rapi_py_error_type(int rapi_code) {
+int rapi_swig_error_type(rapi_error_t rapi_code) {
+  int type = 0;
+  switch(rapi_code) {
+  case RAPI_GENERIC_ERROR:
+    type = SWIG_RuntimeError;
+    break;
+  case RAPI_OP_NOT_SUPPORTED_ERROR:
+    type = SWIG_RuntimeError;
+    break;
+  case RAPI_MEMORY_ERROR:
+    type = SWIG_MemoryError;
+    break;
+  case RAPI_PARAM_ERROR:
+    type = SWIG_ValueError;
+    break;
+  case RAPI_TYPE_ERROR:
+    type = SWIG_TypeError;
+    break;
+  default:
+    type = SWIG_RuntimeError;
+    break;
+  };
+  return type;
+}
+
+
+/* Helper to convert RAPI errors to Python errors */
+PyObject* rapi_py_error_type(rapi_error_t rapi_code) {
   PyObject* type = 0;
   switch(rapi_code) {
   case RAPI_GENERIC_ERROR:
@@ -86,20 +126,8 @@ or they won't have effect.
 // This %includes are needed since we have some structure elements that are kvec_t
 %include "kvec.h";
 
-%inline %{
-  /* rewrite rapi_init and rapi_shutdown to launch an exception instead of returning an error */
-  void init(const rapi_opts* opts) {
-    int error = rapi_init(opts);
-    if (error != RAPI_NO_ERROR)
-      PyErr_SetString(rapi_py_error_type(error), "Error initializing rapi library");
-  }
-
-  void shutdown() {
-    int error = rapi_shutdown();
-    if (error != RAPI_NO_ERROR)
-      PyErr_SetString(rapi_py_error_type(error), "problem shutting down rapi library");
-  }
-%};
+rapi_error_t rapi_init(const rapi_opts* opts);
+rapi_error_t rapi_shutdown();
 
 #define QENC_SANGER   33
 #define QENC_ILLUMINA 64
@@ -414,17 +442,9 @@ typedef struct {
   }
 }
 
-/** Set exception handler for methods that return an error code */
-%exception {
-  int error = $action;
-  if (error != RAPI_NO_ERROR) {
-    SWIG_fail;
-  }
-}
-
 %extend rapi_batch_wrap {
 
-  int reserve(int n_reads) {
+  rapi_error_t reserve(int n_reads) {
     if (n_reads < 0) {
       PyErr_SetString(rapi_py_error_type(RAPI_PARAM_ERROR), "number of reads to reserve must be >= 0");
       return RAPI_PARAM_ERROR;
@@ -435,7 +455,7 @@ typedef struct {
     if (n_reads % $self->batch->n_reads_frag != 0)
       n_fragments +=  1;
 
-    int error = rapi_reads_reserve($self->batch, n_fragments);
+    rapi_error_t error = rapi_reads_reserve($self->batch, n_fragments);
 
     if (error != RAPI_NO_ERROR) {
       PyErr_SetString(rapi_py_error_type(error), "Failed to reserve space");
@@ -448,11 +468,11 @@ typedef struct {
     return error;
   }
 
-  int append(const char* id, const char* seq, const char* qual, int q_offset)
+  rapi_error_t append(const char* id, const char* seq, const char* qual, int q_offset)
   {
     int fragment_num = $self->len / $self->batch->n_reads_frag;
     int read_num = $self->len % $self->batch->n_reads_frag;
-    int error = RAPI_NO_ERROR;
+    rapi_error_t error = RAPI_NO_ERROR;
 
     size_t read_capacity = rapi_batch_wrap_capacity($self);
     if (read_capacity < $self->len + 1) {
@@ -493,11 +513,6 @@ typedef struct {
     return error;
   }
 }
-
-/** Clear exception handler */
-%exception;
-
-
 
 /******************************************
  * end:rapi_batch_wrap
