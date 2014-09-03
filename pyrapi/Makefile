@@ -1,3 +1,8 @@
+
+CC = gcc
+AR = ar
+
+
 PYTHON_INCLUDES := $(shell python-config --includes)
 PYTHON_PREFIX := $(shell python-config --prefix)
 PYTHON_LIBS := $(shell python-config --libs)
