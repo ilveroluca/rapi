@@ -13,6 +13,8 @@
 #include <kstring.h>
 #include <kvec.h>
 
+typedef int rapi_error_t;
+
 /* Error types */
 #define RAPI_NO_ERROR                    0
 #define RAPI_GENERIC_ERROR              -1
@@ -256,26 +258,26 @@ typedef struct {
 /*************************** functions *******************************/
 
 /* Init Options */
-int rapi_opts_init( rapi_opts * my_opts );
+rapi_error_t rapi_opts_init( rapi_opts * my_opts );
 
-int rapi_opts_free( rapi_opts * my_opts );
+rapi_error_t rapi_opts_free( rapi_opts * my_opts );
 
 /* Init and tear down library */
-int rapi_init(const rapi_opts* opts);
-int rapi_shutdown();
+rapi_error_t rapi_init(const rapi_opts* opts);
+rapi_error_t rapi_shutdown();
 
 /* Aligner Version */
 const char* rapi_aligner_name();
 const char* rapi_aligner_version();
 
 /* Load reference */
-int rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
+rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
 
 /* Free reference */
-int rapi_ref_free( rapi_ref * ref_struct );
+rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
 
 /* Allocate reads */
-int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
+rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
 
 /* Reserve sufficient space for n_fragments.
  *
@@ -290,7 +292,7 @@ int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments 
  *
  * In case of error, the batch is not modified.
  */
-int rapi_reads_reserve(rapi_batch * batch, int n_fragments);
+rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments);
 
 /**
  * Set read data within a batch.  The strings are copied into the read batch.
@@ -302,18 +304,18 @@ int rapi_reads_reserve(rapi_batch * batch, int n_fragments);
  * \param qual per-base quality, or NULL
  * \param q_offset offset from 0 for the base quality values (e.g., 33 for Sanger, 0 for byte values)
  */
-int rapi_set_read(rapi_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
+rapi_error_t rapi_set_read(rapi_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
-int rapi_reads_free( rapi_batch * batch );
+rapi_error_t rapi_reads_free( rapi_batch * batch );
 
 /* Align */
 typedef struct rapi_aligner_state rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
-int rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state);
+rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state);
 
-int rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts * config, rapi_aligner_state* state );
+rapi_error_t rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts * config, rapi_aligner_state* state );
 
-int rapi_aligner_state_free(struct rapi_aligner_state* state);
+rapi_error_t rapi_aligner_state_free(struct rapi_aligner_state* state);
 
 static inline rapi_read* rapi_get_read(const rapi_batch* batch, int n_fragment, int n_read) {
 	return batch->reads + (n_fragment * batch->n_reads_frag + n_read);
@@ -332,7 +334,7 @@ static inline int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops)
 	return len;
 }
 
-int rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output);
+rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output);
 
 void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstring_t* output);
 
