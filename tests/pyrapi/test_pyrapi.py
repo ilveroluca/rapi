@@ -40,36 +40,66 @@ class TestPyrapi(unittest.TestCase):
         rapi.shutdown()
 
     def test_init(self):
-        r = rapi.init(self.opts)
+        r = rapi.init(rapi.opts())
         self.assertIsNone(r)
 
     def test_shutdown(self):
+        rapi.init(rapi.opts())
         r = rapi.shutdown()
         self.assertIsNone(r)
+
+    def test_aligner_name_vers(self):
+        name = rapi.aligner_name()
+        ver = rapi.aligner_version()
+        self.assertGreater(len(name), 0)
+        self.assertGreater(len(ver), 0)
+
+
+class TestPyrapiRef(unittest.TestCase):
+    def setUp(self):
+        self.opts = rapi.opts()
+        rapi.init(self.opts)
+        self.ref = rapi.ref(MiniRef)
+
+    def tearDown(self):
+        self.ref.unload()
+        rapi.shutdown()
 
     def test_bad_ref_path(self):
         self.assertRaises(RuntimeError, rapi.ref, 'bad/path')
 
     def test_ref_load_unload(self):
-        r = rapi.ref(MiniRef)
-        self.assertEqual(MiniRef, r.path)
-        self.assertEqual(1, len(r))
-        r.unload()
+        self.assertEqual(MiniRef, self.ref.path)
+        self.assertEqual(1, len(self.ref))
 
     def test_ref_contigs(self):
-        r = rapi.ref(MiniRef)
-        try:
-            contigs = [ c for c in r ]
-            self.assertEquals(1, len(contigs))
-            self.assertEquals(len(r), len(contigs))
+        contigs = [ c for c in self.ref ]
+        self.assertEquals(1, len(contigs))
+        self.assertEquals(len(self.ref), len(contigs))
 
-            c0 = contigs[0]
-            self.assertEquals('chr1', c0.name)
-            self.assertEquals(60000, c0.len)
-            for v in (c0.assembly_identifier, c0.species, c0.uri, c0.md5):
-                self.assertIsNone(v)
-        finally:
-            r.unload()
+        c0 = contigs[0]
+        self.assertEquals('chr1', c0.name)
+        self.assertEquals(60000, c0.len)
+        for v in (c0.assembly_identifier, c0.species, c0.uri, c0.md5):
+            self.assertIsNone(v)
+
+    def test_get_contig(self):
+        c0 = self.ref.get_contig(0)
+        self.assertEquals('chr1', c0.name)
+        self.assertEquals(60000, c0.len)
+
+    def test_get_contig_out_of_bounds(self):
+        self.assertRaises(IndexError, self.ref.get_contig, 1)
+        self.assertRaises(IndexError, self.ref.get_contig, -1)
+
+
+class TestPyrapiBatch(unittest.TestCase):
+    def setUp(self):
+        self.opts = rapi.opts()
+        rapi.init(self.opts)
+
+    def tearDown(self):
+        rapi.shutdown()
 
     def test_batch_wrap_create_(self):
         w = rapi.batch_wrap(2)
@@ -130,7 +160,10 @@ class TestPyrapi(unittest.TestCase):
 
 
 def suite():
-    return unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
+    s = unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
+    s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiRef))
+    s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiBatch))
+    return s
 
 def main():
     result = unittest.TextTestRunner(verbosity=2).run(suite())
