@@ -362,8 +362,8 @@ typedef struct {
     chunk of memory.  I don't think there's anything preventing the interpreter from deciding
     to free the underlying memory and making everything blow up.
   */
-  rapi_contig* rapi_get_contig(size_t i) {
-    if (i >= $self->n_contigs) {
+  rapi_contig* rapi_get_contig(int i) {
+    if (i < 0 || i >= $self->n_contigs) {
       PyErr_SetString(PyExc_IndexError, "index out of bounds");
       return NULL;
     }
