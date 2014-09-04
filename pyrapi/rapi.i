@@ -304,6 +304,23 @@ typedef struct {
   int n_contigs;
 } rapi_ref;
 
+
+%exception rapi_ref::rapi_get_contig {
+  $action;
+  if (result == NULL) {
+    // The called $action should have already set the exception type and message
+    SWIG_fail;
+  }
+}
+
+%exception rapi_ref::rapi___getitem__ {
+  $action;
+  if (result == NULL) {
+    // The called $action should have already set the exception type and message
+    SWIG_fail;
+  }
+}
+
 %feature("python:slot", "tp_iter", functype="getiterfunc") rapi_ref::rapi___iter__;
 %extend rapi_ref {
   rapi_ref(const char* reference_path) {
