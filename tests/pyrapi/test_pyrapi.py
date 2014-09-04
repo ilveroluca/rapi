@@ -72,7 +72,10 @@ class TestPyrapiRef(unittest.TestCase):
         self.assertEqual(MiniRef, self.ref.path)
         self.assertEqual(1, len(self.ref))
 
-    def test_ref_contigs(self):
+    def test_ref_len(self):
+        self.assertEqual(1, len(self.ref))
+
+    def test_ref_iteration(self):
         contigs = [ c for c in self.ref ]
         self.assertEquals(1, len(contigs))
         self.assertEquals(len(self.ref), len(contigs))
