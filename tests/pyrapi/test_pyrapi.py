@@ -92,6 +92,15 @@ class TestPyrapiRef(unittest.TestCase):
         self.assertRaises(IndexError, self.ref.get_contig, 1)
         self.assertRaises(IndexError, self.ref.get_contig, -1)
 
+    def test_get_contig_by_get_item(self):
+        c0 = self.ref[0]
+        self.assertEquals('chr1', c0.name)
+        self.assertEquals(60000, c0.len)
+
+    def test_get_contig_by_get_item_out_of_bounds(self):
+        self.assertRaises(IndexError, self.ref.__getitem__, 1)
+        self.assertRaises(IndexError, self.ref.__getitem__, -1)
+
 
 class TestPyrapiReadBatch(unittest.TestCase):
     def setUp(self):

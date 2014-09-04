@@ -379,7 +379,7 @@ typedef struct {
       return $self->contigs + i;
   }
 
-  rapi_contig* rapi___getitem__(size_t i) { return rapi_ref_rapi_get_contig($self, i); }
+  rapi_contig* rapi___getitem__(int i) { return rapi_ref_rapi_get_contig($self, i); }
 
   ref_contig_iter* rapi___iter__() { return new_ref_contig_iter($self->contigs, $self->n_contigs); }
 };
