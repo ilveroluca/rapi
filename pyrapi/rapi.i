@@ -119,12 +119,20 @@ void* rapi_malloc(size_t nbytes) {
 
 %}
 
+// We don't provide direct access to the read_batch struct
+%rename("$ignore") rapi_batch;
+// Instead, we'll define a wrapper for it.  It's implemented
+// as the structure rapi_batch_wrap within this wrapper and
+// exposed to the user as rapi.read_batch
+%rename(read_batch) rapi_batch_wrap;
+
 /*
-Remove rapi_ prefix from function names.
+Remove rapi_ prefix from all function and structure names.
 Make sure this general rename comes before the ignore clauses below
 or they won't have effect.
 */
 %rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
+
 
 // ignore functions from klib
 %rename("$ignore", regextarget=1) "^k";
@@ -404,9 +412,10 @@ typedef struct {
  * of how many reads have already been inserted (not just of allocated capacity,
  * which is what the bare rapi_batch C structure provides.  To add this new
  * member variable we have use this strategy.
+ *
+ * Notice that this structure is name "read_batch" in the wrapper interface
+ * (thanks to a %rename rule earlier in this file).
 */
-
-//%rename("batch") "rapi_batch_wrap"; // XXX: how do I make this rename work properly?
 
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
 %inline %{

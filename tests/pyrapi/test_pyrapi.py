@@ -93,7 +93,7 @@ class TestPyrapiRef(unittest.TestCase):
         self.assertRaises(IndexError, self.ref.get_contig, -1)
 
 
-class TestPyrapiBatch(unittest.TestCase):
+class TestPyrapiReadBatch(unittest.TestCase):
     def setUp(self):
         self.opts = rapi.opts()
         rapi.init(self.opts)
@@ -101,23 +101,23 @@ class TestPyrapiBatch(unittest.TestCase):
     def tearDown(self):
         rapi.shutdown()
 
-    def test_batch_wrap_create_(self):
-        w = rapi.batch_wrap(2)
+    def test_read_batch_create_(self):
+        w = rapi.read_batch(2)
         self.assertEquals(2, w.n_reads_per_frag())
         self.assertEquals(0, len(w))
 
-        w = rapi.batch_wrap(1)
+        w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
 
-    def test_batch_wrap_reserve(self):
-        w = rapi.batch_wrap(2)
+    def test_read_batch_reserve(self):
+        w = rapi.read_batch(2)
         w.reserve(10)
         self.assertGreaterEqual(10, w.capacity())
         w.reserve(100)
         self.assertGreaterEqual(100, w.capacity())
 
-    def test_batch_wrap_append_one(self):
-        w = rapi.batch_wrap(2)
+    def test_read_batch_append_one(self):
+        w = rapi.read_batch(2)
         seq_pair = read_sequences()[0]
         # insert one read
         w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
@@ -128,8 +128,8 @@ class TestPyrapiBatch(unittest.TestCase):
         self.assertEquals(seq_pair[2], read1.qual)
         self.assertEquals(len(seq_pair[1]), len(read1))
 
-    def test_batch_wrap_append_illumina(self):
-        w = rapi.batch_wrap(2)
+    def test_read_batch_append_illumina(self):
+        w = rapi.read_batch(2)
         seq_pair = read_sequences()[0]
         # convert the base qualities from sanger to illumina encoding
         # (subtract sanger offset and add illumina offset)
@@ -139,8 +139,8 @@ class TestPyrapiBatch(unittest.TestCase):
         # Internally base qualities should be converted to sanger format
         self.assertEquals(seq_pair[2], read1.qual)
 
-    def test_batch_wrap_append_baseq_out_of_range(self):
-        w = rapi.batch_wrap(2)
+    def test_read_batch_append_baseq_out_of_range(self):
+        w = rapi.read_batch(2)
         seq_pair = read_sequences()[0]
 
         new_q = chr(32)*len(seq_pair[1]) # sanger encoding goes down to 33
@@ -153,16 +153,16 @@ class TestPyrapiBatch(unittest.TestCase):
         self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
 
     def test_n_reads_per_frag(self):
-        w = rapi.batch_wrap(2)
+        w = rapi.read_batch(2)
         self.assertEquals(2, w.n_reads_per_frag())
-        w = rapi.batch_wrap(1)
+        w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
 
 
 def suite():
     s = unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
     s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiRef))
-    s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiBatch))
+    s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiReadBatch))
     return s
 
 def main():
