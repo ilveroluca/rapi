@@ -329,7 +329,7 @@ typedef struct {
   }
 
   void unload() {
-    int error = rapi_ref_free($self);
+    rapi_error_t error = rapi_ref_free($self);
     if (error != RAPI_NO_ERROR) {
       PERROR("Problem destroying reference (error code %d)\n", error);
     }
