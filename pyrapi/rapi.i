@@ -25,6 +25,16 @@ started calling swig with the "-builtin" option.
 #include "rapi.h"
 %}
 
+/*
+rapi_error_t is the error type for the RAPI library.
+Rather than passing the error codes back to the Python-side caller,
+we apply a typemap that:
+
+  * checks whether the code represents an error and, if so, maps it to an
+    exception
+  * if there's no error, maps the code to None so that the calls don't
+    return a value.
+*/
 typedef int rapi_error_t;
 
 %typemap(out) rapi_error_t {
@@ -43,9 +53,10 @@ typedef int rapi_error_t;
 #include <stddef.h>
 #include <stdio.h>
 
-#define PDEBUG(...) { fprintf(stderr, "%s(%d): ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
+#define PDEBUG(...) { fprintf(stderr, "%s(%d) DEBUG: ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
+#define PERROR(...) { fprintf(stderr, "%s(%d) ERROR: ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
 
-/* Helper to convert RAPI errors to Python errors */
+/* Helper to convert RAPI errors to swig errors */
 int rapi_swig_error_type(rapi_error_t rapi_code) {
   int type = 0;
   switch(rapi_code) {
@@ -126,15 +137,20 @@ or they won't have effect.
 // This %includes are needed since we have some structure elements that are kvec_t
 %include "kvec.h";
 
-rapi_error_t rapi_init(const rapi_opts* opts);
-rapi_error_t rapi_shutdown();
 
+// a couple of constants
 #define QENC_SANGER   33
 #define QENC_ILLUMINA 64
 
+/************ begin functions and structures **************/
+
+rapi_error_t rapi_init(const rapi_opts* opts);
+rapi_error_t rapi_shutdown();
+
+
 /*
-These are wrapped automatically by SWIG -- the wrapper doesn't try to free the
-strings since they are "const".
+The char* returned by the following functions are wrapped automatically by
+SWIG -- the wrapper doesn't try to free the strings since they are "const".
 */
 const char* rapi_aligner_name();
 const char* rapi_aligner_version();
@@ -208,7 +224,7 @@ typedef struct {
   ~rapi_opts() {
     int error = rapi_opts_free($self);
     if (error != RAPI_NO_ERROR) {
-      PDEBUG("Problem destroying opts (error code %d)\n", error);
+      PERROR("Problem destroying opts (error code %d)\n", error);
       // TODO: should we raise exceptions in case of errors when freeing/destroying?
     }
   }
@@ -227,6 +243,7 @@ typedef struct {
   char * md5;
 } rapi_contig;
 
+/* An iterator object for the contig */
 %inline %{
 typedef struct {
   rapi_contig* next_item;
@@ -314,7 +331,7 @@ typedef struct {
   void unload() {
     int error = rapi_ref_free($self);
     if (error != RAPI_NO_ERROR) {
-      PDEBUG("Problem destroying reference (error code %d)\n", error);
+      PERROR("Problem destroying reference (error code %d)\n", error);
     }
   }
 
@@ -417,7 +434,7 @@ typedef struct {
     int error = rapi_reads_free($self->batch);
     free($self);
     if (error != RAPI_NO_ERROR) {
-      PDEBUG("Problem destroying read batch (error code %d)\n", error);
+      PERROR("Problem destroying read batch (error code %d)\n", error);
       // TODO: should we raise exceptions in case of errors when freeing/destroying?
     }
   }
