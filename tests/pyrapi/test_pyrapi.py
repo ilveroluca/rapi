@@ -106,64 +106,62 @@ class TestPyrapiReadBatch(unittest.TestCase):
     def setUp(self):
         self.opts = rapi.opts()
         rapi.init(self.opts)
+        self.w = rapi.read_batch(2)
 
     def tearDown(self):
         rapi.shutdown()
 
-    def test_read_batch_create_(self):
-        w = rapi.read_batch(2)
-        self.assertEquals(2, w.n_reads_per_frag())
-        self.assertEquals(0, len(w))
+    def test_create_bad_arg(self):
+        self.assertRaises(ValueError, rapi.read_batch, -1)
+
+    def test_create(self):
+        self.assertEquals(2, self.w.n_reads_per_frag())
+        self.assertEquals(0, len(self.w))
 
         w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
 
-    def test_read_batch_reserve(self):
-        w = rapi.read_batch(2)
-        w.reserve(10)
-        self.assertGreaterEqual(10, w.capacity())
-        w.reserve(100)
-        self.assertGreaterEqual(100, w.capacity())
+    def test_reserve(self):
+        self.w.reserve(10)
+        self.assertGreaterEqual(10, self.w.capacity())
+        self.w.reserve(100)
+        self.assertGreaterEqual(100, self.w.capacity())
 
-    def test_read_batch_append_one(self):
-        w = rapi.read_batch(2)
+    def test_append_one(self):
         seq_pair = read_sequences()[0]
         # insert one read
-        w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
-        self.assertEquals(1, len(w))
-        read1 = w.get_read(0, 0)
+        self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
+        self.assertEquals(1, len(self.w))
+        read1 = self.w.get_read(0, 0)
         self.assertEquals(seq_pair[0], read1.id)
         self.assertEquals(seq_pair[1], read1.seq)
         self.assertEquals(seq_pair[2], read1.qual)
         self.assertEquals(len(seq_pair[1]), len(read1))
 
-    def test_read_batch_append_illumina(self):
-        w = rapi.read_batch(2)
+    def test_append_illumina(self):
         seq_pair = read_sequences()[0]
         # convert the base qualities from sanger to illumina encoding
         # (subtract sanger offset and add illumina offset)
         illumina_qualities = ''.join([ chr(ord(c) - 33 + 64) for c in seq_pair[2] ])
-        w.append(seq_pair[0], seq_pair[1], illumina_qualities, rapi.QENC_ILLUMINA)
-        read1 = w.get_read(0, 0)
+        self.w.append(seq_pair[0], seq_pair[1], illumina_qualities, rapi.QENC_ILLUMINA)
+        read1 = self.w.get_read(0, 0)
         # Internally base qualities should be converted to sanger format
         self.assertEquals(seq_pair[2], read1.qual)
 
-    def test_read_batch_append_baseq_out_of_range(self):
-        w = rapi.read_batch(2)
+    def test_append_baseq_out_of_range(self):
         seq_pair = read_sequences()[0]
 
         new_q = chr(32)*len(seq_pair[1]) # sanger encoding goes down to 33
-        self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
+        self.assertRaises(ValueError, self.w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
 
         new_q = chr(127)*len(seq_pair[1]) # and up to 126
-        self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
+        self.assertRaises(ValueError, self.w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
 
         new_q = chr(63)*len(seq_pair[1]) # illumina encoding goes down to 64
-        self.assertRaises(ValueError, w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
+        self.assertRaises(ValueError, self.w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
 
     def test_n_reads_per_frag(self):
-        w = rapi.read_batch(2)
-        self.assertEquals(2, w.n_reads_per_frag())
+        self.assertEquals(2, self.w.n_reads_per_frag())
         w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
 
