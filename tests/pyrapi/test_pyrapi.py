@@ -129,6 +129,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertGreaterEqual(10, self.w.capacity())
         self.w.reserve(100)
         self.assertGreaterEqual(100, self.w.capacity())
+        self.assertRaises(ValueError, self.w.reserve, -1)
 
     def test_append_one(self):
         seq_pair = read_sequences()[0]
