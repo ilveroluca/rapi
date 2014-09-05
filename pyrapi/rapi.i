@@ -425,6 +425,14 @@ typedef struct {
   } rapi_batch_wrap;
 %}
 
+%exception rapi_batch_wrap::get_read {
+  $action
+  if (result == NULL) {
+    SWIG_exception(SWIG_IndexError, "");
+  }
+}
+
+
 %extend rapi_batch_wrap {
 
   rapi_batch_wrap(int n_reads_per_frag) {
@@ -478,10 +486,14 @@ typedef struct {
 
   rapi_read* get_read(int n_fragment, int n_read)
   {
-    //return rapi_get_read($self->batch, n_fragment, n_read);
-    rapi_read* r = rapi_get_read($self->batch, n_fragment, n_read);
-    PDEBUG("number of alignments in this read: %d\n", r->n_alignments);
-    return r;
+    // Since the underlying code merely checks whether we're indexing
+    // allocated space, we precede it with an additional check whether we're
+    // accessing space where reads have been inserted.
+    if (n_fragment * $self->batch->n_reads_frag + n_read >= $self->len) {
+      return NULL;
+    }
+    return rapi_get_read($self->batch, n_fragment, n_read);
+    // Error raised in %exception block
   }
 }
 

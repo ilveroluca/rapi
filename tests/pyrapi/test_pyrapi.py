@@ -168,6 +168,22 @@ class TestPyrapiReadBatch(unittest.TestCase):
         w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
 
+    def test_get_read_out_of_bounds(self):
+        self.assertEqual(0, len(self.w))
+        self.assertRaises(IndexError, self.w.get_read, 0, 0)
+        self.assertRaises(IndexError, self.w.get_read, -1, 0)
+        self.assertRaises(IndexError, self.w.get_read, -1, -1)
+
+        # now load a sequence and ensure we get exceptions if we access beyond the limits
+        seq_pair = read_sequences()[0]
+        self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
+        self.assertIsNotNone(self.w.get_read(0, 0))
+        self.assertRaises(IndexError, self.w.get_read, 0, 1)
+        self.assertRaises(IndexError, self.w.get_read, 1, 0)
+        self.assertRaises(IndexError, self.w.get_read, 1, 1)
+
+
+
 
 def suite():
     s = unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
