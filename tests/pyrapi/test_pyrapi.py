@@ -1,35 +1,12 @@
 #!/usr/bin/env python
 
-import os
 import sys
 import unittest
 
-sys.path.append(
-        os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), '../..')))
+import stuff
+stuff.append_src_to_pypath()
 
 import pyrapi.rapi as rapi
-
-
-MiniRef = \
-        os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), '../mini_ref/mini_ref.fasta'))
-
-SequencesTxt = \
-        os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), '../seqs.txt'))
-
-def read_sequences():
-    """
-    Read a tab-separated file of sequences::
-
-        ID	SEQ1	Q1	SEQ2	Q2
-    """
-    with open(SequencesTxt) as f:
-        return [ line.rstrip('\n').split('\t') for line in f ]
 
 class TestPyrapi(unittest.TestCase):
     def setUp(self):
@@ -59,7 +36,7 @@ class TestPyrapiRef(unittest.TestCase):
     def setUp(self):
         self.opts = rapi.opts()
         rapi.init(self.opts)
-        self.ref = rapi.ref(MiniRef)
+        self.ref = rapi.ref(stuff.MiniRef)
 
     def tearDown(self):
         self.ref.unload()
@@ -69,7 +46,7 @@ class TestPyrapiRef(unittest.TestCase):
         self.assertRaises(RuntimeError, rapi.ref, 'bad/path')
 
     def test_ref_load_unload(self):
-        self.assertEqual(MiniRef, self.ref.path)
+        self.assertEqual(stuff.MiniRef, self.ref.path)
         self.assertEqual(1, len(self.ref))
 
     def test_ref_len(self):
@@ -132,7 +109,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(ValueError, self.w.reserve, -1)
 
     def test_append_one(self):
-        seq_pair = read_sequences()[0]
+        seq_pair = stuff.get_sequences()[0]
         # insert one read
         self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
         self.assertEquals(1, len(self.w))
@@ -143,7 +120,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(len(seq_pair[1]), len(read1))
 
     def test_append_illumina(self):
-        seq_pair = read_sequences()[0]
+        seq_pair = stuff.get_sequences()[0]
         # convert the base qualities from sanger to illumina encoding
         # (subtract sanger offset and add illumina offset)
         illumina_qualities = ''.join([ chr(ord(c) - 33 + 64) for c in seq_pair[2] ])
@@ -153,7 +130,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(seq_pair[2], read1.qual)
 
     def test_append_baseq_out_of_range(self):
-        seq_pair = read_sequences()[0]
+        seq_pair = stuff.get_sequences()[0]
 
         new_q = chr(32)*len(seq_pair[1]) # sanger encoding goes down to 33
         self.assertRaises(ValueError, self.w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
@@ -176,7 +153,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(IndexError, self.w.get_read, -1, -1)
 
         # now load a sequence and ensure we get exceptions if we access beyond the limits
-        seq_pair = read_sequences()[0]
+        seq_pair = stuff.get_sequences()[0]
         self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
         self.assertIsNotNone(self.w.get_read(0, 0))
         self.assertRaises(IndexError, self.w.get_read, 0, 1)
