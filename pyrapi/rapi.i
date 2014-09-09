@@ -433,7 +433,6 @@ typedef struct {
   }
 }
 
-
 %extend rapi_batch_wrap {
 
   rapi_batch_wrap(int n_reads_per_frag) {
@@ -476,6 +475,9 @@ typedef struct {
 
   /** Number of reads per fragment */
   int n_reads_per_frag() { return $self->batch->n_reads_frag; }
+
+  /** Number of complete fragments inserted */
+  int n_fragments() { return $self->len / $self->batch->n_reads_frag; }
 
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.

@@ -97,6 +97,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
     def test_create(self):
         self.assertEquals(2, self.w.n_reads_per_frag())
         self.assertEquals(0, len(self.w))
+        self.assertEquals(0, self.w.n_fragments())
 
         w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
@@ -106,6 +107,8 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertGreaterEqual(10, self.w.capacity())
         self.w.reserve(100)
         self.assertGreaterEqual(100, self.w.capacity())
+        self.assertEquals(0, self.w.n_fragments())
+        self.assertEquals(0, len(self.w))
         self.assertRaises(ValueError, self.w.reserve, -1)
 
     def test_append_one(self):
@@ -118,6 +121,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(seq_pair[1], read1.seq)
         self.assertEquals(seq_pair[2], read1.qual)
         self.assertEquals(len(seq_pair[1]), len(read1))
+        self.assertEquals(0, self.w.n_fragments())
 
     def test_append_illumina(self):
         seq_pair = stuff.get_sequences()[0]
@@ -145,6 +149,15 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(2, self.w.n_reads_per_frag())
         w = rapi.read_batch(1)
         self.assertEquals(1, w.n_reads_per_frag())
+
+    def test_n_fragments(self):
+        seq_pair = stuff.get_sequences()[0]
+        self.assertEquals(0, self.w.n_fragments())
+        # insert one read
+        self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
+        self.assertEquals(0, self.w.n_fragments())
+        self.w.append(seq_pair[0], seq_pair[3], seq_pair[4], rapi.QENC_SANGER)
+        self.assertEquals(1, self.w.n_fragments())
 
     def test_get_read_out_of_bounds(self):
         self.assertEqual(0, len(self.w))
