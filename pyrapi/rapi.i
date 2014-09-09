@@ -238,7 +238,9 @@ typedef struct {
   }
 };
 
-/****** rapi_contig and rapi_ref *******/
+/***************************************
+ ****** rapi_contig and rapi_ref *******
+ ***************************************/
 
 %immutable; /** don't let the user modify the reference through the wrapper */
 
@@ -385,7 +387,9 @@ typedef struct {
   ref_contig_iter* rapi___iter__() { return new_ref_contig_iter($self->contigs, $self->n_contigs); }
 };
 
-/****** rapi_batch and rapi_reads *******/
+/***************************************
+ ****** rapi_batch and rapi_reads ******
+ ***************************************/
 
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_read::rapi___len__;
 typedef struct {
@@ -401,12 +405,6 @@ typedef struct {
   size_t rapi___len__() { return $self->length; }
 };
 
-
-
-/******************************************
- * start:api_batch_wrap
- ******************************************/
-
 /*
  * We wrap the rapi_batch in a shell class to implement some higher level
  * functionality -- principally appending.  To append we need to keep track
@@ -414,7 +412,7 @@ typedef struct {
  * which is what the bare rapi_batch C structure provides.  To add this new
  * member variable we have use this strategy.
  *
- * Notice that this structure is name "read_batch" in the wrapper interface
+ * NOTE: this structure is called *read_batch* in the wrapper interface
  * (thanks to a %rename rule earlier in this file).
 */
 
@@ -560,9 +558,6 @@ typedef struct {
   }
 }
 
-/******************************************
- * end:rapi_batch_wrap
- ******************************************/
 
 
 
