@@ -496,9 +496,6 @@ typedef struct {
     return rapi_get_read($self->batch, n_fragment, n_read);
     // Error raised in %exception block
   }
-}
-
-%extend rapi_batch_wrap {
 
   rapi_error_t reserve(int n_reads) {
     if (n_reads < 0) return RAPI_PARAM_ERROR;
