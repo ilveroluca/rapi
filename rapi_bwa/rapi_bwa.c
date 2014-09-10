@@ -45,10 +45,10 @@ void rapi_print_read(FILE* out, const rapi_read* read)
 }
 
 
-int rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
+rapi_error_t rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
 	// in theory we should check the return values of all these kput functions
 	// and ensure they're != EOF
-	int error = RAPI_NO_ERROR;
+	rapi_error_t error = RAPI_NO_ERROR;
 
 	kputs(tag->key, str);
 	kputc(':', str);
@@ -95,7 +95,7 @@ int rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
  * (currently in rapi_read we only have a single alignment instead of a list,
  * so this should always be 0).
  */
-int rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output)
+rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output)
 {
 	/**** code based on mem_aln2sam in BWA ***/
 	rapi_alignment tmp_read, tmp_mate;
@@ -226,7 +226,7 @@ int rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* out
 
 	if (aln->score >= 0) { kputsn("\tAS:i:", 6, output); kputw(aln->score, output); }
 
-	int error = RAPI_NO_ERROR;
+	rapi_error_t error = RAPI_NO_ERROR;
 
 	for (int t = 0; t < kv_size(aln->tags); ++t) {
 		kputc('\t', output);
@@ -317,19 +317,19 @@ char* strdup(const char* str)
 #endif
 
 /* Init Library */
-int rapi_init(const rapi_opts* opts)
+rapi_error_t rapi_init(const rapi_opts* opts)
 {
 	// no op
 	return RAPI_NO_ERROR;
 }
 
-int rapi_shutdown() {
+rapi_error_t rapi_shutdown() {
 	/* no op */
 	return RAPI_NO_ERROR;
 }
 
 /* Init Library Options */
-int rapi_opts_init( rapi_opts * my_opts )
+rapi_error_t rapi_opts_init( rapi_opts * my_opts )
 {
 	// create a BWA opt structure
 	mem_opt_t*const bwa_opt = mem_opt_init();
@@ -371,7 +371,7 @@ int rapi_opts_init( rapi_opts * my_opts )
 	return RAPI_NO_ERROR;
 }
 
-int rapi_opts_free( rapi_opts * my_opts )
+rapi_error_t rapi_opts_free( rapi_opts * my_opts )
 {
 	free(my_opts->_private);
 	return RAPI_NO_ERROR;
@@ -389,7 +389,7 @@ const char* rapi_aligner_version()
 }
 
 /* Load Reference */
-int rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
+rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 {
 	if ( NULL == ref_struct || NULL == reference_path )
 		return RAPI_PARAM_ERROR;
@@ -429,7 +429,7 @@ int rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 }
 
 /* Free Reference */
-int rapi_ref_free( rapi_ref * ref )
+rapi_error_t rapi_ref_free( rapi_ref * ref )
 {
 	// free bwa's part
 	bwa_idx_destroy(ref->_private);
@@ -466,7 +466,7 @@ void _free_bwa_batch_contents(bwa_batch* batch)
 }
 
 
-static int _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* opts, bwa_batch* bwa_seqs)
+static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* opts, bwa_batch* bwa_seqs)
 {
 	bwa_seqs->n_bases = 0;
 	bwa_seqs->n_reads = 0;
@@ -559,7 +559,7 @@ static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
 	return RAPI_NO_ERROR;
 }
 
-int rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state)
+rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state)
 {
 	// allocate and zero the structure
 	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
@@ -568,7 +568,7 @@ int rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** r
 	return RAPI_NO_ERROR;
 }
 
-int rapi_aligner_state_free(rapi_aligner_state* state)
+rapi_error_t rapi_aligner_state_free(rapi_aligner_state* state)
 {
 	free(state);
 	return RAPI_NO_ERROR;
@@ -719,7 +719,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
  */
 static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref, rapi_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m)
 {
-	int error = RAPI_NO_ERROR;
+	rapi_error_t error = RAPI_NO_ERROR;
 	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
 	const uint8_t *const pac = ((bwaidx_t*)rapi_ref->_private)->pac;
 
@@ -920,7 +920,7 @@ static void bwa_worker_2(void *data, int i, int tid)
 {
 	bwa_worker_t *w = (bwa_worker_t*)data;
 	fprintf(stderr, "bwa_worker_2 with i %d\n", i);
-	int error = RAPI_NO_ERROR;
+	rapi_error_t error = RAPI_NO_ERROR;
 
 	if ((w->opt->flag & MEM_F_PE)) {
 		// paired end
@@ -943,9 +943,10 @@ static void bwa_worker_2(void *data, int i, int tid)
 #endif
 /********** end modified BWA code *****************/
 
-int rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts * config, rapi_aligner_state* state )
+rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start_fragment, int end_fragment,
+		const rapi_opts* opts, rapi_aligner_state* state )
 {
-	int error = RAPI_NO_ERROR;
+	rapi_error_t error = RAPI_NO_ERROR;
 
 	if (batch->n_reads_frag > 2)
 		return RAPI_OP_NOT_SUPPORTED_ERROR;
@@ -1016,7 +1017,7 @@ clean_up:
  *************************************/
 
 /* Allocate reads */
-int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments )
+rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments )
 {
 	if (n_fragments < 0 || n_reads_fragment < 0)
 		return RAPI_PARAM_ERROR;
@@ -1029,7 +1030,7 @@ int rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments 
 	return RAPI_NO_ERROR;
 }
 
-int rapi_reads_reserve(rapi_batch * batch, int n_fragments)
+rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments)
 {
 	if (n_fragments < 0)
 		return RAPI_PARAM_ERROR;
@@ -1054,7 +1055,7 @@ int rapi_reads_reserve(rapi_batch * batch, int n_fragments)
 	return RAPI_NO_ERROR;
 }
 
-int rapi_reads_free( rapi_batch * batch )
+rapi_error_t rapi_reads_free( rapi_batch * batch )
 {
 	for (int f = 0; f < batch->n_frags; ++f) {
 		for (int r = 0; r < batch->n_reads_frag; ++r) {
@@ -1079,11 +1080,11 @@ int rapi_reads_free( rapi_batch * batch )
 	return RAPI_NO_ERROR;
 }
 
-int rapi_set_read(rapi_batch* batch,
+rapi_error_t rapi_set_read(rapi_batch* batch,
 			int n_frag, int n_read,
 			const char* name, const char* seq, const char* qual,
 			int q_offset) {
-	int error_code = RAPI_NO_ERROR;
+	rapi_error_t error_code = RAPI_NO_ERROR;
 
 	if (n_frag < 0 || n_frag >= batch->n_frags
 	 || n_read < 0 || n_read >= batch->n_reads_frag)
