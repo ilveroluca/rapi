@@ -173,6 +173,41 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(IndexError, self.w.get_read, 1, 0)
         self.assertRaises(IndexError, self.w.get_read, 1, 1)
 
+    def test_iteration_values(self):
+        seqs = stuff.get_sequences()[0:2]
+        for pair in seqs:
+            self.w.append(pair[0], pair[1], pair[2], rapi.QENC_SANGER)
+            self.w.append(pair[0], pair[3], pair[4], rapi.QENC_SANGER)
+
+        for idx, fragment in enumerate(self.w):
+            self.assertEquals(2, len(fragment))
+            self.assertEquals(seqs[idx][0], fragment[0].id)
+            self.assertEquals(seqs[idx][1], fragment[0].seq)
+            self.assertEquals(seqs[idx][0], fragment[1].id)
+            self.assertEquals(seqs[idx][3], fragment[1].seq)
+
+    def test_iteration_completeness(self):
+        # empty batch
+        self.assertEquals(0, sum(1 for frag in self.w))
+        # now put some sequences into it
+        seqs = stuff.get_sequences()
+        for pair in seqs:
+            self.w.append(pair[0], pair[1], pair[2], rapi.QENC_SANGER)
+            self.w.append(pair[0], pair[3], pair[4], rapi.QENC_SANGER)
+        # test whether we iterate over all the fragments
+        self.assertEquals(len(seqs), sum(1 for frag in self.w))
+
+    def test_iteration_completeness_single_end(self):
+        seqs = stuff.get_sequences()
+        batch = rapi.read_batch(1)
+        for pair in seqs:
+            batch.append(pair[0], pair[1], pair[2], rapi.QENC_SANGER)
+            batch.append(pair[0], pair[3], pair[4], rapi.QENC_SANGER)
+        # test whether we iterate over all the fragments
+        self.assertEquals(2 * len(seqs), sum(1 for frag in batch))
+        it = iter(batch)
+        fragment = next(it)
+        self.assertEquals(1, len(fragment))
 
 
 

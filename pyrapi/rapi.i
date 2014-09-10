@@ -391,6 +391,42 @@ typedef struct {
  ****** rapi_batch and rapi_reads ******
  ***************************************/
 
+/********************** typemap rapi_fragment -> Tuple ******************/
+/*
+  Map a rapi_fragment to a Python tuple containing the relevant reads.
+  NOTE:
+  We don't copy any data here.  We merely create SWIG wrappers for the
+  rapi_reads returned by rapi_get_read(batch, f, r).  Therefore,
+  the Python object will have 'thisown' set to 0 AND the user must keep
+  a reference to the read batch around while he uses the data.
+*/
+%typemap(out) rapi_fragment {
+
+  int fragment_size = $1.batch->n_reads_frag;
+  PyObject* tuple = PyTuple_New(fragment_size);
+  if (tuple == NULL) {
+    PERROR("Failed to allocate PyTuple. Raising exception\n");
+    SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate tuple");
+  }
+
+  for (int i = 0; i < fragment_size; ++i) {
+    const rapi_read* read = rapi_get_read($1.batch, $1.fragment_num, i);
+    if (read == NULL) {
+      PERROR("Failed to fetch read (rapi_get_read(batch, %d, %d) returned NULL\n", $1.fragment_num, i);
+      Py_DECREF(tuple);
+      SWIG_exception_fail(rapi_swig_error_type(RAPI_GENERIC_ERROR), "Error retrieving read");
+    }
+    // SWIG_NewPointerObj creates a new Python wrapper for the rapi_read to which
+    // we're pointing. By passing the flag 0 we're telling SWIG that the wrapper
+    // doesn't own the rapi_read, thus it should not try to free it.
+    PyObject* read_object = SWIG_NewPointerObj(SWIG_as_voidptr(read), SWIGTYPE_p_rapi_read, 0);
+    // PyTuple_SET_ITEM steals the object reference so we don't need to DECREF.
+    PyTuple_SET_ITEM(tuple, i, read_object);
+  }
+  $result = tuple;
+}
+
+
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_read::rapi___len__;
 typedef struct {
   char * id;
@@ -416,13 +452,48 @@ typedef struct {
  * (thanks to a %rename rule earlier in this file).
 */
 
-%feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
-%inline %{
-  typedef struct {
-    rapi_batch* batch;
-    size_t len; // number of reads inserted in batch (as opposed to the space reserved)
-  } rapi_batch_wrap;
+// Forward declarations
+%{
+struct rapi_batch_wrap;
+struct read_batch_iter;
+SWIGINTERN struct read_batch_iter* new_read_batch_iter(struct rapi_batch_wrap* batch);
 %}
+
+%feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
+%feature("python:slot", "tp_iter", functype="getiterfunc") rapi_batch_wrap::rapi___iter__;
+%{
+typedef struct rapi_batch_wrap {
+  rapi_batch* batch;
+  size_t len; // number of reads inserted in batch (as opposed to the space reserved)
+} rapi_batch_wrap;
+%}
+// Don't expose any of the struct members through SWIG.
+typedef struct {
+} rapi_batch_wrap;
+
+%{
+typedef struct {
+  const rapi_batch* batch;
+  int fragment_num;
+} rapi_fragment;
+%}
+typedef struct {
+} rapi_fragment;
+
+/* Iterator over fragments in a read batch */
+// don't expose (%ignore) the members of the read_batch_iter struct
+%ignore read_batch_iter::wrapper;
+%ignore read_batch_iter::next_fragment;
+%feature("python:slot", "tp_iter", functype="getiterfunc") read_batch_iter::__iter__;
+%feature("python:slot", "tp_iternext", functype="iternextfunc") read_batch_iter::next;
+%{
+typedef struct read_batch_iter {
+  const rapi_batch_wrap* wrapper;
+  size_t next_fragment;
+} read_batch_iter;
+%}
+typedef struct {
+} read_batch_iter;
 
 %exception rapi_batch_wrap::get_read {
   $action
@@ -552,6 +623,51 @@ typedef struct {
         $self->len = index + 1;
     }
     return error;
+  }
+
+  // need the 'struct' keyword in the function prototype because we haven't
+  // defined the read_batch_iter struct yet.
+  struct read_batch_iter* rapi___iter__() {
+    return new_read_batch_iter($self);
+  }
+}
+
+
+%exception read_batch_iter::next {
+  $action
+  if (result.batch == NULL)
+    SWIG_fail; // exception already set by call
+}
+
+%extend read_batch_iter {
+  read_batch_iter(rapi_batch_wrap* batch) {
+    read_batch_iter* iter = (read_batch_iter*) rapi_malloc(sizeof(read_batch_iter));
+    if (iter == NULL) return NULL;
+
+    iter->wrapper = batch;
+    iter->next_fragment = 0;
+    return iter;
+  }
+
+  ~read_batch_iter() {
+    free($self);
+  }
+
+  read_batch_iter* __iter__() { return $self; }
+
+  rapi_fragment next() {
+    rapi_fragment fragment;
+
+    if ($self->next_fragment < rapi_batch_wrap_n_fragments($self->wrapper)) {
+      fragment.batch = $self->wrapper->batch;
+      fragment.fragment_num = $self->next_fragment;
+      $self->next_fragment += 1;
+    }
+    else {
+      PyErr_SetString(PyExc_StopIteration, "");
+      fragment.batch = NULL;
+    }
+    return fragment;
   }
 }
 
