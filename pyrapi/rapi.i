@@ -47,7 +47,6 @@ typedef int rapi_error_t;
   }
 }
 
-
 %header %{
 
 #include <stddef.h>
@@ -118,6 +117,7 @@ void* rapi_malloc(size_t nbytes) {
 }
 
 %}
+
 
 // We don't provide direct access to the read_batch struct
 %rename("$ignore") rapi_batch;
@@ -367,7 +367,7 @@ typedef struct {
     rapi_ref_unload($self);
   }
 
-  size_t rapi___len__() { return $self->n_contigs; }
+  size_t rapi___len__() const { return $self->n_contigs; }
 
   /* XXX: I worry about memory management here.  We're returning a pointer to the rapi_ref's
     chunk of memory.  I don't think there's anything preventing the interpreter from deciding
@@ -402,7 +402,7 @@ typedef struct {
 } rapi_read;
 
 %extend rapi_read {
-  size_t rapi___len__() { return $self->length; }
+  size_t rapi___len__() const { return $self->length; }
 };
 
 /*
@@ -472,18 +472,18 @@ typedef struct {
   }
 
   /** Number of reads per fragment */
-  int n_reads_per_frag() { return $self->batch->n_reads_frag; }
+  int n_reads_per_frag() const { return $self->batch->n_reads_frag; }
 
   /** Number of complete fragments inserted */
-  int n_fragments() { return $self->len / $self->batch->n_reads_frag; }
+  int n_fragments() const { return $self->len / $self->batch->n_reads_frag; }
 
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.
    */
-  int rapi___len__() { return $self->len; }
+  int rapi___len__() const { return $self->len; }
 
   /** Number of reads for which we have allocated memory. */
-  int capacity() { return $self->batch->n_frags * $self->batch->n_reads_frag; }
+  int capacity() const { return $self->batch->n_frags * $self->batch->n_reads_frag; }
 
   rapi_read* get_read(int n_fragment, int n_read)
   {
