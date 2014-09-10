@@ -91,6 +91,10 @@ class TestPyrapiReadBatch(unittest.TestCase):
     def tearDown(self):
         rapi.shutdown()
 
+    def test_hidden_members(self):
+        self.assertFalse(hasattr(self.w, 'batch'))
+        self.assertFalse(hasattr(self.w, 'fragment_num'))
+
     def test_create_bad_arg(self):
         self.assertRaises(ValueError, rapi.read_batch, -1)
 
