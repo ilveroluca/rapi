@@ -127,6 +127,14 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(len(seq_pair[1]), len(read1))
         self.assertEquals(0, self.w.n_fragments())
 
+    def test_append_without_qual(self):
+        seq_pair = stuff.get_sequences()[0]
+        self.w.append(seq_pair[0], seq_pair[1], None, rapi.QENC_SANGER)
+        self.assertEquals(1, len(self.w))
+        read1 = self.w.get_read(0, 0)
+        self.assertEquals(seq_pair[1], read1.seq)
+        self.assertIsNone(read1.qual)
+
     def test_append_illumina(self):
         seq_pair = stuff.get_sequences()[0]
         # convert the base qualities from sanger to illumina encoding
