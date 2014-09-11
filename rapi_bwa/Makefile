@@ -25,6 +25,8 @@ OBJS := $(notdir $(SOURCES:.c=.o))
 
 all: $(RAPI_LIB)
 
+bwa_header.h: bwa
+	./extract_bwa_header.py $(BWA_PATH) > bwa_header.h
 
 # We create the static rapi_bwa library ("RAPI_LIB") as a thin ar archive that
 # also indexes the symbols in the static libbwa.a.  In this way we can link client
@@ -37,7 +39,7 @@ $(RAPI_LIB): $(OBJS) $(BWA_PATH)/libbwa.a
 	rm -f $@
 	$(AR) -crT $@ $(OBJS) $(BWA_PATH)/libbwa.a
 
-$(OBJS): bwa
+$(OBJS): bwa bwa_header.h
 
 bwa:
 	@echo "BWA_PATH is $(BWA_PATH)"

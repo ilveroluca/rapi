@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <math.h>
 
+#include "bwa_header.h"
 
 const char vtype_char[] = {
 	'0',
@@ -384,8 +385,7 @@ const char* rapi_aligner_name()
 
 const char* rapi_aligner_version()
 {
-	/* TODO: change build system to extract PACKAGE_VERSION macro from main.c in BWA project */
-	return "0.7.8-r455";
+	return WRAPPED_BWA_VERSION;
 }
 
 /* Load Reference */
@@ -617,10 +617,7 @@ inline int mem_infer_dir(int64_t l_pac, int64_t b1, int64_t b2, int64_t *dist)
 	return (r1 == r2? 0 : 1) ^ (p2 > b1? 0 : 3);
 }
 
-
-extern mem_alnreg_v mem_align1_core(const mem_opt_t *opt, const bwt_t *bwt, const bntseq_t *bns, const uint8_t *pac, int l_seq, char *seq);
-// IMPORTANT: must run mem_sort_and_dedup() before calling mem_mark_primary_se function (but it's called by mem_align1_core)
-void mem_mark_primary_se(const mem_opt_t *opt, int n, mem_alnreg_t *a, int64_t id);
+// IMPORTANT: must run mem_sort_and_dedup() before calling the mem_mark_primary_se function (but it's called by mem_align1_core)
 
 /* based on mem_aln2sam */
 static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, int is_paired,
@@ -763,18 +760,13 @@ static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref,
 
 
 #if 1
+
 #define raw_mapq(diff, a) ((int)(6.02 * (diff) / (a) + .499))
 /*
  * Mostly taken from mem_sam_pe in bwamem_pair.c
  */
 int _bwa_mem_pe(const mem_opt_t *opt, const rapi_ref* rapi_ref, const mem_pestat_t pes[4], uint64_t id, bseq1_t s[2], mem_alnreg_v a[2], rapi_read out[2])
 {
-	// functions defined in bwamem.c or bwamem_pair.c
-	extern void mem_mark_primary_se(const mem_opt_t *opt, int n, mem_alnreg_t *a, int64_t id);
-	extern int mem_approx_mapq_se(const mem_opt_t *opt, const mem_alnreg_t *a);
-	extern int mem_matesw(const mem_opt_t *opt, int64_t l_pac, const uint8_t *pac, const mem_pestat_t pes[4], const mem_alnreg_t *a, int l_ms, const uint8_t *ms, mem_alnreg_v *ma);
-	extern int mem_pair(const mem_opt_t *opt, int64_t l_pac, const uint8_t *pac, const mem_pestat_t pes[4], bseq1_t s[2], mem_alnreg_v a[2], int id, int *sub, int *n_sub, int z[2]);
-
 	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
 	const uint8_t *const pac = ((bwaidx_t*)rapi_ref->_private)->pac;
 
