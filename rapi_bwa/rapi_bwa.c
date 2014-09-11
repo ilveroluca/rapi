@@ -483,20 +483,22 @@ static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* 
 	{
 		for (int r = 0; r < batch->n_reads_frag; ++r)
 		{
-			const rapi_read* rapi_read = rapi_get_read(batch, f, r);
+			const rapi_read*const rapi_read = rapi_get_read(batch, f, r);
 			bseq1_t* bwa_read = bwa_seqs->seqs + bwa_seqs->n_reads;
 
 			// -- In bseq1_t, all strings are null-terminated.
 			// We duplicated the seq and qual since BWA modifies them.
 			bwa_read->seq = strdup(rapi_read->seq);
 			bwa_read->qual = (NULL == rapi_read->qual) ? NULL : strdup(rapi_read->qual);
-			if (!bwa_read->seq || (!rapi_read->qual && bwa_read->qual))
+			if (!bwa_read->seq || (rapi_read->qual && !bwa_read->qual))
 				goto failed_allocation;
 
 			bwa_read->name = rapi_read->id;
 			bwa_read->l_seq = rapi_read->length;
-			bwa_read->comment = NULL;
-			bwa_read->sam = NULL;
+			// Since we use calloc to allocate this structures there's no need to set
+			// these members to NULL.
+			//bwa_read->comment = NULL;
+			//bwa_read->sam = NULL;
 
 			// As we build the objects n_reads keeps the actual number
 			// constructed thus far and thus can be used to free the allocated
