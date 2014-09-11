@@ -554,7 +554,7 @@ typedef struct {
   int rapi___len__() const { return $self->len; }
 
   /** Number of reads for which we have allocated memory. */
-  int capacity() const { return $self->batch->n_frags * $self->batch->n_reads_frag; }
+  int capacity() const { return rapi_batch_read_capacity($self->batch); }
 
   rapi_read* get_read(int n_fragment, int n_read)
   {

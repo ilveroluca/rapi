@@ -295,6 +295,13 @@ rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_f
 rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments);
 
 /**
+ * Number of reads that fit in curretly allocated space.
+ */
+static inline int rapi_batch_read_capacity(const rapi_batch* batch) {
+  return batch->n_frags * batch->n_reads_frag;
+}
+
+/**
  * Set read data within a batch.  The strings are copied into the read batch.
  *
  * \param n_frag 0-based fragment number
