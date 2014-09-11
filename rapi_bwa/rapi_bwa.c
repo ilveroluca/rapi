@@ -604,6 +604,17 @@ long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate
 	return isize;
 }
 
+int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops)
+{
+	int len = 0;
+	for (int k = 0; k < n_cigar; ++k) {
+		int op = cigar_ops[k].op;
+		if (op == 0 || op == 2)
+			len += cigar_ops[k].len;
+	}
+	return len;
+}
+
 
 /********** modified BWA code *****************/
 

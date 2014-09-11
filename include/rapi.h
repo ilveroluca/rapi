@@ -334,16 +334,7 @@ static inline rapi_read* rapi_get_read(const rapi_batch* batch, int n_frag, int 
 
 long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate);
 
-static inline int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops)
-{
-	int len = 0;
-	for (int k = 0; k < n_cigar; ++k) {
-		int op = cigar_ops[k].op;
-		if (op == 0 || op == 2)
-			len += cigar_ops[k].len;
-	}
-	return len;
-}
+int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops);
 
 rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output);
 
