@@ -352,7 +352,7 @@ rapi_error_t rapi_opts_init( rapi_opts * my_opts )
 	bwa_opt->max_chain_gap = 10000;
 	bwa_opt->max_ins = 10000;
 	bwa_opt->mask_level = 0.50;
-	bwa_opt->XA_drop_ratio = 0.50;
+	bwa_opt->chain_drop_ratio = 0.50;
 	bwa_opt->split_factor = 1.5;
 	bwa_opt->chunk_size = 10000000;
 	bwa_opt->n_threads = 1;
