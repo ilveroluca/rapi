@@ -22,9 +22,15 @@ def extract_prototype(fn_name, filename):
 
     with open(filename) as f:
         text = f.read()
-    m = re.search(r'([A-Za-z_]\w* %s\([^;{]+)\s*(;|{)' % fn_name, text, re.MULTILINE)
+    m = re.search(r'([A-Za-z_]\w* %s\([^;{]+)\s*(;|{|//)' % fn_name, text, re.MULTILINE)
     if m:
-        proto = m.group(1).strip()
+        proto = m.group(1)
+        # remove any trailing comments
+        comment_pos = proto.find('//')
+        if comment_pos >= 0:
+            proto = proto[0:comment_pos]
+        # strip whitespace
+        proto = proto.strip()
         return proto
     else:
         raise RuntimeError("Couldn't extract prototype for function %s from file %s" % \
