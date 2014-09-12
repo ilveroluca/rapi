@@ -12,7 +12,7 @@ export BWA_PATH := $(PWD)/bwa-auto-build
 
 $(info "Using BWA_PATH = $(BWA_PATH)")
 
-all: pyrapi
+all: rapi_bwa pyrapi example
 
 bwa_lib: $(BWA_PATH)/libbwa.a
 
@@ -25,6 +25,9 @@ rapi_bwa: bwa_lib
 pyrapi: bwa_lib rapi_bwa
 	$(MAKE) -C pyrapi/
 
+example: pyrapi
+	$(MAKE) -C example
+
 clean:
 	# Remove automatically built BWA, if it exists
 	rm -rf "$(PWD)/bwa-auto-build"
@@ -36,5 +39,5 @@ tests: pyrapi
 	python tests/pyrapi/test_pyrapi.py
 
 
-.PHONY: clean tests pyrapi rapi_bwa
+.PHONY: clean tests pyrapi rapi_bwa example
 
