@@ -1,0 +1,9 @@
+bwa-auto-build
+*.o
+*.so
+*.a
+tags
+pyrapi/rapi_wrap.c
+pyrapi/rapi.py
+rapi_bwa/bwa_header.h
+example/rapi_test
