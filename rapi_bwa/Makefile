@@ -3,7 +3,7 @@ CC = gcc
 AR = ar
 
 WRAP_MALLOC := -DUSE_MALLOC_WRAPPERS
-CFLAGS := -g -Wall -O2 -Wno-unused-function -std=c99 -fPIC
+CFLAGS := -g -Wall -O2 -std=c99 -fPIC
 DFLAGS := -DHAVE_PTHREAD $(WRAP_MALLOC)
 LIBS := -lm -lz -lpthread
 RAPI_LIB := librapi_bwa.a

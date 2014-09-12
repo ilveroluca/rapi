@@ -2,7 +2,7 @@
 CC := gcc
 
 WRAP_MALLOC := -DUSE_MALLOC_WRAPPERS
-CFLAGS := -g -Wall -O2 -Wno-unused-function -std=c99
+CFLAGS := -g -Wall -std=c99 -O2
 DFLAGS := -DHAVE_PTHREAD $(WRAP_MALLOC)
 LIBS := -lm -lz -lpthread
 

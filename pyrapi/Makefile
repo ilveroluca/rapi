@@ -8,7 +8,7 @@ PYTHON_PREFIX := $(shell python-config --prefix)
 PYTHON_LIBS := $(shell python-config --libs)
 
 INCLUDES := -I../include $(PYTHON_INCLUDES)
-CFLAGS := -g -Wall -O2 -Wno-unused-function -std=c99 -fPIC
+CFLAGS := -g -Wall -O2 -std=c99 -fPIC
 RAPI_BWA := ../rapi_bwa/librapi_bwa.a
 SHARED := _rapi.so
 UNAME := $(shell uname)
