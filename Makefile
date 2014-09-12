@@ -17,7 +17,7 @@ all: rapi_bwa pyrapi example
 bwa_lib: $(BWA_PATH)/libbwa.a
 
 $(BWA_PATH)/libbwa.a:
-	tests/ci/setup_bwa.sh $(BWA_PATH)
+	rapi_bwa/setup_bwa.sh $(BWA_PATH)
 
 rapi_bwa: bwa_lib
 	$(MAKE) -C rapi_bwa/
