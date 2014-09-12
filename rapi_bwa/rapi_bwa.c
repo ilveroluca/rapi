@@ -466,20 +466,33 @@ void _free_bwa_batch_contents(bwa_batch* batch)
 }
 
 
-static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* opts, bwa_batch* bwa_seqs)
+static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* opts, int start_fragment, int end_fragment, bwa_batch* bwa_seqs)
 {
+	if (start_fragment < 0 && end_fragment < 0) {
+		start_fragment = 0;
+		end_fragment = batch->n_frags;
+	}
+
+	if (end_fragment > batch->n_frags || start_fragment > end_fragment) {
+		fprintf(stderr, "start or end fragmet is out of bounds. Got start %d and end %d but we have %d fragments\n",
+				start_fragment, end_fragment, batch->n_frags);
+		return RAPI_PARAM_ERROR;
+	}
+
 	bwa_seqs->n_bases = 0;
 	bwa_seqs->n_reads = 0;
 	bwa_seqs->n_reads_per_frag = batch->n_reads_frag;
 	fprintf(stderr, "Need to allocate %d elements of size %ld\n", batch->n_frags * batch->n_reads_frag, sizeof(bseq1_t));
 
-	bwa_seqs->seqs = calloc(batch->n_frags * batch->n_reads_frag, sizeof(bseq1_t));
+	int n_frags = end_fragment - start_fragment;
+
+	bwa_seqs->seqs = calloc(n_frags * batch->n_reads_frag, sizeof(bseq1_t));
 	if (NULL == bwa_seqs->seqs) {
 		fprintf(stderr, "Allocation failed!\n");
 		return RAPI_MEMORY_ERROR;
 	}
 
-	for (int f = 0; f < batch->n_frags; ++f)
+	for (int f = start_fragment; f < end_fragment; ++f)
 	{
 		for (int r = 0; r < batch->n_reads_frag; ++r)
 		{
@@ -960,18 +973,18 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start
 		return RAPI_PARAM_ERROR;
 
 	// "extract" BWA-specific structures
-	mem_opt_t*const bwa_opt = (mem_opt_t*) config->_private;
+	mem_opt_t*const bwa_opt = (mem_opt_t*) opts->_private;
 
 	if (batch->n_reads_frag == 2) // paired-end
 		bwa_opt->flag |= MEM_F_PE;
 
-	if ((error = _convert_opts(config, bwa_opt)))
+	if ((error = _convert_opts(opts, bwa_opt)))
 		return error;
 	fprintf(stderr, "opts converted\n");
 
 	// traslate our read structure into BWA reads
 	bwa_batch bwa_seqs;
-	if ((error = _batch_to_bwa_seq(batch, config, &bwa_seqs)))
+	if ((error = _batch_to_bwa_seq(batch, opts, start_fragment, end_fragment, &bwa_seqs)))
 		return error;
 	fprintf(stderr, "converted reads to BWA structures.\n");
 

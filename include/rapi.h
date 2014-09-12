@@ -320,7 +320,22 @@ typedef struct rapi_aligner_state rapi_aligner_state; //< opaque structure.  Ali
 
 rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state);
 
-rapi_error_t rapi_align_reads( const rapi_ref* ref,  rapi_batch * batch, const rapi_opts * config, rapi_aligner_state* state );
+/**
+ * Align the reads in batch to ref.
+ *
+ * The alignments are written directly to the read structures in the rapi_batch.
+ *
+ * \param ref The alignment reference
+ * \param batch A read batch
+ * \param start_frag Within the read batch, start aligning reads at this fragment (0-based)
+ * \param end_frag Stop aligning at this fragment (exclusive). So, to align only the
+ *                 second pair of reads in the batch give the indices [1, 2). For the entire
+ *                 batch give [0, batch.n_frags).
+ * \param opts Alignment options
+ * \param state Provide the state initialized with rapi_aligner_state_init.
+ */
+rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
+    int start_frag, int end_frag, const rapi_opts* opts, rapi_aligner_state* state );
 
 rapi_error_t rapi_aligner_state_free(struct rapi_aligner_state* state);
 

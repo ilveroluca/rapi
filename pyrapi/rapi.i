@@ -126,6 +126,9 @@ void* rapi_malloc(size_t nbytes) {
 // exposed to the user as rapi.read_batch
 %rename(read_batch) rapi_batch_wrap;
 
+// We'll also rename rapi_aligner_state to a simple "aligner"
+%rename(aligner) rapi_aligner_state;
+
 /*
 Remove rapi_ prefix from all function and structure names.
 Make sure this general rename comes before the ignore clauses below
@@ -671,10 +674,67 @@ typedef struct {
   }
 }
 
+/***************************************
+ ****** rapi_aligner             *******
+ ***************************************/
 
 
+typedef struct {
+} rapi_aligner_state;
 
-%mutable;
+%extend rapi_aligner_state {
+  rapi_aligner_state(const rapi_opts* opts) {
+    struct rapi_aligner_state* pState;
+    rapi_error_t error = rapi_aligner_state_init(opts, &pState);
+    if (error != RAPI_NO_ERROR) {
+      SWIG_Error(rapi_swig_error_type(error), "Error initializing aligner");
+      return NULL;
+    }
+    return pState;
+  }
 
+  ~rapi_aligner_state() {
+    rapi_error_t error = rapi_aligner_state_free($self);
+    if (error != RAPI_NO_ERROR)
+      PERROR("Problem destroying aligner state object (error code %d)\n", error);
+  }
+
+  rapi_error_t align_reads(const rapi_ref* ref, rapi_batch_wrap* batch, const rapi_opts* opts) {
+    if (batch->len % batch->batch->n_reads_frag != 0) {
+      PERROR("Incomplete fragment in batch! Number of reads appended (%zd) is not a multiple of the number of reads per fragment (%d)\n",
+        batch->len, batch->batch->n_reads_frag);
+      return RAPI_GENERIC_ERROR;
+    }
+
+    int start_fragment = 0;
+    int end_fragment = batch->len / batch->batch->n_reads_frag;
+    return rapi_align_reads(ref, batch->batch, start_fragment, end_fragment, opts, $self);
+  }
+}
+
+/***************************************
+ ****** other stuff              *******
+ ***************************************/
+
+/* rapi_format_sam
+ *
+ * This function allocates a new string with malloc and returns it. To tell
+ * the SWIG wrapper about this, so that it marks the memory to be freed once
+ * dereferenced, we need to use the '%newobject' directive.
+ */
+%newobject format_sam;
+%inline %{
+char* format_sam(const rapi_read* read, const rapi_read* mate) {
+  kstring_t str = { 0, 0, NULL };
+  rapi_error_t error = rapi_format_sam(read, mate, &str);
+  if (error != RAPI_NO_ERROR)
+    return str.s; // Python must free this string
+  else {
+    free(str.s);
+    SWIG_Error(rapi_swig_error_type(error), "Error formatting SAM");
+    return NULL;
+  }
+}
+%}
 
 // vim: set et sw=2 ts=2
