@@ -75,7 +75,7 @@ void print_alignments(const rapi_batch* batch, FILE* out)
 
 int main(int argc, const char* argv[])
 {
-	int error = 0;
+	rapi_error_t error = 0;
 
 	rapi_opts opts;
 	error = rapi_opts_init(&opts);
@@ -119,7 +119,7 @@ int main(int argc, const char* argv[])
 	check_error(error, "Failed to initialize aligner state");
 	fprintf(stderr, "initialized aligner state\n");
 
-	error = rapi_align_reads(&ref, &reads, &opts, state);
+	error = rapi_align_reads(&ref, &reads, 0, reads.n_frags, &opts, state);
 	check_error(error, "Failed to align reads!");
 
 	fprintf(stderr, "Reads aligned.  Now printing\n");
