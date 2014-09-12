@@ -53,8 +53,8 @@ def main(argv=None):
     _log.info("Here's the output")
     for fragment in batch:
         assert len(fragment) == 2
-        aligner.format_sam(fragment[0], fragment[1])
-        aligner.format_sam(fragment[1], fragment[0])
+        plugin.format_sam(fragment[0], fragment[1])
+        plugin.format_sam(fragment[1], fragment[0])
 
     ref.unload()
 
