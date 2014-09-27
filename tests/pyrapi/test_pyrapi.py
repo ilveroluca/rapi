@@ -231,8 +231,7 @@ def suite():
 
 def main():
     result = unittest.TextTestRunner(verbosity=2).run(suite())
-    if not result.wasSuccessful():
-        sys.exit(1)
+    return 0 if result.wasSuccessful() else 1
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
