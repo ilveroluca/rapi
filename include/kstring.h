@@ -111,6 +111,17 @@ static inline size_t ks_len(kstring_t *s)
 	return s->l;
 }
 
+/*
+ * Append the first l characters in p to s.
+ *
+ * The function null-terminates s, but any subsequent kput* calls on it will
+ * overwrite the NULL byte thus correctly appending any new text.
+ *
+ * The memory allocated to s is automatically grown as needed.
+ *
+ * \return The new length of the kstring_t s, or EOF if there insufficient
+ * memory to perform the operation.
+ */
 static inline int kputsn(const char *p, int l, kstring_t *s)
 {
 	if (s->l + l + 1 >= s->m) {
