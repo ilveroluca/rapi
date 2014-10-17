@@ -47,7 +47,7 @@ def main(argv=None):
 
     _log.info("aligning...")
     aligner = plugin.aligner(opts)
-    aligner.align_reads(ref, batch, opts)
+    aligner.align_reads(ref, batch)
     _log.info("finished aligning")
 
     _log.info("Here's the output")

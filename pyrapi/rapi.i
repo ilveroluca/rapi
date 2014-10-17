@@ -697,7 +697,7 @@ typedef struct {
       PERROR("Problem destroying aligner state object (error code %d)\n", error);
   }
 
-  rapi_error_t align_reads(const rapi_ref* ref, rapi_batch_wrap* batch, const rapi_opts* opts) {
+  rapi_error_t align_reads(const rapi_ref* ref, rapi_batch_wrap* batch) {
     if (batch->len % batch->batch->n_reads_frag != 0) {
       PERROR("Incomplete fragment in batch! Number of reads appended (%zd) is not a multiple of the number of reads per fragment (%d)\n",
         batch->len, batch->batch->n_reads_frag);
@@ -706,7 +706,7 @@ typedef struct {
 
     int start_fragment = 0;
     int end_fragment = batch->len / batch->batch->n_reads_frag;
-    return rapi_align_reads(ref, batch->batch, start_fragment, end_fragment, opts, $self);
+    return rapi_align_reads(ref, batch->batch, start_fragment, end_fragment, $self);
   }
 }
 

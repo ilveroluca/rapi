@@ -17,6 +17,8 @@
 
 #include "bwa_header.h"
 
+#define StaticArrayLen(a) (sizeof((a)) / sizeof((a)[0]))
+
 const char vtype_char[] = {
 	'0',
 	'A', // RAPI_VTYPE_CHAR       1
@@ -296,11 +298,11 @@ void _print_bwa_batch(FILE* out, const bwa_batch* read_batch)
  * Definition of the aligner state structure.
  */
 struct rapi_aligner_state {
+	const rapi_opts* opts;
 	int64_t n_reads_processed;
 	// paired-end stats
 	mem_pestat_t pes[4];
 };
-
 
 
 #if 1 // strdup is not defined if we compile with c99, but is when I include kvec.h.
@@ -581,6 +583,7 @@ rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_
 	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
 	if (NULL == state)
 		return RAPI_MEMORY_ERROR;
+		state->opts = opts;
 	return RAPI_NO_ERROR;
 }
 
@@ -963,7 +966,7 @@ static void bwa_worker_2(void *data, int i, int tid)
 /********** end modified BWA code *****************/
 
 rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start_fragment, int end_fragment,
-		const rapi_opts* opts, rapi_aligner_state* state )
+		rapi_aligner_state* state )
 {
 	rapi_error_t error = RAPI_NO_ERROR;
 
@@ -974,18 +977,18 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start
 		return RAPI_PARAM_ERROR;
 
 	// "extract" BWA-specific structures
-	mem_opt_t*const bwa_opt = (mem_opt_t*) opts->_private;
+	mem_opt_t*const bwa_opt = (mem_opt_t*) state->opts->_private;
 
 	if (batch->n_reads_frag == 2) // paired-end
 		bwa_opt->flag |= MEM_F_PE;
 
-	if ((error = _convert_opts(opts, bwa_opt)))
+	if ((error = _convert_opts(state->opts, bwa_opt)))
 		return error;
 	fprintf(stderr, "opts converted\n");
 
 	// traslate our read structure into BWA reads
 	bwa_batch bwa_seqs;
-	if ((error = _batch_to_bwa_seq(batch, opts, start_fragment, end_fragment, &bwa_seqs)))
+	if ((error = _batch_to_bwa_seq(batch, state->opts, start_fragment, end_fragment, &bwa_seqs)))
 		return error;
 	fprintf(stderr, "converted reads to BWA structures.\n");
 
