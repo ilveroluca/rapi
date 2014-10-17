@@ -462,13 +462,15 @@ SWIGINTERN struct read_batch_iter* new_read_batch_iter(struct rapi_batch_wrap* b
 
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
 %feature("python:slot", "tp_iter", functype="getiterfunc") rapi_batch_wrap::rapi___iter__;
-%{
+%{ // this declaration is inserted in the C code
 typedef struct rapi_batch_wrap {
   rapi_batch* batch;
   size_t len; // number of reads inserted in batch (as opposed to the space reserved)
 } rapi_batch_wrap;
 %}
-// Don't expose any of the struct members through SWIG.
+
+// This one to the SWIG interpreter.
+// We don't expose any of the struct members through SWIG.
 typedef struct {
 } rapi_batch_wrap;
 
@@ -676,10 +678,15 @@ typedef struct {
  ****** rapi_aligner             *******
  ***************************************/
 
+%{ // forward declaration of opaque structure (in C-code)
+struct rapi_aligner_state;
+%}
 
+// declare the structure to SWIG as an empty struct
 typedef struct {
 } rapi_aligner_state;
 
+// attach methods to it
 %extend rapi_aligner_state {
   rapi_aligner_state(const rapi_opts* opts) {
     struct rapi_aligner_state* pState;
