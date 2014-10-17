@@ -350,7 +350,7 @@ long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate
 
 int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops);
 
-rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output);
+rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* output);
 
 void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstring_t* output);
 

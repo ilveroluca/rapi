@@ -51,10 +51,11 @@ def main(argv=None):
     _log.info("finished aligning")
 
     _log.info("Here's the output")
-    for fragment in batch:
+    for idx, fragment in enumerate(batch):
+        _log.info('fragment')
         assert len(fragment) == 2
-        plugin.format_sam(fragment[0], fragment[1])
-        plugin.format_sam(fragment[1], fragment[0])
+        sam = plugin.format_sam(batch, idx)
+        print sam
 
     ref.unload()
 

@@ -729,9 +729,14 @@ typedef struct {
  */
 %newobject format_sam;
 %inline %{
-char* format_sam(const rapi_read* read, const rapi_read* mate) {
+char* format_sam(const rapi_batch_wrap* wrapper, int n_frag) {
+  if (n_frag < 0 || n_frag >= wrapper->len) {
+    SWIG_Error(rapi_swig_error_type(RAPI_PARAM_ERROR), "n_frag argument out of bounds\n");
+    return NULL;
+  }
+
   kstring_t str = { 0, 0, NULL };
-  rapi_error_t error = rapi_format_sam(read, mate, &str);
+  rapi_error_t error = rapi_format_sam(wrapper->batch, n_frag, &str);
   if (error == RAPI_NO_ERROR)
     return str.s; // Python must free this string
   else {

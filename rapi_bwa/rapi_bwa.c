@@ -48,6 +48,30 @@ void rapi_print_read(FILE* out, const rapi_read* read)
 	fprintf(out, "read n_alignments: %u\n", read->n_alignments);
 }
 
+/*
+ * Writes a null-terminated string representation of the SAM flag to buf20.
+ * Guaranteed not to write more than 20 bytes.
+ *
+ * \param buf20: ptr to character buffer at least 20 bytes long
+ *
+ * \returns the number of characters written, not including the NULL terminator.
+ */
+int rapi_flag_string(const int flag, char* buf20)
+{
+	const int max_length = 20 - 1; // 1 for null terminator
+	char names[] = { 'p',    'P',    'u',    'U',    'r',    'R',    '1',    '2',    's',    'f',    'd'};
+	int values[] = { 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400 };
+	int str_pos = 0;
+
+	for (int i = 0; (i < sizeof(names) / sizeof(names[0])) && str_pos < max_length; ++i) {
+		if (flag & values[i]) {
+			buf20[str_pos] = names[i];
+			str_pos += 1;
+		}
+	}
+	buf20[str_pos] = '\0';
+	return str_pos;
+}
 
 rapi_error_t rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
 	// in theory we should check the return values of all these kput functions
@@ -95,22 +119,33 @@ rapi_error_t rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
 }
 
 /*
- * Format SAM for read, given the alignment at index `which_aln`
- * (currently in rapi_read we only have a single alignment instead of a list,
- * so this should always be 0).
+ * Format SAM for a single read, using the first alignment in the
+ * rapi_read->alignments list.
+ *
+ * \param read_num Refers to `read`. Should be 1 or 2.
  */
-rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstring_t* output)
+static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read* mate, int read_num, kstring_t* output)
 {
+	PDEBUG("In rapi_format_sam. read is %s; mate is %s\n", (read ? "set" : "NULL"), (mate ? "set" : "NULL"));
+	if (NULL == read) {
+		PERROR("rapi_format_sam: NULL read pointer\n");
+		return RAPI_PARAM_ERROR;
+	}
+
 	/**** code based on mem_aln2sam in BWA ***/
 	rapi_alignment tmp_read, tmp_mate;
 
-	if (read->n_alignments > 0)
+	if (read->n_alignments > 0) {
 		tmp_read = *read->alignments;
+		PDEBUG("rapi_format_sam: read has %" PRIu8 " alignments\n", read->n_alignments);
+    }
 	else
 		memset(&tmp_read, 0, sizeof(tmp_read));
 
-	if (mate && mate->n_alignments > 0)
+	if (mate && mate->n_alignments > 0) {
 		tmp_mate = *mate->alignments;
+		PDEBUG("rapi_format_sam: mate has %" PRIu8 " alignments\n", mate->n_alignments);
+    }
 	else
 		memset(&tmp_mate, 0, sizeof(tmp_mate));
 
@@ -126,15 +161,20 @@ rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstri
 		aln->contig         = mate_aln->contig;
 		aln->pos            = mate_aln->pos;
 		aln->reverse_strand = mate_aln->reverse_strand;
+		PDEBUG("\tCopying mate position to read (contig: %s; pos: %lu; reverse: %d\n", aln->contig->name, aln->pos, (0x1 & aln->reverse_strand));
 	}
 	else if (aln->mapped && mate && !mate_aln->mapped) { // copy read alignment to mate
 		mate_aln->contig         = aln->contig;
 		mate_aln->pos            = aln->pos;
 		mate_aln->reverse_strand = aln->reverse_strand;
+		PDEBUG("\tCopying read position to mate (contig: %s; pos: %lu; reverse: %d\n", mate_aln->contig->name, mate_aln->pos, (0x1 & mate_aln->reverse_strand));
 	}
 
 	int flag = 0;
-	//
+
+	if (read_num == 1) flag |= 0x40;
+	if (read_num == 2) flag |= 0x80;
+
 	// XXX: this implementation differs from BWA's behaviour when only one read in a pair is mapped.
 	// In that case, BWA copies the coordinates of the mapped read to the unmapped one.  This
 	// influences the flags printed by BWA, the coordinates and also the cigar.
@@ -151,6 +191,10 @@ rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstri
 		flag |= aln->reverse_strand ? 0x10 : 0; // is on the reverse strand
 		flag |= aln->secondary_aln ? 0x100 : 0; // secondary alignment
 	}
+
+	char buf[20];
+	rapi_flag_string(flag, buf);
+	PDEBUG("Read flag: %d (%s)\n", flag, buf);
 
 	kputs(read->id, output); kputc('\t', output); // QNAME\t
 	kputw((flag & 0xffff), output); kputc('\t', output); // FLAG
@@ -232,7 +276,7 @@ rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstri
 
 	rapi_error_t error = RAPI_NO_ERROR;
 
-	for (int t = 0; t < kv_size(aln->tags); ++t) {
+	for (int t = 0; t < kv_size(aln->tags) && RAPI_NO_ERROR == error; ++t) {
 		kputc('\t', output);
 		error = rapi_format_tag(&kv_A(aln->tags, t), output);
 	}
@@ -259,8 +303,63 @@ rapi_error_t rapi_format_sam(const rapi_read* read, const rapi_read* mate, kstri
 	//	}
 	//}
 
+	if (RAPI_NO_ERROR == error) {
+		PDEBUG("resulting SAM: %.*s\n", (int)ks_len(output), ks_str(output));
+	}
+
 	return error;
 }
+/**
+ * Format SAM for an entire fragment.
+ *
+ * SAM read records contain information that depends on other reads in the
+ * same template (e.g., insert size, alignment coordinates for other reads,
+ * flags for first/last read in template, etc.).  Generating all same for an
+ * entire template within the context of a single function call makes it feasible
+ * to implement this without changing the API (all the necessary info should
+ * already be in here).
+ *
+ * However, BWA currently supports single and paired reads, so that's all we're
+ * implementing in this function.
+ */
+rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* output)
+{
+	///// validate function arguments
+	if (NULL == batch || NULL == output) {
+		PERROR("NULL argument!\n");
+		return RAPI_PARAM_ERROR;
+	}
+
+	if (batch->n_reads_frag > 2 || batch->n_reads_frag <= 0) {
+		PERROR("Only single and paired reads are supported (got %d)\n", batch->n_reads_frag);
+		return RAPI_PARAM_ERROR;
+	}
+
+	//// get read and mate
+
+	int i_read = 0, i_mate = 1;
+	const rapi_read* read = NULL;
+	const rapi_read* mate = NULL;
+
+	read = rapi_get_read(batch, n_frag, i_read);
+	if (batch->n_reads_frag > 1)
+		mate = rapi_get_read(batch, n_frag, i_mate);
+
+	// check for errors retrieving reads
+	if (NULL == read || (batch->n_reads_frag > 1 && NULL == mate)) {
+			PERROR("Error fetching reads for fragment %d: read is %s NULL; mate is %s NULL. Batch n_reads_frag: %d; n_frags: %d.\n",
+					n_frag, (read != NULL ? "not" : ""), (mate != NULL ? "not" : ""), batch->n_reads_frag, batch->n_frags);
+			return RAPI_GENERIC_ERROR;
+	}
+
+	rapi_error_t error = _rapi_format_sam_read(read, mate, 1, output);
+	if (mate != NULL && RAPI_NO_ERROR == error) {
+		kputc('\n', output);
+		error = _rapi_format_sam_read(mate, read, 2, output);
+	}
+	return error;
+}
+
 
 /**********************************/
 
@@ -583,7 +682,7 @@ rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_
 	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
 	if (NULL == state)
 		return RAPI_MEMORY_ERROR;
-		state->opts = opts;
+	state->opts = opts;
 	return RAPI_NO_ERROR;
 }
 
