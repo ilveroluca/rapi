@@ -222,11 +222,50 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(1, len(fragment))
 
 
+class TestPyrapiAlign(unittest.TestCase):
+    def setUp(self):
+        self.opts = rapi.opts()
+        rapi.init(self.opts)
+        self.ref = rapi.ref(stuff.MiniRef)
+
+    def tearDown(self):
+        self.ref.unload()
+        rapi.shutdown()
+
+    def test_align_pe(self):
+        aligner = rapi.aligner(self.opts)
+        batch = rapi.read_batch(2)
+        reads = stuff.get_mini_ref_seqs()
+        read_1 = reads[0]
+        batch.append(read_1[0], read_1[1], read_1[2], rapi.QENC_SANGER)
+        batch.append(read_1[0], read_1[3], read_1[4], rapi.QENC_SANGER)
+        aligner.align_reads(self.ref, batch)
+
+        rapi_read = batch.get_read(0, 0)
+        self.assertTrue(rapi_read.n_alignments > 0)
+        rapi_read = batch.get_read(0, 1)
+        self.assertTrue(rapi_read.n_alignments > 0)
+
+
+#    def test_align_se(self):
+#        aligner = rapi.aligner(self.opts)
+#        batch = rapi.read_batch(1)
+#        reads = stuff.get_mini_ref_seqs()
+#        batch.append(reads[0][0], reads[0][1], reads[0][2], rapi.QENC_SANGER)
+#        batch.append(reads[1][0], reads[1][1], reads[1][2], rapi.QENC_SANGER)
+#        aligner.align_reads(self.ref, batch)
+#
+#        rapi_read = batch.get_read(0, 0)
+#        self.assertTrue(rapi_read.n_alignments > 0)
+#        rapi_read = batch.get_read(1, 0)
+#        self.assertTrue(rapi_read.n_alignments > 0)
+
 
 def suite():
     s = unittest.TestLoader().loadTestsFromTestCase(TestPyrapi)
     s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiRef))
     s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiReadBatch))
+    s.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPyrapiAlign))
     return s
 
 def main():
