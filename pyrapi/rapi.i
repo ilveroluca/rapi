@@ -732,7 +732,7 @@ typedef struct {
 char* format_sam(const rapi_read* read, const rapi_read* mate) {
   kstring_t str = { 0, 0, NULL };
   rapi_error_t error = rapi_format_sam(read, mate, &str);
-  if (error != RAPI_NO_ERROR)
+  if (error == RAPI_NO_ERROR)
     return str.s; // Python must free this string
   else {
     free(str.s);
