@@ -3,6 +3,7 @@
  */
 
 #include <rapi.h>
+#include <rapi_utils.h>
 #include <bwamem.h>
 #include <kstring.h>
 #include <kvec.h>

@@ -51,9 +51,7 @@ typedef int rapi_error_t;
 
 #include <stddef.h>
 #include <stdio.h>
-
-#define PDEBUG(...) { fprintf(stderr, "%s(%d) DEBUG: ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
-#define PERROR(...) { fprintf(stderr, "%s(%d) ERROR: ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
+#include <rapi_utils.h>
 
 /* Helper to convert RAPI errors to swig errors */
 int rapi_swig_error_type(rapi_error_t rapi_code) {
