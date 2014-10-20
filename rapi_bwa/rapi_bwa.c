@@ -804,8 +804,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
 
 		if (bwa_aln->sub >= 0) {
 			rapi_tag_set_key(&tag, "XS");
-			rapi_tag_set_text(&tag, "");
-			kputw(bwa_aln->sub, &tag.value.text);
+			rapi_tag_set_long(&tag, bwa_aln->sub);
 			kv_push(rapi_tag, our_aln->tags, tag);
 		}
 
