@@ -893,6 +893,8 @@ static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref,
 #define raw_mapq(diff, a) ((int)(6.02 * (diff) / (a) + .499))
 /*
  * Mostly taken from mem_sam_pe in bwamem_pair.c
+ *
+ * \return I think this function returns the number pairs aligned by SW
  */
 int _bwa_mem_pe(const mem_opt_t *opt, const rapi_ref* rapi_ref, const mem_pestat_t pes[4], uint64_t id, bseq1_t s[2], mem_alnreg_v a[2], rapi_read out[2])
 {
@@ -962,7 +964,7 @@ int _bwa_mem_pe(const mem_opt_t *opt, const rapi_ref* rapi_ref, const mem_pestat
 		h[0] = mem_reg2aln(opt, bns, pac, s[0].l_seq, s[0].seq, &a[0].a[z[0]]); h[0].mapq = q_se[0]; h[0].flag |= 0x40 | extra_flag;
 		h[1] = mem_reg2aln(opt, bns, pac, s[1].l_seq, s[1].seq, &a[1].a[z[1]]); h[1].mapq = q_se[1]; h[1].flag |= 0x80 | extra_flag;
 		// RAPI: instead of writing sam, convert mem_aln_t into our alignments
-		// XXX: I'm not so sure the alignment I'm passing in.  Review
+		// XXX: I'm not so sure about the alignment I'm passing in.  Review
 		int error1 = _bwa_aln_to_rapi_aln(rapi_ref, &out[0], 1, &s[0], &h[0], 1);
 		int error2 = _bwa_aln_to_rapi_aln(rapi_ref, &out[1], 1, &s[1], &h[1], 1);
 		if (error1 || error2) {
@@ -1040,21 +1042,26 @@ static void bwa_worker_1(void *data, int i, int tid)
 static void bwa_worker_2(void *data, int i, int tid)
 {
 	bwa_worker_t *w = (bwa_worker_t*)data;
-	fprintf(stderr, "bwa_worker_2 with i %d\n", i);
+	PDEBUG("bwa_worker_2 with i %d\n", i);
 	rapi_error_t error = RAPI_NO_ERROR;
 
 	if ((w->opt->flag & MEM_F_PE)) {
 		// paired end
+		// This function does not return an error code but aborts if things go wrong.
+		// Unfortunately this strategy is nested deep in the BWA code.
 		//mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
-		error = _bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
-		free(w->regs[2 * i].a); free(w->regs[2 * i + 1].a);
+		_bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
+		free(w->regs[2 * i].a); kv_init(w->regs[2 * i]);
+		free(w->regs[2 * i + 1].a); kv_init(w->regs[2 * i + 1]);
 	}
 	else {
 		// single end
+		PERROR("Single end alignments aren't implemented in rapi_bwa yet!");
+		error = RAPI_OP_NOT_SUPPORTED_ERROR;
 		mem_mark_primary_se(w->opt, w->regs[i].n, w->regs[i].a, w->n_processed + i);
 		//mem_reg2sam_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
-		//error = _mem_reg2_rapi_aln_se(w->opt, w->rapi_ref, &(w->read_batch->seqs[i]), &w->regs[i], &(w->rapi_reads[i]), 0, 0);
-		free(w->regs[i].a);
+		//error = _bwa_reg2_rapi_aln_se(w->opt, w->rapi_ref, &(w->read_batch->seqs[i]), &w->regs[i], &(w->rapi_reads[i]), 0, 0);
+		free(w->regs[i].a); kv_init(w->regs[i]);
 	}
 
 	if (error != RAPI_NO_ERROR)
