@@ -32,7 +32,7 @@ const char vtype_char[] = {
  * linking, so we need to define it here.  I think it's the string that the
  * program uses to identify itself in the SAM header's @PG tag.
  */
-char* bwa_pg = "rapi";
+const char*const bwa_pg = "rapi";
 
 // Table to convert from base letter to an index in the range [0,4].
 // Defined in bntseq.c
