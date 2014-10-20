@@ -847,7 +847,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
  * We took out the call to mem_aln2sam and instead write the result to
  * the corresponding rapi_read structure.
  */
-static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref, rapi_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag, const mem_aln_t *m)
+static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref, rapi_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag)
 {
 	rapi_error_t error = RAPI_NO_ERROR;
 	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
@@ -994,14 +994,11 @@ no_pairing:
 		d = mem_infer_dir(bns->l_pac, a[0].a[0].rb, a[1].a[0].rb, &dist);
 		if (!pes[d].failed && dist >= pes[d].low && dist <= pes[d].high) extra_flag |= 2;
 	}
-	// RAPI: add to the flag directly on the alignment (BWA only uses the complete flag to produce the proper output).
-	h[0].flag |= 0x41|extra_flag;
-	h[1].flag |= 0x81|extra_flag;
 
-	// However, we still need to pass the extra flag bits to _bwa_reg2_rapi_aln_se because it needs to set them
+	// We need to pass the extra flag bits to _bwa_reg2_rapi_aln_se because it needs to set them
 	// on any secondary alignments.
-	int error1 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[0], &s[0], &a[0], 0x41|extra_flag, &h[1]);
-	int error2 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[1], &s[1], &a[1], 0x81|extra_flag, &h[0]);
+	int error1 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[0], &s[0], &a[0], 0x41|extra_flag);
+	int error2 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[1], &s[1], &a[1], 0x81|extra_flag);
 	if (error1 || error2) {
 		err_fatal(__func__, "error %d while converting *with no pairing* BWA mem_aln_t for read %d into rapi alignments\n", (error1 ? 1 : 2), (error1 ? error1 : error2));
 		abort();
