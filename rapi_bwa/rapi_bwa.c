@@ -775,8 +775,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
 
 		// set flags
 		our_aln->paired = is_paired != 0;
-		// TODO: prop_paired:  how does BWA define a "proper pair"?
-		our_aln->prop_paired = 0;
+		our_aln->prop_paired = (bwa_aln->flag & 0x2) != 0; // 0x2 is the SAM proper pair flag
 		our_aln->score = bwa_aln->score;
 		our_aln->mapq = bwa_aln->mapq;
 		// In BWA's code (e.g., mem_aln2sam) when the 0x10000 bit is set the alignment
@@ -990,9 +989,12 @@ no_pairing:
 		d = mem_infer_dir(bns->l_pac, a[0].a[0].rb, a[1].a[0].rb, &dist);
 		if (!pes[d].failed && dist >= pes[d].low && dist <= pes[d].high) extra_flag |= 2;
 	}
+	// RAPI: add to the flag directly on the alignment (BWA only uses the complete flag to produce the proper output).
 	h[0].flag |= 0x41|extra_flag;
 	h[1].flag |= 0x81|extra_flag;
 
+	// However, we still need to pass the extra flag bits to _bwa_reg2_rapi_aln_se because it needs to set them
+	// on any secondary alignments.
 	int error1 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[0], &s[0], &a[0], 0x41|extra_flag, &h[1]);
 	int error2 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[1], &s[1], &a[1], 0x81|extra_flag, &h[0]);
 	if (error1 || error2) {
