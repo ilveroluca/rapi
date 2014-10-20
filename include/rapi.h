@@ -23,6 +23,16 @@ typedef int rapi_error_t;
 #define RAPI_PARAM_ERROR                -40
 #define RAPI_TYPE_ERROR                 -50
 
+static const char* rapi_error_names[] = {
+    "NO_ERROR",
+    "GENERIC_ERROR",
+    "OP_NOT_SUPPORTED_ERROR",
+    "MEMORY_ERROR",
+    "PARAM_ERROR",
+    "TYPE_ERROR"
+};
+
+
 /* Key-value TYPES */
 
 #define RAPI_VTYPE_CHAR       1

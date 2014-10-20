@@ -1064,8 +1064,10 @@ static void bwa_worker_2(void *data, int i, int tid)
 		free(w->regs[i].a); kv_init(w->regs[i]);
 	}
 
-	if (error != RAPI_NO_ERROR)
-		err_fatal(__func__, "error %d while running %s end alignments\n", error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
+	if (error != RAPI_NO_ERROR) {
+		err_fatal(__func__, "%s (%d) while running %s end alignments\n",
+				rapi_error_names[error], error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
+	}
 }
 
 #endif
