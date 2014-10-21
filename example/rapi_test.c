@@ -115,40 +115,21 @@ int main(int argc, const char* argv[])
 			reads.n_frags, reads.n_reads_frag);
 
 	rapi_aligner_state* state;
-	error	= rapi_aligner_state_init(&opts, &state);
+	error = rapi_aligner_state_init(&opts, &state);
 	check_error(error, "Failed to initialize aligner state");
 	fprintf(stderr, "initialized aligner state\n");
 
-	error = rapi_align_reads(&ref, &reads, 0, reads.n_frags, &opts, state);
+	error = rapi_align_reads(&ref, &reads, 0, reads.n_frags, state);
 	check_error(error, "Failed to align reads!");
 
 	fprintf(stderr, "Reads aligned.  Now printing\n");
 
 	kstring_t sam_buffer = { 0, 0, NULL };
-	rapi_read* read = NULL;
-	rapi_read* mate = NULL;
 
 	for (int frag = 0; frag < reads.n_frags; ++frag) {
 		sam_buffer.l = 0;
-		if (reads.n_reads_frag == 1) {
-			// SE
-			read = reads.reads + frag;
-			mate = NULL;
-			rapi_format_sam(read, mate, &sam_buffer);
-			printf("%.*s\n", (int)sam_buffer.l, sam_buffer.s);
-		}
-		else if (reads.n_reads_frag == 2) {
-			// PE
-			read = reads.reads + (2 * frag);
-			mate = reads.reads + (2 * frag + 1);
-			rapi_format_sam(read, mate, &sam_buffer);
-			printf("%.*s\n", (int)sam_buffer.l, sam_buffer.s);
-			sam_buffer.l = 0;
-			rapi_format_sam(mate, read, &sam_buffer);
-			printf("%.*s\n", (int)sam_buffer.l, sam_buffer.s);
-		}
-		else
-			check_error(1, "Unsupported number of reads per fragment!"); // TODO: weak error message!
+		rapi_format_sam(&reads, frag, &sam_buffer);
+		printf("%s\n", sam_buffer.s);
 	}
 
 	free(sam_buffer.s);
