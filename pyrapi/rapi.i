@@ -13,40 +13,15 @@ started calling swig with the "-builtin" option.
 
 %module rapi
 
-%{
-/* Includes the header in the wrapper code */
-#include "rapi.h"
-%}
-
-/*
-rapi_error_t is the error type for the RAPI library.
-Rather than passing the error codes back to the Python-side caller,
-we apply a typemap that:
-
-  * checks whether the code represents an error and, if so, maps it to an
-    exception
-  * if there's no error, maps the code to None so that the calls don't
-    return a value.
-*/
-typedef int rapi_error_t;
-
-%typemap(out) rapi_error_t {
-  if ($1 != RAPI_NO_ERROR) {
-    SWIG_exception(rapi_swig_error_type($1), "");
-    //PyErr_SetString(rapi_py_error_type($1), "");
-  }
-  else {
-    $result = VOID_Object;
-  }
-}
-
 %header %{
 
+/* includes injected into the C wrapper code.  */
 #include <stddef.h>
 #include <stdio.h>
+#include <rapi.h>
 #include <rapi_utils.h>
 
-/* Helper to convert RAPI errors to swig errors */
+/* Then we define some helpers convert RAPI errors to swig errors */
 int rapi_swig_error_type(rapi_error_t rapi_code) {
   int type = 0;
   switch(rapi_code) {
@@ -71,7 +46,6 @@ int rapi_swig_error_type(rapi_error_t rapi_code) {
   };
   return type;
 }
-
 
 /* Helper to convert RAPI errors to Python errors */
 PyObject* rapi_py_error_type(rapi_error_t rapi_code) {
@@ -99,6 +73,7 @@ PyObject* rapi_py_error_type(rapi_error_t rapi_code) {
   return type;
 }
 
+/* malloc wrapper that sets a SWIG error in case of failure. */
 void* rapi_malloc(size_t nbytes) {
   void* result = malloc(nbytes);
   if (!result)
@@ -109,6 +84,50 @@ void* rapi_malloc(size_t nbytes) {
 
 %}
 
+/**** Now we begin wrapping things with SWIG */
+
+/*
+rapi_error_t is the error type for the RAPI library.
+Rather than passing the error codes back to the Python-side caller,
+we apply a typemap that:
+
+  * checks whether the code represents an error and, if so, maps it to an
+    exception
+  * if there's no error, maps the code to None so that the calls don't
+    return a value.
+*/
+typedef int rapi_error_t;
+
+%typemap(out) rapi_error_t {
+  if ($1 != RAPI_NO_ERROR) {
+    SWIG_exception(rapi_swig_error_type($1), "");
+    //PyErr_SetString(rapi_py_error_type($1), "");
+  }
+  else {
+    $result = VOID_Object;
+  }
+}
+
+/*
+We take an analogous strategy to define a type rapi_bool that we only use
+for this interface.
+*/
+
+%inline %{
+typedef int rapi_bool;
+%}
+
+%typemap(out) rapi_bool {
+    if ($1)
+        $result = Py_True;
+    else
+        $result = Py_False;
+}
+
+/****
+Define renaming and ignore rules.  The rules need to be defined
+before the objects to which they are applied are declared to SWIG.
+****/
 
 // We don't provide direct access to the read_batch struct
 %rename("$ignore") rapi_batch;
@@ -135,20 +154,61 @@ or they won't have effect.
 // also ignore anything that starts with an underscore
 %rename("$ignore", regextarget=1) "^_";
 
+
+/*****
+Tell swig about stdint and kvec
+*****/
 %include "stdint.i"; // needed to tell swig about types such as uint32_t, uint8_t, etc.
-// This %includes are needed since we have some structure elements that are kvec_t
-%include "kvec.h";
+
+
+//%include "kvec.h"// This %includes are needed since we have some structure elements that are kvec_t;
 
 
 // a couple of constants
 #define QENC_SANGER   33
 #define QENC_ILLUMINA 64
 
-/************ begin functions and structures **************/
+/***** A macro for an array iterator type*******/
+%define rapi_array_iter(type)
+%inline %{
+typedef struct {
+    const type* next_item;
+    size_t n_left;
+} type##_iter;
+%}
 
-rapi_error_t rapi_init(const rapi_opts* opts);
-rapi_error_t rapi_shutdown();
+%feature("pythone:slot", "tp_iter", functype="getiterfunc") type##_iter::rapi__iter__;
+%feature("pythone:slot", "tp_iternext", functype="iternextfunc") type##_iter::next;
+%extend type##_iter {
+    type##_iter(const type* array, size_t len) {
+        type##_iter* iter = (type##_iter*) rapi_malloc(sizeof(type##_iter));
+        if (!iter) return NULL;
+        iter->next_item = array;
+        iter->n_left = len;
+        return iter;
+    }
 
+    ~type##_iter() { free($self); }
+
+    type##_iter* __iter__() const { return $self; }
+
+    const type* next() {
+        const type* retval;
+        if ($self->n_left) {
+            retval = $self->next_item++;
+            $self->n_left--;
+        }
+        else {
+          PyErr_SetString(PyExc_StopIteration, "");
+          retval = NULL;
+        }
+
+        return retval;
+    }
+};
+%enddef
+
+/************ begin wrapping functions and structures **************/
 
 /*
 The char* returned by the following functions are wrapped automatically by
@@ -204,7 +264,7 @@ typedef struct {
   /* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
 
   // TODO: how to wrap this thing?
-  kvec_t(rapi_param) parameters;
+  //kvec_t(rapi_param) parameters;
 } rapi_opts;
 
 
@@ -232,11 +292,19 @@ typedef struct {
   }
 };
 
+rapi_error_t rapi_init(const rapi_opts* opts);
+rapi_error_t rapi_shutdown();
+
+
+/****** IMMUTABLE *******/
+// Everything from here down is read-only
+
+%immutable;
+/****** IMMUTABLE *******/
+
 /***************************************
  ****** rapi_contig and rapi_ref *******
  ***************************************/
-
-%immutable; /** don't let the user modify the reference through the wrapper */
 
 typedef struct {
   char * name;
@@ -248,18 +316,23 @@ typedef struct {
 } rapi_contig;
 
 /* An iterator object for the contig */
-%inline %{
+%{
 typedef struct {
   rapi_contig* next_item;
   size_t n_left;
 } ref_contig_iter;
 %}
 
+// Through SWIG we expose it as an empty struct so that the user
+// can't access the fields directly
+typedef struct {
+} ref_contig_iter;
+
 /* Without these %feature statements the __len__ and __getitem__ methods
    will be defined but they won't work (at least when calling swig with -builtin).
    You'll get errors like:
 
-----> len(r)
+----> e.g., len(r)
 TypeError: object of type 'ref' has no len()
 */
 %feature("python:slot", "tp_iter", functype="getiterfunc") ref_contig_iter::rapi___iter__;
@@ -382,6 +455,212 @@ typedef struct {
 };
 
 /***************************************
+ ****** rapi_alignment           *******
+ ***************************************/
+
+// List of cigar ops.  We use the same strategy as for rapi_fragment
+%typemap(out) rapi_cigar_ops {
+    // $1 is variable of tupel rapi_cigar_ops
+    PyObject* ret_tuple = PyTuple_New($1.len);
+    if (ret_tuple == NULL) {
+        PERROR("Failed to allocate PyTuple. Raising exception\n");
+        SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate tuple");
+    }
+
+    // for each cigar operator in the array, map it to a 2-item tuple and append it to the return tuple
+    for (int i = 0; i < $1.len; ++i) {
+        rapi_cigar cig = $1.ops[i];
+        char c = rapi_cigops_char[cig.op];
+        long len = cig.len;
+
+        PyObject* cigar_tuple = PyTuple_New(2);
+        if (cigar_tuple == NULL) {
+            Py_DECREF(ret_tuple);
+            SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate cigar tuple");
+        }
+
+        PyTuple_SET_ITEM(cigar_tuple, 0, PyString_FromStringAndSize(&c, 1));
+        PyTuple_SET_ITEM(cigar_tuple, 1, PyInt_FromLong(len));
+        PyTuple_SET_ITEM(ret_tuple, i, cigar_tuple);
+    }
+
+    $result = ret_tuple;
+}
+
+%{
+typedef struct {
+    rapi_cigar* ops;
+    size_t len;
+} rapi_cigar_ops;
+%}
+
+typedef struct {
+} rapi_cigar_ops;
+
+%{
+/*
+ * Wrap a tag value in a PyObject.
+ *
+ * Generates the appropriate type of Python object based on the tag value type.
+ *
+ * \return NULL in case of error.
+ */
+static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
+{
+    if (tag == NULL) {
+        PERROR("Got NULL tag");
+         return NULL;
+    }
+
+    PyObject* retval = NULL;
+    rapi_error_t error = RAPI_NO_ERROR;
+
+    switch (tag->type) {
+        case RAPI_VTYPE_CHAR: {
+            char c;
+            error = rapi_tag_get_char(tag, &c);
+            if (error) {
+                PERROR("rapi_tag_get_char returned error %s (%d)\n", rapi_error_name(error), error);
+            }
+            else
+                retval = PyString_FromStringAndSize(&c, 1);
+            break;
+        }
+        case RAPI_VTYPE_TEXT: {
+            const kstring_t* s;
+            error = rapi_tag_get_text(tag, &s);
+            if (error) {
+                PERROR("rapi_tag_get_text returned error %s (%d)\n", rapi_error_name(error), error);
+            }
+            else
+                retval = PyString_FromStringAndSize(s->s, s->l);
+            break;
+        }
+        case RAPI_VTYPE_INT: {
+            long i;
+            error = rapi_tag_get_long(tag, &i);
+            if (error) {
+                PERROR("rapi_tag_get_long returned error %s (%d)\n", rapi_error_name(error), error);
+            }
+            else
+                retval = PyInt_FromLong(i);
+            break;
+        }
+        case RAPI_VTYPE_REAL: {
+            double d;
+            error = rapi_tag_get_dbl(tag, &d);
+            if (error) {
+                PERROR("rapi_tag_get_dbl returned error %s (%d)\n", rapi_error_name(error), error);
+            }
+            else
+                retval = PyFloat_FromDouble(d);
+            break;
+        }
+        default:
+            PERROR("Unrecognized tag type id %d\n", tag->type);
+    }
+    return retval;
+}
+%}
+
+%typemap(out) rapi_tag_list {
+    PyObject* dict = PyDict_New();
+    if (dict == NULL) {
+        SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate dict");
+    }
+
+    const char* error_msg = NULL;
+
+    for (int i = 0; i < kv_size($1); ++i)
+    {
+        const rapi_tag*const pTag = &kv_A($1, i);
+        PyObject* value = rapi_py_tag_value(pTag);
+        if (value != NULL) {
+            if (PyDict_SetItemString(dict, pTag->key, value) < 0)
+                error_msg = "Error inserting tag into dict";
+        }
+        else
+            error_msg = "Error converting tag to a python object";
+
+        Py_XDECREF(value);
+        if (error_msg)
+            break;
+    }
+
+    if (error_msg) {
+        Py_DECREF(dict);
+        SWIG_exception_fail(rapi_swig_error_type(RAPI_GENERIC_ERROR), error_msg);
+    }
+    else
+        $result = dict;
+};
+
+typedef struct {
+    rapi_contig* contig;
+    unsigned long int pos; // 1-based
+    uint8_t mapq;
+    int score; // aligner-specific score
+
+    uint8_t n_mismatches;
+    uint8_t n_gap_opens;
+    uint8_t n_gap_extensions;
+} rapi_alignment;
+
+%newobject rapi_alignment::get_cigar_string;
+%extend rapi_alignment {
+
+    // synthesize boolean attributes corresponding to bitfield values
+    rapi_bool paired;
+    rapi_bool prop_paired;
+    rapi_bool mapped;
+    rapi_bool reverse_strand;
+    rapi_bool secondary_aln;
+
+    rapi_cigar_ops get_cigar_ops() const {
+        rapi_cigar_ops array;
+        array.ops = $self->cigar_ops;
+        array.len = $self->n_cigar_ops;
+        return array;
+    }
+
+    char* get_cigar_string() const {
+        kstring_t output = { 0, 0, NULL };
+        rapi_put_cigar($self->n_cigar_ops, $self->cigar_ops, 0, &output);
+        // return the string directly to Python who will be responsible for freeing it
+        return output.s;
+    }
+
+    rapi_tag_list get_tags() const {
+        return $self->tags;
+    }
+};
+
+
+%{
+rapi_bool rapi_alignment_paired_get(const rapi_alignment* aln) {
+    return aln->paired != 0;
+}
+
+rapi_bool rapi_alignment_prop_paired_get(const rapi_alignment* aln) {
+    return aln->prop_paired != 0;
+}
+
+rapi_bool rapi_alignment_mapped_get(const rapi_alignment* aln) {
+    return aln->mapped != 0;
+}
+
+rapi_bool rapi_alignment_reverse_strand_get(const rapi_alignment* aln) {
+    return aln->reverse_strand != 0;
+}
+
+rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
+    return aln->secondary_aln != 0;
+}
+%}
+
+
+
+/***************************************
  ****** rapi_batch and rapi_reads ******
  ***************************************/
 
@@ -420,19 +699,38 @@ typedef struct {
   $result = tuple;
 }
 
+// iterator for array of rapi_alignment
+rapi_array_iter(rapi_alignment);
+
+%exception rapi_read::get_aln {
+    $action
+    if (result == NULL) {
+        SWIG_exception(SWIG_IndexError, "");
+    }
+}
 
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_read::rapi___len__;
 typedef struct {
-  char * id;
-  char * seq;
-  char * qual;
-  unsigned int length;
-  rapi_alignment* alignments;
-  uint8_t n_alignments;
+    char * id;
+    char * seq;
+    char * qual;
+    unsigned int length;
+    uint8_t n_alignments;
 } rapi_read;
 
 %extend rapi_read {
-  size_t rapi___len__() const { return $self->length; }
+    size_t rapi___len__() const { return $self->length; }
+
+    const rapi_alignment* get_aln(int index) const {
+        if (index >= 0 && index < $self->n_alignments)
+            return $self->alignments + index;
+        else
+            return NULL;
+    }
+
+    rapi_alignment_iter* iter_aln() const {
+        return new_rapi_alignment_iter($self->alignments, $self->n_alignments);
+    }
 };
 
 /*
@@ -628,7 +926,6 @@ typedef struct {
   }
 }
 
-
 %exception read_batch_iter::next {
   $action
   if (result.batch == NULL)
@@ -709,6 +1006,7 @@ typedef struct {
     return rapi_align_reads(ref, batch->batch, start_fragment, end_fragment, $self);
   }
 }
+
 
 /***************************************
  ****** other stuff              *******
