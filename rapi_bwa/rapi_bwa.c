@@ -847,7 +847,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
  * We took out the call to mem_aln2sam and instead write the result to
  * the corresponding rapi_read structure.
  */
-static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref, rapi_read* our_read, bseq1_t *seq, mem_alnreg_v *a, int extra_flag)
+static int _bwa_reg2_rapi_aln(const mem_opt_t *opt, const rapi_ref* rapi_ref, rapi_read* our_read, int is_paired, bseq1_t *seq, mem_alnreg_v *a, int extra_flag)
 {
 	rapi_error_t error = RAPI_NO_ERROR;
 	const bntseq_t *const bns = ((bwaidx_t*)rapi_ref->_private)->bns;
@@ -865,6 +865,7 @@ static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref,
 		if (p->secondary >= 0 && p->score < a->a[p->secondary].score * .5) continue;
 		q = kv_pushp(mem_aln_t, aa);
 		*q = mem_reg2aln(opt, bns, pac, seq->l_seq, seq->seq, p);
+		q->flag |= (is_paired ? 0x1 : 0);
 		q->flag |= extra_flag; // flag secondary
 		if (p->secondary >= 0) q->sub = -1; // don't output sub-optimal score
 		if (k && p->secondary < 0) // if supplementary
@@ -876,10 +877,10 @@ static int _bwa_reg2_rapi_aln_se(const mem_opt_t *opt, const rapi_ref* rapi_ref,
 		t = mem_reg2aln(opt, bns, pac, seq->l_seq, seq->seq, 0);
 		t.flag |= extra_flag;
 		// RAPI
-		error = _bwa_aln_to_rapi_aln(rapi_ref, our_read, 0, seq, &t, 1);
+		error = _bwa_aln_to_rapi_aln(rapi_ref, our_read, is_paired, seq, &t, 1);
 	}
 	else {
-		error = _bwa_aln_to_rapi_aln(rapi_ref, our_read, /* unpaired */ 0, seq, /* list of aln */ aa.a, aa.n);
+		error = _bwa_aln_to_rapi_aln(rapi_ref, our_read, is_paired, seq, /* list of aln */ aa.a, aa.n);
 	}
 
 	if (aa.n > 0)
@@ -995,10 +996,10 @@ no_pairing:
 		if (!pes[d].failed && dist >= pes[d].low && dist <= pes[d].high) extra_flag |= 2;
 	}
 
-	// We need to pass the extra flag bits to _bwa_reg2_rapi_aln_se because it needs to set them
+	// We need to pass the extra flag bits to _bwa_reg2_rapi_aln because it needs to set them
 	// on any secondary alignments.
-	int error1 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[0], &s[0], &a[0], 0x41|extra_flag);
-	int error2 = _bwa_reg2_rapi_aln_se(opt, rapi_ref, &out[1], &s[1], &a[1], 0x81|extra_flag);
+	int error1 = _bwa_reg2_rapi_aln(opt, rapi_ref, &out[0], 1, &s[0], &a[0], 0x41|extra_flag);
+	int error2 = _bwa_reg2_rapi_aln(opt, rapi_ref, &out[1], 1, &s[1], &a[1], 0x81|extra_flag);
 	if (error1 || error2) {
 		err_fatal(__func__, "error %d while converting *with no pairing* BWA mem_aln_t for read %d into rapi alignments\n", (error1 ? 1 : 2), (error1 ? error1 : error2));
 		abort();
@@ -1064,7 +1065,7 @@ static void bwa_worker_2(void *data, int i, int tid)
 		error = RAPI_OP_NOT_SUPPORTED_ERROR;
 		mem_mark_primary_se(w->opt, w->regs[i].n, w->regs[i].a, w->n_processed + i);
 		//mem_reg2sam_se(w->opt, w->bns, w->pac, &w->seqs[i], &w->regs[i], 0, 0);
-		//error = _bwa_reg2_rapi_aln_se(w->opt, w->rapi_ref, &(w->read_batch->seqs[i]), &w->regs[i], &(w->rapi_reads[i]), 0, 0);
+		//error = _bwa_reg2_rapi_aln(w->opt, w->rapi_ref, &(w->read_batch->seqs[i]), /* unpaired */ 0, &w->regs[i], &(w->rapi_reads[i]), 0, 0);
 		free(w->regs[i].a); kv_init(w->regs[i]);
 	}
 
