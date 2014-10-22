@@ -231,6 +231,8 @@ typedef struct {
 	         len:28;
 } rapi_cigar;
 
+typedef kvec_t(rapi_tag) rapi_tag_list;
+
 typedef struct {
 	rapi_contig* contig;
 	unsigned long int pos; // 1-based
@@ -250,7 +252,7 @@ typedef struct {
 	rapi_cigar * cigar_ops;
 	uint8_t n_cigar_ops;
 
-	kvec_t(rapi_tag) tags;
+	rapi_tag_list tags;
 } rapi_alignment;
 
 /**
