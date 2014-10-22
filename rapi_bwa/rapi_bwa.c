@@ -756,7 +756,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
 	if (list_length < 0)
 		return RAPI_PARAM_ERROR;
 
-	rapi_tag tag; // temporary space to form tags
+	rapi_tag* pTag; // temporary pointer to form tags
 
 	our_read->alignments = calloc(list_length, sizeof(rapi_alignment));
 	if (NULL == our_read->alignments)
@@ -802,16 +802,16 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
 
 				// BWA stores the MD string right after the cigar array.
 				const char* md = (char*)(bwa_aln->cigar + bwa_aln->n_cigar);
-				rapi_tag_set_key(&tag, "MD");
-				rapi_tag_set_text(&tag, md);
-				kv_push(rapi_tag, our_aln->tags, tag);
+				pTag = kv_pushp(rapi_tag, our_aln->tags);
+				rapi_tag_set_key(pTag, "MD");
+				rapi_tag_set_text(pTag, md);
 			}
 		}
 
 		if (bwa_aln->sub >= 0) {
-			rapi_tag_set_key(&tag, "XS");
-			rapi_tag_set_long(&tag, bwa_aln->sub);
-			kv_push(rapi_tag, our_aln->tags, tag);
+			pTag = kv_pushp(rapi_tag, our_aln->tags);
+			rapi_tag_set_key(pTag, "XS");
+			rapi_tag_set_long(pTag, bwa_aln->sub);
 		}
 
 		// TODO: extra tags
