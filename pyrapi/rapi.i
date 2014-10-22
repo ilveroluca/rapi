@@ -4,13 +4,6 @@
 
 %include "exception.i"
 
-/******* Language-independent exceptions *******/
-//SWIG_exception(SWIG_MemoryError, "Not enough memory");
-// LP: I can't get SWIG_exception to work. It generates a "goto fail;"
-// statement without defining the "fail" label, thus resulting in a
-// compiler error.  I've tried this with SWIG 2.0.11 and 3.0.2.
-// This leaves me writing one interface per target language.
-
 /******* swig -builtin option *******
 PyErr_SetString wouldn't raise a Python exception until I
 started calling swig with the "-builtin" option.
