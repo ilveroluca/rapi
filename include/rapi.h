@@ -23,14 +23,18 @@ typedef int rapi_error_t;
 #define RAPI_PARAM_ERROR                -40
 #define RAPI_TYPE_ERROR                 -50
 
-static const char* rapi_error_names[] = {
-    "NO_ERROR",
-    "GENERIC_ERROR",
-    "OP_NOT_SUPPORTED_ERROR",
-    "MEMORY_ERROR",
-    "PARAM_ERROR",
-    "TYPE_ERROR"
-};
+static const char*const rapi_error_name(rapi_error_t e)
+{
+	switch (e) {
+		case RAPI_NO_ERROR:               return "NO_ERROR";
+		case RAPI_GENERIC_ERROR:          return "GENERIC_ERROR";
+		case RAPI_OP_NOT_SUPPORTED_ERROR: return "OP_NOT_SUPPORTED_ERROR";
+		case RAPI_MEMORY_ERROR:           return "MEMORY_ERROR";
+		case RAPI_PARAM_ERROR:            return "PARAM_ERROR";
+		case RAPI_TYPE_ERROR:             return "TYPE_ERROR";
+		default: return "Unknown error type";
+	};
+}
 
 
 /* Key-value TYPES */

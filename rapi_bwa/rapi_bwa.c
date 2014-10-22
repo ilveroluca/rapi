@@ -1071,7 +1071,7 @@ static void bwa_worker_2(void *data, int i, int tid)
 
 	if (error != RAPI_NO_ERROR) {
 		err_fatal(__func__, "%s (%d) while running %s end alignments\n",
-				rapi_error_names[error], error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
+				rapi_error_name(error), error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
 	}
 }
 
