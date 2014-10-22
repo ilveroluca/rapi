@@ -699,7 +699,7 @@ void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstri
 			int c = ops[i].op;
 			if (c == 3 || c == 4) c = force_hard_clip ? 4 : 3;
 			kputw(ops[i].len, output);
-			kputc("MIDSH"[c], output);
+			kputc(rapi_cigops_char[c], output);
 		}
 	}
 	else

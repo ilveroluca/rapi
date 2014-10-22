@@ -36,6 +36,7 @@ static const char*const rapi_error_name(rapi_error_t e)
 	};
 }
 
+static const char rapi_cigops_char[] = "MIDSH";
 
 /* Key-value TYPES */
 
