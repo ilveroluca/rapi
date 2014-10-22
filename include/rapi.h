@@ -96,10 +96,11 @@ static inline void rapi_param_set_name( rapi_param* kv, const char* key) {
 }
 
 
-static inline void rapi_param_set_char(rapi_param* kv, char value       ) KV_SET_IMPL(RAPI_VTYPE_CHAR, value.character)
-static inline void rapi_param_set_text(rapi_param* kv, char* value) KV_SET_IMPL(RAPI_VTYPE_TEXT, value.text)
-static inline void rapi_param_set_long(rapi_param* kv, long value       ) KV_SET_IMPL(RAPI_VTYPE_INT,  value.integer)
-static inline void rapi_param_set_dbl( rapi_param* kv, double value     ) KV_SET_IMPL(RAPI_VTYPE_REAL, value.real)
+static inline void rapi_param_set_char(rapi_param* kv, char value   ) KV_SET_IMPL(RAPI_VTYPE_CHAR, value.character)
+// set_text does not take ownership of the string
+static inline void rapi_param_set_text(rapi_param* kv, char* value  ) KV_SET_IMPL(RAPI_VTYPE_TEXT, value.text)
+static inline void rapi_param_set_long(rapi_param* kv, long value   ) KV_SET_IMPL(RAPI_VTYPE_INT,  value.integer)
+static inline void rapi_param_set_dbl( rapi_param* kv, double value ) KV_SET_IMPL(RAPI_VTYPE_REAL, value.real)
 
 static inline const char* rapi_param_get_name(const rapi_param* kv) { return kv->name.s; }
 
@@ -149,6 +150,10 @@ static inline void rapi_tag_clear(rapi_tag* kv) {
  *
  * If you need to write non-string data, call this fn with a `value` of ""
  * and then use the kstring functions directly with kv->value.text.
+ *
+ * NOTE: if you set_text and then call any other set_ function without calling
+ * rapi_tag_clear you'll leak the previous string value (it won't be automatically
+ * cleared).
  */
 static inline void rapi_tag_set_text(rapi_tag* kv, const char* value) {
 	kv->type = RAPI_VTYPE_TEXT;
@@ -313,7 +318,7 @@ rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments);
  * Number of reads that fit in curretly allocated space.
  */
 static inline int rapi_batch_read_capacity(const rapi_batch* batch) {
-  return batch->n_frags * batch->n_reads_frag;
+	return batch->n_frags * batch->n_reads_frag;
 }
 
 /**
