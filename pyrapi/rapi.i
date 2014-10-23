@@ -177,6 +177,15 @@ typedef struct {
 } type##_iter;
 %}
 
+
+/*
+Without these %feature statements the "special" methods, such as __len__,
+__getitem__, __iter__, etc. will be defined but they won't work (at least
+when calling swig with -builtin).  You'll get errors like:
+
+----> e.g., len(r)
+TypeError: object of type 'ref' has no len()
+*/
 %feature("python:slot", "tp_iter", functype="getiterfunc") type##_iter::rapi___iter__;
 %feature("python:slot", "tp_iternext", functype="iternextfunc") type##_iter::next;
 %extend type##_iter {
@@ -316,54 +325,7 @@ typedef struct {
 } rapi_contig;
 
 /* An iterator object for the contig */
-%{
-typedef struct {
-  rapi_contig* next_item;
-  size_t n_left;
-} ref_contig_iter;
-%}
-
-// Through SWIG we expose it as an empty struct so that the user
-// can't access the fields directly
-typedef struct {
-} ref_contig_iter;
-
-/* Without these %feature statements the __len__ and __getitem__ methods
-   will be defined but they won't work (at least when calling swig with -builtin).
-   You'll get errors like:
-
-----> e.g., len(r)
-TypeError: object of type 'ref' has no len()
-*/
-%feature("python:slot", "tp_iter", functype="getiterfunc") ref_contig_iter::rapi___iter__;
-%feature("python:slot", "tp_iternext", functype="iternextfunc") ref_contig_iter::next;
-%extend ref_contig_iter {
-  ref_contig_iter(rapi_contig* array, size_t len) {
-    ref_contig_iter* iter = (ref_contig_iter*) rapi_malloc(sizeof(ref_contig_iter));
-    if (!iter) return NULL;
-
-    iter->next_item = array;
-    iter->n_left = len;
-    return iter;
-  }
-
-  ~ref_contig_iter() {
-    free($self);
-  }
-
-  ref_contig_iter* rapi___iter__() { return $self; }
-
-  rapi_contig* next() {
-    if ($self->n_left > 0) {
-      $self->n_left -= 1;
-      return $self->next_item++;
-    }
-    else {
-      PyErr_SetString(PyExc_StopIteration, "");
-      return NULL;
-    }
-  }
-};
+rapi_array_iter(rapi_contig);
 
 /*
 We're wrapping rapi_ref as a container of contigs.  In other words, the rapi_contig
@@ -451,7 +413,7 @@ typedef struct {
 
   rapi_contig* rapi___getitem__(int i) { return rapi_ref_rapi_get_contig($self, i); }
 
-  ref_contig_iter* rapi___iter__() { return new_ref_contig_iter($self->contigs, $self->n_contigs); }
+  rapi_contig_iter* rapi___iter__() { return new_rapi_contig_iter($self->contigs, $self->n_contigs); }
 };
 
 /***************************************
