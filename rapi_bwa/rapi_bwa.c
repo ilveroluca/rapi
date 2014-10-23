@@ -17,7 +17,7 @@
 
 #include "bwa_header.h"
 
-#define StaticArrayLen(a) (sizeof((a)) / sizeof((a)[0]))
+#define RAPI_BWA_PLUGIN_VERSION  "0.1.0-dev"
 
 const char vtype_char[] = {
 	'0',
@@ -32,7 +32,7 @@ const char vtype_char[] = {
  * linking, so we need to define it here.  I think it's the string that the
  * program uses to identify itself in the SAM header's @PG tag.
  */
-const char*const bwa_pg = "rapi";
+const char*const bwa_pg = "rapi-bwa";
 
 // Table to convert from base letter to an index in the range [0,4].
 // Defined in bntseq.c
@@ -503,6 +503,11 @@ const char* rapi_aligner_name()
 const char* rapi_aligner_version()
 {
 	return WRAPPED_BWA_VERSION;
+}
+
+const char* rapi_plugin_version()
+{
+	return RAPI_BWA_PLUGIN_VERSION;
 }
 
 /* Load Reference */
