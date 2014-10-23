@@ -293,7 +293,6 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertRaises(AttributeError, assign_to_n_left, 33)
 
 
-
     def test_sam(self):
         # We ran this command line:
         #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta <(head -n 8 mini_ref/mini_ref_seqs.fastq )
@@ -329,6 +328,13 @@ class TestPyrapiAlignment(unittest.TestCase):
             bwa_tags = expected[read_num][(bwa_tag_start[read_num]+1):]
             rapi_tags = rapi_sam[read_num][(rapi_tag_start[read_num]+1):]
             self.assertEquals(set(bwa_tags.split('\t')), set(rapi_tags.split('\t')))
+
+    def test_get_insert_size(self):
+        aln_read = self.batch.get_read(0, 0).get_aln(0)
+        aln_mate = self.batch.get_read(0, 1).get_aln(0)
+        self.assertEqual(121, rapi.get_insert_size(aln_read, aln_mate))
+        self.assertEqual(-121, rapi.get_insert_size(aln_mate, aln_read))
+        self.assertEqual(0, rapi.get_insert_size(aln_read, aln_read))
 
 
 #    def test_align_se(self):

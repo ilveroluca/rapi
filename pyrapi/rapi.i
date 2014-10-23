@@ -1001,4 +1001,6 @@ char* format_sam(const rapi_batch_wrap* wrapper, int n_frag) {
 }
 %}
 
+long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate);
+
 // vim: set et sw=2 ts=2
