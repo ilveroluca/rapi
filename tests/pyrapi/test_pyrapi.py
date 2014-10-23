@@ -283,6 +283,16 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertEqual("chr1", a.contig.name)
         self.assertEqual(32461, a.pos)
 
+        ialn = rapi_read.iter_aln()
+        b = next(ialn)
+        self.assertEqual("chr1", b.contig.name)
+        self.assertEqual(32461, b.pos)
+        # ensure the iterator is read-only
+        def assign_to_n_left(x):
+            ialn.n_left = x
+        self.assertRaises(AttributeError, assign_to_n_left, 33)
+
+
 
     def test_sam(self):
         # We ran this command line:
