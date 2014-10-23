@@ -375,6 +375,19 @@ rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* out
 	return error;
 }
 
+rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output)
+{
+	for (int i = 0; i < ref->n_contigs; ++i)
+		ksprintf(output, "@SQ\tSN:%s\tLN:%d\n", ref->contigs[i].name, ref->contigs[i].len);
+
+	ksprintf(output, "@PG\tID:rapi (%s)\tPN:rapi (%s)\tVN:%s (%s)\n",
+		rapi_aligner_name(),
+		rapi_aligner_name(),
+		rapi_plugin_version(),
+		rapi_aligner_version());
+	kputs("@CO File generated through the RAPI aligner interface using the specified aligner plug-in", output);
+	return RAPI_NO_ERROR;
+}
 
 /**********************************/
 

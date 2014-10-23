@@ -982,10 +982,16 @@ typedef struct {
  * dereferenced, we need to use the '%newobject' directive.
  */
 %newobject format_sam;
+%newobject format_sam_hdr;
 %inline %{
 char* format_sam(const rapi_batch_wrap* wrapper, int n_frag) {
+  if (NULL == wrapper) {
+    SWIG_Error(SWIG_TypeError, "wrapper argument cannot be None");
+    return NULL;
+  }
+
   if (n_frag < 0 || n_frag >= wrapper->len) {
-    SWIG_Error(rapi_swig_error_type(RAPI_PARAM_ERROR), "n_frag argument out of bounds\n");
+    SWIG_Error(SWIG_IndexError, "n_frag argument out of bounds\n");
     return NULL;
   }
 
@@ -996,6 +1002,24 @@ char* format_sam(const rapi_batch_wrap* wrapper, int n_frag) {
   else {
     free(str.s);
     SWIG_Error(rapi_swig_error_type(error), "Error formatting SAM");
+    return NULL;
+  }
+}
+
+char* format_sam_hdr(const rapi_ref* ref)
+{
+  if (NULL == ref) {
+    SWIG_Error(SWIG_TypeError, "ref argument cannot be None");
+    return NULL;
+  }
+
+  kstring_t str = { 0, 0, NULL };
+  rapi_error_t error = rapi_format_sam_hdr(ref, &str);
+  if (error == RAPI_NO_ERROR)
+    return str.s; // Python must free this string
+  else {
+    free(str.s);
+    SWIG_Error(rapi_swig_error_type(error), "Error formatting SAM header");
     return NULL;
   }
 }

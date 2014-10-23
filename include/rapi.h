@@ -373,8 +373,30 @@ long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate
 
 int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops);
 
+void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstring_t* output);
+
+
+/******* SAM output *******/
+
+/**
+ * Format SAM for all reads in the given fragment.
+ *
+ * \param batch A read batch.
+ *
+ * \param n_frag The index of the fragment within the batch whose reads will be
+ *               printed in the SAM text.  SAM will be produced for all the reads
+ *               within the fragment.
+ *
+ * \param output An initialized kstring_t to which the SAM will be appended.
+ */
 rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* output);
 
-void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstring_t* output);
+/**
+ * Format the SAM header for the given reference.  The header will also contain
+ * a @PG tag identifying the RAPI-interfaced aligner being used.
+ *
+ * \param output An initialized kstring_t to which the output will be appended.
+ */
+rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output);
 
 #endif
