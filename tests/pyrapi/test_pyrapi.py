@@ -276,8 +276,13 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertRaises(IndexError, rapi_read.get_aln, rapi_read.n_alignments)
 
     def test_alignment_iter(self):
-        return
-        self.fail("Not implemented")
+        rapi_read = self.batch.get_read(0, 0)
+        alignments = [ a for a in rapi_read.iter_aln() ]
+        self.assertEqual(rapi_read.n_alignments, len(alignments))
+        a = alignments[0]
+        self.assertEqual("chr1", a.contig.name)
+        self.assertEqual(32461, a.pos)
+
 
     def test_sam(self):
         # We ran this command line:
