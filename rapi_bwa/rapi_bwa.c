@@ -154,7 +154,6 @@ rapi_error_t rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
  */
 static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read* mate, int read_num, kstring_t* output)
 {
-	PDEBUG("In rapi_format_sam. read is %s; mate is %s\n", (read ? "set" : "NULL"), (mate ? "set" : "NULL"));
 	if (NULL == read) {
 		PERROR("rapi_format_sam: NULL read pointer\n");
 		return RAPI_PARAM_ERROR;
@@ -165,14 +164,12 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 
 	if (read->n_alignments > 0) {
 		tmp_read = *read->alignments;
-		PDEBUG("rapi_format_sam: read has %" PRIu8 " alignments\n", read->n_alignments);
     }
 	else
 		memset(&tmp_read, 0, sizeof(tmp_read));
 
 	if (mate && mate->n_alignments > 0) {
 		tmp_mate = *mate->alignments;
-		PDEBUG("rapi_format_sam: mate has %" PRIu8 " alignments\n", mate->n_alignments);
     }
 	else
 		memset(&tmp_mate, 0, sizeof(tmp_mate));
@@ -189,13 +186,11 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 		aln->contig         = mate_aln->contig;
 		aln->pos            = mate_aln->pos;
 		aln->reverse_strand = mate_aln->reverse_strand;
-		PDEBUG("\tCopying mate position to read (contig: %s; pos: %lu; reverse: %d\n", aln->contig->name, aln->pos, (0x1 & aln->reverse_strand));
 	}
 	else if (aln->mapped && mate && !mate_aln->mapped) { // copy read alignment to mate
 		mate_aln->contig         = aln->contig;
 		mate_aln->pos            = aln->pos;
 		mate_aln->reverse_strand = aln->reverse_strand;
-		PDEBUG("\tCopying read position to mate (contig: %s; pos: %lu; reverse: %d\n", mate_aln->contig->name, mate_aln->pos, (0x1 & mate_aln->reverse_strand));
 	}
 
 	int flag = 0;
@@ -219,10 +214,6 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 		flag |= aln->reverse_strand ? 0x10 : 0; // is on the reverse strand
 		flag |= aln->secondary_aln ? 0x100 : 0; // secondary alignment
 	}
-
-	char buf[20];
-	rapi_flag_string(flag, buf);
-	PDEBUG("Read flag: %d (%s)\n", flag, buf);
 
 	kputs(read->id, output); kputc('\t', output); // QNAME\t
 	kputw((flag & 0xffff), output); kputc('\t', output); // FLAG
@@ -331,10 +322,6 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 	//	}
 	//}
 
-	if (RAPI_NO_ERROR == error) {
-		PDEBUG("resulting SAM: %.*s\n", (int)ks_len(output), ks_str(output));
-	}
-
 	return error;
 }
 /**
@@ -400,7 +387,7 @@ typedef struct {
 	bseq1_t* seqs;
 } bwa_batch;
 
-void _print_bwa_batch(FILE* out, const bwa_batch* read_batch)
+static void _print_bwa_batch(FILE* out, const bwa_batch* read_batch)
 {
 	fprintf(out, "batch with %ld bases, %d reads, %d reads per fragment",
 			read_batch->n_bases, read_batch->n_reads, read_batch->n_reads_per_frag);
@@ -604,7 +591,7 @@ static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* 
 	}
 
 	if (end_fragment > batch->n_frags || start_fragment > end_fragment) {
-		fprintf(stderr, "start or end fragmet is out of bounds. Got start %d and end %d but we have %d fragments\n",
+		PERROR("start or end fragmet is out of bounds. Got start %d and end %d but we have %d fragments\n",
 				start_fragment, end_fragment, batch->n_frags);
 		return RAPI_PARAM_ERROR;
 	}
@@ -612,13 +599,12 @@ static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* 
 	bwa_seqs->n_bases = 0;
 	bwa_seqs->n_reads = 0;
 	bwa_seqs->n_reads_per_frag = batch->n_reads_frag;
-	fprintf(stderr, "Need to allocate %d elements of size %ld\n", batch->n_frags * batch->n_reads_frag, sizeof(bseq1_t));
 
 	int n_frags = end_fragment - start_fragment;
 
 	bwa_seqs->seqs = calloc(n_frags * batch->n_reads_frag, sizeof(bseq1_t));
 	if (NULL == bwa_seqs->seqs) {
-		fprintf(stderr, "Allocation failed!\n");
+		PERROR("Allocation failed!\n");
 		return RAPI_MEMORY_ERROR;
 	}
 
@@ -653,7 +639,7 @@ static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* 
 	return RAPI_NO_ERROR;
 
 failed_allocation:
-	fprintf(stderr, "Failed to allocate while constructing sequences! Freeing and returning\n");
+	PERROR("Failed to allocate while constructing sequences! Freeing and returning\n");
 	_free_bwa_batch_contents(bwa_seqs);
 	return RAPI_MEMORY_ERROR;
 }
@@ -797,7 +783,7 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
 		rapi_alignment* our_aln = &our_read->alignments[which];
 
 		if (bwa_aln->rid >= rapi_ref->n_contigs) { // huh?? Out of bounds
-			fprintf(stderr, "read reference id value %d is out of bounds (n_contigs: %d)\n", bwa_aln->rid, rapi_ref->n_contigs);
+			PERROR("read reference id value %d is out of bounds (n_contigs: %d)\n", bwa_aln->rid, rapi_ref->n_contigs);
 			free(our_read->alignments);
 			our_read->alignments = NULL; our_read->n_alignments = 0;
 			return RAPI_GENERIC_ERROR;
@@ -1060,7 +1046,7 @@ static void bwa_worker_1(void *data, int i, int tid)
 	const bntseq_t* const bns    = bwaidx->bns;
 	const uint8_t*  const pac    = bwaidx->pac;
 
-	fprintf(stderr, "bwa_worker_1: MEM_F_PE is %sset\n", ((w->opt->flag & MEM_F_PE) == 0 ? "not " : " "));
+	PDEBUG("bwa_worker_1: MEM_F_PE is %sset\n", ((w->opt->flag & MEM_F_PE) == 0 ? "not " : " "));
 	if (w->opt->flag & MEM_F_PE) {
 		int read = 2*i;
 		int mate = 2*i + 1;
@@ -1125,15 +1111,12 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start
 
 	if ((error = _convert_opts(state->opts, bwa_opt)))
 		return error;
-	fprintf(stderr, "opts converted\n");
 
 	// traslate our read structure into BWA reads
 	bwa_batch bwa_seqs;
 	if ((error = _batch_to_bwa_seq(batch, state->opts, start_fragment, end_fragment, &bwa_seqs)))
 		return error;
-	fprintf(stderr, "converted reads to BWA structures.\n");
-
-	_print_bwa_batch(stderr, &bwa_seqs);
+	fprintf(stderr, "Converted reads to BWA structures.\n");
 
 	fprintf(stderr, "Going to process.\n");
 	mem_alnreg_v *regs = malloc(bwa_seqs.n_reads * sizeof(mem_alnreg_v));
@@ -1141,7 +1124,6 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start
 		error = RAPI_MEMORY_ERROR;
 		goto clean_up;
 	}
-	fprintf(stderr, "Allocated %d mem_alnreg_v structures\n", bwa_seqs.n_reads);
 
 	extern void kt_for(int n_threads, void (*func)(void*,int,int), void *data, int n);
 	bwa_worker_t w;
@@ -1153,7 +1135,9 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start
 	w.rapi_ref = ref;
 	w.rapi_reads = batch->reads;
 
-	fprintf(stderr, "Calling bwa_worker_1. bwa_opt->flag: %d\n", bwa_opt->flag);
+	fprintf(stderr, "Calling bwa_worker_1. ");
+	rapi_print_bwa_flag_string(stderr, bwa_opt->flag);
+
 	int n_fragments = (bwa_opt->flag & MEM_F_PE) ? bwa_seqs.n_reads / 2 : bwa_seqs.n_reads;
 	kt_for(bwa_opt->n_threads, bwa_worker_1, &w, n_fragments); // find mapping positions
 
@@ -1265,7 +1249,7 @@ rapi_error_t rapi_set_read(rapi_batch* batch,
 
 	read->id = malloc(buf_size);
 	if (NULL == read->id) { // failed allocation
-		fprintf(stderr, "Unable to allocate memory for sequence\n");
+		PERROR("Unable to allocate memory for sequence\n");
 		return RAPI_MEMORY_ERROR;
 	}
 
@@ -1285,7 +1269,7 @@ rapi_error_t rapi_set_read(rapi_batch* batch,
 			read->qual[i] = (int)qual[i] - q_offset + 33; // 33 is the Sanger offset.  BWA expects it this way.
 			if (read->qual[i] < 33 || read->qual[i] > 126)
 			{ // Sanger base qualities have an allowed range of [0,93], and 93+33=126
-				fprintf(stderr, "Invalid base quality score %d\n", read->qual[i]);
+				PERROR("Invalid base quality score %d\n", read->qual[i]);
 				error_code = RAPI_PARAM_ERROR;
 				goto error;
 			}
