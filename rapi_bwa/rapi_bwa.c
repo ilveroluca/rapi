@@ -48,6 +48,34 @@ void rapi_print_read(FILE* out, const rapi_read* read)
 	fprintf(out, "read n_alignments: %u\n", read->n_alignments);
 }
 
+static void rapi_print_batch(FILE* out, const rapi_batch* batch)
+{
+	for (int f = 0; f < batch->n_frags; ++f) {
+		for (int r = 0; r < batch->n_reads_frag; ++r) {
+			const rapi_read*const read = rapi_get_read(batch, f, r);
+			if (!read) {
+				PERROR("rapi_get_read(batch, %d, %d) returned NULL\n", f, r);
+				abort();
+			}
+			fprintf(out, "=================== (%d, %d) ===================\n ", f, r);
+			rapi_print_read(out, read);
+		}
+	}
+}
+
+static void rapi_print_bwa_flag_string(FILE* out, const int flag)
+{
+	fprintf(out, "BWA flags: ");
+	if (flag & MEM_F_PE)        fprintf(out, " MEM_F_PE");
+	if (flag & MEM_F_NOPAIRING) fprintf(out, " MEM_F_NOPAIRING");
+	if (flag & MEM_F_ALL)       fprintf(out, " MEM_F_ALL");
+	if (flag & MEM_F_NO_MULTI)  fprintf(out, " MEM_F_NO_MULTI");
+	if (flag & MEM_F_NO_RESCUE) fprintf(out, " MEM_F_NO_RESCUE ");
+	if (flag & MEM_F_NO_EXACT)  fprintf(out, " MEM_F_NO_EXACT");
+	fprintf(out, "\n");
+}
+
+
 /*
  * Writes a null-terminated string representation of the SAM flag to buf20.
  * Guaranteed not to write more than 20 bytes.
