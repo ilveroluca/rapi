@@ -177,8 +177,8 @@ typedef struct {
 } type##_iter;
 %}
 
-%feature("pythone:slot", "tp_iter", functype="getiterfunc") type##_iter::rapi__iter__;
-%feature("pythone:slot", "tp_iternext", functype="iternextfunc") type##_iter::next;
+%feature("python:slot", "tp_iter", functype="getiterfunc") type##_iter::rapi___iter__;
+%feature("python:slot", "tp_iternext", functype="iternextfunc") type##_iter::next;
 %extend type##_iter {
     type##_iter(const type* array, size_t len) {
         type##_iter* iter = (type##_iter*) rapi_malloc(sizeof(type##_iter));
@@ -190,7 +190,7 @@ typedef struct {
 
     ~type##_iter() { free($self); }
 
-    type##_iter* __iter__() const { return $self; }
+    type##_iter* rapi___iter__() { return $self; }
 
     const type* next() {
         const type* retval;
@@ -699,9 +699,10 @@ rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
   $result = tuple;
 }
 
-// iterator for array of rapi_alignment
+// define rapi_alignment_iter: iterator for array of rapi_alignment
 rapi_array_iter(rapi_alignment);
 
+// Raise IndexError when rapi_read.get_aln returns NULL
 %exception rapi_read::get_aln {
     $action
     if (result == NULL) {
