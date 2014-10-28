@@ -873,11 +873,12 @@ typedef struct {
     rapi_error_t error = rapi_set_read($self->batch, n_frag, n_read, id, seq, qual, q_offset);
     if (error != RAPI_NO_ERROR) {
       SWIG_Error(rapi_swig_error_type(error), "Error setting read data");
-    } else {
+    }
+    else {
       // If the user set a read that is beyond the current batch length, reset the
       // batch length to the new limit.
       int index = n_frag * $self->batch->n_reads_frag + n_read;
-      if ($self->len < index)
+      if ($self->len <= index)
         $self->len = index + 1;
     }
     return error;
