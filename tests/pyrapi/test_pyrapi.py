@@ -29,8 +29,10 @@ class TestPyrapi(unittest.TestCase):
     def test_aligner_name_vers(self):
         name = rapi.aligner_name()
         ver = rapi.aligner_version()
+        plugin_version = rapi.plugin_version()
         self.assertGreater(len(name), 0)
         self.assertGreater(len(ver), 0)
+        self.assertGreater(len(plugin_version), 0)
 
 
 class TestPyrapiRef(unittest.TestCase):

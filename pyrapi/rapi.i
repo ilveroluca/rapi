@@ -225,6 +225,7 @@ SWIG -- the wrapper doesn't try to free the strings since they are "const".
 */
 const char* rapi_aligner_name();
 const char* rapi_aligner_version();
+const char* rapi_plugin_version();
 
 /**** rapi_param ****/
 typedef struct {
