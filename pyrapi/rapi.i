@@ -190,6 +190,11 @@ TypeError: object of type 'ref' has no len()
 %feature("python:slot", "tp_iternext", functype="iternextfunc") type##_iter::next;
 %extend type##_iter {
     type##_iter(const type* array, size_t len) {
+        if (array == NULL) {
+            SWIG_Error(SWIG_ValueError, "array cannot be None");
+            return NULL;
+        }
+
         type##_iter* iter = (type##_iter*) rapi_malloc(sizeof(type##_iter));
         if (!iter) return NULL;
         iter->next_item = array;
@@ -365,6 +370,11 @@ typedef struct {
 %feature("python:slot", "tp_iter", functype="getiterfunc") rapi_ref::rapi___iter__;
 %extend rapi_ref {
   rapi_ref(const char* reference_path) {
+    if (reference_path == NULL) {
+        SWIG_Error(SWIG_TypeError, "Reference path cannot be None");
+        return NULL;
+    }
+
     rapi_ref* ref = (rapi_ref*) rapi_malloc(sizeof(rapi_ref));
     if (!ref) return NULL;
 
@@ -427,7 +437,7 @@ typedef struct {
     PyObject* ret_tuple = PyTuple_New($1.len);
     if (ret_tuple == NULL) {
         PERROR("Failed to allocate PyTuple. Raising exception\n");
-        SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate tuple");
+        SWIG_exception_fail(SWIG_MemoryError, "Failed to allocate tuple");
     }
 
     // for each cigar operator in the array, map it to a 2-item tuple and append it to the return tuple
@@ -439,7 +449,7 @@ typedef struct {
         PyObject* cigar_tuple = PyTuple_New(2);
         if (cigar_tuple == NULL) {
             Py_DECREF(ret_tuple);
-            SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate cigar tuple");
+            SWIG_exception_fail(SWIG_MemoryError, "Failed to allocate cigar tuple");
         }
 
         PyTuple_SET_ITEM(cigar_tuple, 0, PyString_FromStringAndSize(&c, 1));
@@ -471,8 +481,8 @@ typedef struct {
 static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
 {
     if (tag == NULL) {
-        PERROR("Got NULL tag");
-         return NULL;
+        SWIG_Error(SWIG_RuntimeError, "rapi_py_tag_value: Got NULL tag!");
+        return NULL;
     }
 
     PyObject* retval = NULL;
@@ -529,7 +539,7 @@ static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
 %typemap(out) rapi_tag_list {
     PyObject* dict = PyDict_New();
     if (dict == NULL) {
-        SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate dict");
+        SWIG_exception_fail(SWIG_MemoryError, "Failed to allocate dict");
     }
 
     const char* error_msg = NULL;
@@ -552,7 +562,7 @@ static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
 
     if (error_msg) {
         Py_DECREF(dict);
-        SWIG_exception_fail(rapi_swig_error_type(RAPI_GENERIC_ERROR), error_msg);
+        SWIG_exception_fail(SWIG_RuntimeError, error_msg);
     }
     else
         $result = dict;
@@ -642,7 +652,7 @@ rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
   PyObject* tuple = PyTuple_New(fragment_size);
   if (tuple == NULL) {
     PERROR("Failed to allocate PyTuple. Raising exception\n");
-    SWIG_exception_fail(rapi_swig_error_type(RAPI_MEMORY_ERROR), "Failed to allocate tuple");
+    SWIG_exception_fail(SWIG_MemoryError, "Failed to allocate tuple");
   }
 
   for (int i = 0; i < fragment_size; ++i) {
@@ -650,7 +660,7 @@ rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
     if (read == NULL) {
       PERROR("Failed to fetch read (rapi_get_read(batch, %d, %d) returned NULL\n", $1.fragment_num, i);
       Py_DECREF(tuple);
-      SWIG_exception_fail(rapi_swig_error_type(RAPI_GENERIC_ERROR), "Error retrieving read");
+      SWIG_exception_fail(SWIG_RuntimeError, "Error retrieving read");
     }
     // SWIG_NewPointerObj creates a new Python wrapper for the rapi_read to which
     // we're pointing. By passing the flag 0 we're telling SWIG that the wrapper
@@ -689,7 +699,7 @@ typedef struct {
         if (index >= 0 && index < $self->n_alignments)
             return $self->alignments + index;
         else
-            return NULL;
+            return NULL; // exception raise in %exception block
     }
 
     rapi_alignment_iter* iter_aln() const {
@@ -771,12 +781,17 @@ typedef struct {
 %exception rapi_batch_wrap::get_read {
   $action
   if (result == NULL) {
-    SWIG_exception(SWIG_IndexError, "");
+    SWIG_exception(SWIG_IndexError, "co-ordinates out of bounds");
   }
 }
 
 %extend rapi_batch_wrap {
 
+  /**
+   * Creates a new read_batch for fragments composed of `n_reads_per_frag` reads.
+   * The function doesn't pre-allocate any space for reads, so either use `append`
+   * to insert reads or call `reserve` before calling `set_read`.
+   */
   rapi_batch_wrap(int n_reads_per_frag) {
     if (n_reads_per_frag <= 0) {
       SWIG_Error(SWIG_ValueError, "number of reads per fragment must be greater than or equal to 0");
@@ -794,7 +809,7 @@ typedef struct {
 
     wrapper->len = 0;
 
-    int error = rapi_reads_alloc(wrapper->batch, n_reads_per_frag, 0); // zero-sized allocation to initialize
+    rapi_error_t error = rapi_reads_alloc(wrapper->batch, n_reads_per_frag, 0); // zero-sized allocation to initialize
 
     if (error != RAPI_NO_ERROR) {
       free(wrapper->batch);
@@ -831,18 +846,23 @@ typedef struct {
 
   rapi_read* get_read(int n_fragment, int n_read)
   {
-    // Since the underlying code doesn't merely checks whether we're indexing
+    // Since the underlying code merely checks whether we're indexing
     // allocated space, we precede it with an additional check whether we're
     // accessing space where reads have been inserted.
+    //
+    // * In both cases, if the returned value is NULL an IndexError is raised
+    // in the exception block
     if (n_fragment * $self->batch->n_reads_frag + n_read >= $self->len) {
       return NULL;
     }
     return rapi_get_read($self->batch, n_fragment, n_read);
-    // Error raised in %exception block
   }
 
   rapi_error_t reserve(int n_reads) {
-    if (n_reads < 0) return RAPI_PARAM_ERROR;
+    if (n_reads < 0) {
+        PERROR("n_reads must be >= 0");
+        return RAPI_PARAM_ERROR;
+    }
 
     int n_fragments = n_reads / $self->batch->n_reads_frag;
     // If the reads don't fit completely in n_fragments, add one more
@@ -855,9 +875,14 @@ typedef struct {
 
   rapi_error_t append(const char* id, const char* seq, const char* qual, int q_offset)
   {
+    rapi_error_t error = RAPI_NO_ERROR;
+
+    // if id or seq are NULL set them to the empty string and pass them down to the plugin.
+    if (!id) id = "";
+    if (!seq) seq = "";
+
     int fragment_num = $self->len / $self->batch->n_reads_frag;
     int read_num = $self->len % $self->batch->n_reads_frag;
-    rapi_error_t error = RAPI_NO_ERROR;
 
     size_t read_capacity = rapi_batch_wrap_capacity($self);
     if (read_capacity < $self->len + 1) {
@@ -880,10 +905,9 @@ typedef struct {
 
   rapi_error_t set_read(int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset)
   {
-    if (n_frag < 0 || n_read < 0) {
-      SWIG_Error(rapi_swig_error_type(RAPI_PARAM_ERROR), "read and fragment indices cannot be negative");
-      return RAPI_PARAM_ERROR;
-    }
+    // if id or seq are NULL set them to the empty string and pass them down to the plugin.
+    if (!id) id = "";
+    if (!seq) seq = "";
 
     rapi_error_t error = rapi_set_read($self->batch, n_frag, n_read, id, seq, qual, q_offset);
     if (error != RAPI_NO_ERROR) {
@@ -914,6 +938,11 @@ typedef struct {
 
 %extend read_batch_iter {
   read_batch_iter(rapi_batch_wrap* batch) {
+    if (batch == NULL) {
+        SWIG_Error(SWIG_TypeError, "batch cannot be None");
+        return NULL;
+    }
+
     read_batch_iter* iter = (read_batch_iter*) rapi_malloc(sizeof(read_batch_iter));
     if (iter == NULL) return NULL;
 
@@ -975,6 +1004,11 @@ typedef struct {
   }
 
   rapi_error_t align_reads(const rapi_ref* ref, rapi_batch_wrap* batch) {
+    if (NULL == ref || NULL == batch) {
+      PERROR("ref and batch arguments must not be NULL\n");
+      return RAPI_PARAM_ERROR;
+    }
+
     if (batch->len % batch->batch->n_reads_frag != 0) {
       PERROR("Incomplete fragment in batch! Number of reads appended (%zd) is not a multiple of the number of reads per fragment (%d)\n",
         batch->len, batch->batch->n_reads_frag);

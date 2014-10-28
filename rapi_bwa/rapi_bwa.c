@@ -1257,7 +1257,13 @@ rapi_error_t rapi_set_read(rapi_batch* batch,
 
 	rapi_read* read = rapi_get_read(batch, n_frag, n_read);
 	const int name_len = strlen(name);
+
 	const int seq_len = strlen(seq);
+	if (seq_len == 0) {
+		PERROR("Got sequence of length 0\n");
+		return RAPI_PARAM_ERROR;
+	}
+
 	read->length = seq_len;
 
 	// simplify allocation and error checking by allocating a single buffer

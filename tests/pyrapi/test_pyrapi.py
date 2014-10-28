@@ -21,6 +21,9 @@ class TestPyrapi(unittest.TestCase):
         r = rapi.init(rapi.opts())
         self.assertIsNone(r)
 
+    def test_init_opts_none(self):
+        rapi.init(None)
+
     def test_shutdown(self):
         rapi.init(rapi.opts())
         r = rapi.shutdown()
@@ -47,6 +50,7 @@ class TestPyrapiRef(unittest.TestCase):
 
     def test_bad_ref_path(self):
         self.assertRaises(RuntimeError, rapi.ref, 'bad/path')
+        self.assertRaises(TypeError, rapi.ref, None)
 
     def test_ref_load_unload(self):
         self.assertEqual(stuff.MiniRef, self.ref.path)
@@ -74,6 +78,8 @@ class TestPyrapiRef(unittest.TestCase):
     def test_get_contig_out_of_bounds(self):
         self.assertRaises(IndexError, self.ref.get_contig, 1)
         self.assertRaises(IndexError, self.ref.get_contig, -1)
+        self.assertRaises(TypeError, self.ref.get_contig, None)
+
 
     def test_get_contig_by_get_item(self):
         c0 = self.ref[0]
@@ -83,6 +89,7 @@ class TestPyrapiRef(unittest.TestCase):
     def test_get_contig_by_get_item_out_of_bounds(self):
         self.assertRaises(IndexError, self.ref.__getitem__, 1)
         self.assertRaises(IndexError, self.ref.__getitem__, -1)
+        self.assertRaises(TypeError, self.ref.__getitem__, None)
 
 
 class TestPyrapiReadBatch(unittest.TestCase):
@@ -100,6 +107,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
 
     def test_create_bad_arg(self):
         self.assertRaises(ValueError, rapi.read_batch, -1)
+        self.assertRaises(TypeError, rapi.read_batch, None)
 
     def test_create(self):
         self.assertEquals(2, self.w.n_reads_per_frag)
@@ -117,6 +125,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(0, self.w.n_fragments)
         self.assertEquals(0, len(self.w))
         self.assertRaises(ValueError, self.w.reserve, -1)
+        self.assertRaises(TypeError, self.w.reserve, None)
 
     def test_append_one(self):
         seq_pair = stuff.get_sequences()[0]
@@ -159,6 +168,27 @@ class TestPyrapiReadBatch(unittest.TestCase):
 
         new_q = chr(63)*len(seq_pair[1]) # illumina encoding goes down to 64
         self.assertRaises(ValueError, self.w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_ILLUMINA)
+
+    def test_append_none(self):
+        self.assertRaises(ValueError, self.w.append, None, None, None, rapi.QENC_SANGER)
+        self.assertRaises(ValueError, self.w.append, "some id", None, None, rapi.QENC_SANGER)
+        self.assertRaises(TypeError, self.w.append, "some id", "AGCT", None, None)
+
+    def test_set_read_out_of_bounds(self):
+        self.assertRaises(ValueError, self.w.set_read, 0, 0, "some id", "AGCT", None, rapi.QENC_SANGER)
+        self.w.reserve(2) # 2 reads, 1 fragment
+        self.w.set_read(0, 1, "some id", "AGCT", None, rapi.QENC_SANGER)
+        self.assertEqual(2, len(self.w))
+        self.assertRaises(ValueError, self.w.set_read, 1, 0, "some id", "AGCT", None, rapi.QENC_SANGER)
+        self.assertRaises(ValueError, self.w.set_read, 1, 1, "some id", "AGCT", None, rapi.QENC_SANGER)
+
+    def test_set_read_none(self):
+        self.w.reserve(1)
+        self.assertRaises(ValueError, self.w.set_read, 0, 0, None, None, None, rapi.QENC_SANGER)
+        self.assertRaises(ValueError, self.w.set_read, 0, 0, "some id", None, None, rapi.QENC_SANGER)
+        self.assertRaises(TypeError, self.w.set_read, 0, 0, "some id", "AGCT", None, None)
+        self.assertRaises(TypeError, self.w.set_read, None, 0, "some id", "AGCT", None, rapi.QENC_SANGER)
+        self.assertRaises(TypeError, self.w.set_read, 0, None, "some id", "AGCT", None, rapi.QENC_SANGER)
 
     def test_n_reads_per_frag(self):
         self.assertEquals(2, self.w.n_reads_per_frag)
