@@ -724,6 +724,21 @@ typedef struct rapi_batch_wrap {
 } rapi_batch_wrap;
 %}
 
+/*
+ * Implement two synthesized attributes for this object.  These functions
+ * are up here so that in the generated code the appear before their first
+ * invocation.
+ */
+%{
+int rapi_batch_wrap_n_reads_per_frag_get(const rapi_batch_wrap* self) {
+    return self->batch->n_reads_frag;
+}
+
+int rapi_batch_wrap_n_fragments_get(const rapi_batch_wrap* self) {
+    return self->len / self->batch->n_reads_frag;
+}
+%}
+
 // This one to the SWIG interpreter.
 // We don't expose any of the struct members through SWIG.
 typedef struct {
@@ -801,10 +816,10 @@ typedef struct {
   }
 
   /** Number of reads per fragment */
-  int n_reads_per_frag() const { return $self->batch->n_reads_frag; }
+  const int n_reads_per_frag;
 
   /** Number of complete fragments inserted */
-  int n_fragments() const { return $self->len / $self->batch->n_reads_frag; }
+  const int n_fragments;
 
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.
@@ -916,7 +931,7 @@ typedef struct {
   rapi_fragment next() {
     rapi_fragment fragment;
 
-    if ($self->next_fragment < rapi_batch_wrap_n_fragments($self->wrapper)) {
+    if ($self->next_fragment < rapi_batch_wrap_n_fragments_get($self->wrapper)) {
       fragment.batch = $self->wrapper->batch;
       fragment.fragment_num = $self->next_fragment;
       $self->next_fragment += 1;
