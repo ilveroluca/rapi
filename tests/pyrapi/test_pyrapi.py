@@ -128,7 +128,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(TypeError, self.w.reserve, None)
 
     def test_append_one(self):
-        seq_pair = stuff.get_sequences()[0]
+        seq_pair = stuff.get_mini_ref_seqs()[0]
         # insert one read
         self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
         self.assertEquals(1, len(self.w))
@@ -140,7 +140,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(0, self.w.n_fragments)
 
     def test_append_without_qual(self):
-        seq_pair = stuff.get_sequences()[0]
+        seq_pair = stuff.get_mini_ref_seqs()[0]
         self.w.append(seq_pair[0], seq_pair[1], None, rapi.QENC_SANGER)
         self.assertEquals(1, len(self.w))
         read1 = self.w.get_read(0, 0)
@@ -148,7 +148,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertIsNone(read1.qual)
 
     def test_append_illumina(self):
-        seq_pair = stuff.get_sequences()[0]
+        seq_pair = stuff.get_mini_ref_seqs()[0]
         # convert the base qualities from sanger to illumina encoding
         # (subtract sanger offset and add illumina offset)
         illumina_qualities = ''.join([ chr(ord(c) - 33 + 64) for c in seq_pair[2] ])
@@ -158,7 +158,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(seq_pair[2], read1.qual)
 
     def test_append_baseq_out_of_range(self):
-        seq_pair = stuff.get_sequences()[0]
+        seq_pair = stuff.get_mini_ref_seqs()[0]
 
         new_q = chr(32)*len(seq_pair[1]) # sanger encoding goes down to 33
         self.assertRaises(ValueError, self.w.append, seq_pair[0], seq_pair[1], new_q, rapi.QENC_SANGER)
@@ -196,7 +196,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(1, w.n_reads_per_frag)
 
     def test_n_fragments(self):
-        seq_pair = stuff.get_sequences()[0]
+        seq_pair = stuff.get_mini_ref_seqs()[0]
         self.assertEquals(0, self.w.n_fragments)
         # insert one read
         self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
@@ -211,7 +211,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(IndexError, self.w.get_read, -1, -1)
 
         # now load a sequence and ensure we get exceptions if we access beyond the limits
-        seq_pair = stuff.get_sequences()[0]
+        seq_pair = stuff.get_mini_ref_seqs()[0]
         self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
         self.assertIsNotNone(self.w.get_read(0, 0))
         self.assertRaises(IndexError, self.w.get_read, 0, 1)
@@ -219,7 +219,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(IndexError, self.w.get_read, 1, 1)
 
     def test_iteration_values(self):
-        seqs = stuff.get_sequences()[0:2]
+        seqs = stuff.get_mini_ref_seqs()[0:2]
         for pair in seqs:
             self.w.append(pair[0], pair[1], pair[2], rapi.QENC_SANGER)
             self.w.append(pair[0], pair[3], pair[4], rapi.QENC_SANGER)
@@ -235,7 +235,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         # empty batch
         self.assertEquals(0, sum(1 for frag in self.w))
         # now put some sequences into it
-        seqs = stuff.get_sequences()
+        seqs = stuff.get_mini_ref_seqs()
         for pair in seqs:
             self.w.append(pair[0], pair[1], pair[2], rapi.QENC_SANGER)
             self.w.append(pair[0], pair[3], pair[4], rapi.QENC_SANGER)
@@ -243,7 +243,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertEquals(len(seqs), sum(1 for frag in self.w))
 
     def test_iteration_completeness_single_end(self):
-        seqs = stuff.get_sequences()
+        seqs = stuff.get_mini_ref_seqs()
         batch = rapi.read_batch(1)
         for pair in seqs:
             batch.append(pair[0], pair[1], pair[2], rapi.QENC_SANGER)
@@ -263,9 +263,9 @@ class TestPyrapiAlignment(unittest.TestCase):
         aligner = rapi.aligner(self.opts)
         self.batch = rapi.read_batch(2)
         reads = stuff.get_mini_ref_seqs()
-        read_1 = reads[0]
-        self.batch.append(read_1[0], read_1[1], read_1[2], rapi.QENC_SANGER)
-        self.batch.append(read_1[0], read_1[3], read_1[4], rapi.QENC_SANGER)
+        for row in reads:
+            self.batch.append(row[0], row[1], row[2], rapi.QENC_SANGER)
+            self.batch.append(row[0], row[3], row[4], rapi.QENC_SANGER)
         aligner.align_reads(self.ref, self.batch)
 
     def tearDown(self):
@@ -324,10 +324,9 @@ class TestPyrapiAlignment(unittest.TestCase):
             ialn.n_left = x
         self.assertRaises(AttributeError, assign_to_n_left, 33)
 
-
     def test_sam(self):
         # We ran this command line:
-        #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta <(head -n 8 mini_ref/mini_ref_seqs.fastq )
+        #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta mini_ref/mini_ref_seqs.fastq
         # First 8 lines == first two reads from fastq file.
         # BWA version: 0.7.8-r455
         # The BWA options only serve to tell it not to filter any reads from the output:
