@@ -302,6 +302,37 @@ class TestPyrapiAlignment(unittest.TestCase):
         # available through other members of the alignment structure.
         self.assertEqual(expected_tags, aln.get_tags())
 
+        # check out reads that don't align perfectly
+        aln = self.batch.get_read(1, 0).get_aln(0)
+        self.assertEqual(60, aln.mapq)
+        self.assertEqual(51, aln.score)
+        self.assertEqual('11M3D49M', aln.get_cigar_string())
+        self.assertEqual( (('M', 11), ('D', 3), ('M', 49)), aln.get_cigar_ops())
+        self.assertEqual(3, aln.n_mismatches)
+        md_tag = aln.get_tags()['MD']
+        self.assertEqual('11^CCC49', md_tag)
+        self.assertEqual(0, aln.n_gap_opens)
+        self.assertEqual(0, aln.n_gap_extensions)
+
+        aln = self.batch.get_read(2, 0).get_aln(0)
+        self.assertEqual(60, aln.mapq)
+        self.assertEqual(48, aln.score)
+        self.assertEqual('13M3I44M', aln.get_cigar_string())
+        self.assertEqual( (('M', 13), ('I', 3), ('M', 44)), aln.get_cigar_ops())
+        self.assertEqual(3, aln.n_mismatches)
+        md_tag = aln.get_tags()['MD']
+        self.assertEqual('57', md_tag)
+
+        aln = self.batch.get_read(3, 0).get_aln(0)
+        self.assertEqual(60, aln.mapq)
+        self.assertEqual(50, aln.score)
+        self.assertEqual('60M', aln.get_cigar_string())
+        self.assertEqual(2, aln.n_mismatches)
+        md_tag = aln.get_tags()['MD']
+        self.assertEqual('15T16C27', md_tag)
+
+
+
     def test_get_aln_out_of_bounds(self):
         rapi_read = self.batch.get_read(0, 0)
         self.assertRaises(IndexError, rapi_read.get_aln, -1)
