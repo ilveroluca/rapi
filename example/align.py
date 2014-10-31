@@ -139,6 +139,7 @@ def main(argv=None):
     _log.info("finished aligning")
 
     _log.info("Here's the output")
+    print plugin.format_sam_hdr(ref)
     for idx, fragment in enumerate(batch):
         _log.info('fragment')
         assert len(fragment) == 2
