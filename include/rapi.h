@@ -315,7 +315,20 @@ rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_f
  *
  * In case of error, the batch is not modified.
  */
-rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments);
+rapi_error_t rapi_reads_reserve(rapi_batch* batch, int n_fragments);
+
+/**
+ * Empty a `batch`, clearing any reads stored therein.  The `batch` will be
+ * restored to a state as if it was just allocated by rapi_reads_alloc
+ * (so the read memory is not freed).
+ */
+rapi_error_t rapi_reads_clear(rapi_batch* batch);
+
+/**
+ * Clear a read `batch` and free all associated memory.
+ */
+rapi_error_t rapi_reads_free( rapi_batch * batch );
+
 
 /**
  * Number of reads that fit in curretly allocated space.
@@ -336,7 +349,6 @@ static inline int rapi_batch_read_capacity(const rapi_batch* batch) {
  */
 rapi_error_t rapi_set_read(rapi_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
-rapi_error_t rapi_reads_free( rapi_batch * batch );
 
 /* Align */
 typedef struct rapi_aligner_state rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.

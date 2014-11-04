@@ -1195,7 +1195,7 @@ rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_f
 	return RAPI_NO_ERROR;
 }
 
-rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments)
+rapi_error_t rapi_reads_reserve(rapi_batch* batch, int n_fragments)
 {
 	if (n_fragments < 0)
 		return RAPI_PARAM_ERROR;
@@ -1220,7 +1220,7 @@ rapi_error_t rapi_reads_reserve(rapi_batch * batch, int n_fragments)
 	return RAPI_NO_ERROR;
 }
 
-rapi_error_t rapi_reads_free( rapi_batch * batch )
+static void _rapi_free_read_structures(rapi_batch* batch)
 {
 	for (int f = 0; f < batch->n_frags; ++f) {
 		for (int r = 0; r < batch->n_reads_frag; ++r) {
@@ -1238,7 +1238,19 @@ rapi_error_t rapi_reads_free( rapi_batch * batch )
 			// *Don't* free the contig name.  It belongs to the contig structure.
 		}
 	}
+}
 
+rapi_error_t rapi_reads_clear(rapi_batch* batch)
+{
+	_rapi_free_read_structures(batch);
+	memset(batch->reads, 0,  batch->n_reads_frag * batch->n_frags * sizeof(rapi_read));
+
+	return RAPI_NO_ERROR;
+}
+
+rapi_error_t rapi_reads_free(rapi_batch* batch )
+{
+	_rapi_free_read_structures(batch);
 	free(batch->reads);
 	memset(batch, 0, sizeof(*batch));
 
