@@ -903,6 +903,13 @@ typedef struct {
     return error;
   }
 
+  rapi_error_t clear() {
+    rapi_error_t error = rapi_reads_clear($self->batch);
+    if (error == RAPI_NO_ERROR)
+      $self->len = 0;
+    return error;
+  }
+
   rapi_error_t set_read(int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset)
   {
     // if id or seq are NULL set them to the empty string and pass them down to the plugin.

@@ -174,6 +174,15 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(ValueError, self.w.append, "some id", None, None, rapi.QENC_SANGER)
         self.assertRaises(TypeError, self.w.append, "some id", "AGCT", None, None)
 
+    def test_clear(self):
+        seq_pair = stuff.get_mini_ref_seqs()[0]
+        self.w.append(seq_pair[0], seq_pair[1], seq_pair[2], rapi.QENC_SANGER)
+        self.assertEquals(1, len(self.w))
+        self.w.clear()
+        # after clear, the length should be back to zero, but the capacity should be unaffected.
+        self.assertEquals(0, len(self.w))
+        self.assertGreaterEqual(self.w.capacity(), 1)
+
     def test_set_read_out_of_bounds(self):
         self.assertRaises(ValueError, self.w.set_read, 0, 0, "some id", "AGCT", None, rapi.QENC_SANGER)
         self.w.reserve(2) # 2 reads, 1 fragment
