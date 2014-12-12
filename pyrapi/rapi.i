@@ -811,7 +811,7 @@ typedef struct {
 %exception rapi_batch_wrap::get_read {
   $action
   if (result == NULL) {
-    SWIG_exception(SWIG_IndexError, "co-ordinates out of bounds");
+    SWIG_exception_fail(SWIG_IndexError, "co-ordinates out of bounds");
   }
 }
 

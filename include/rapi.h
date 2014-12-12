@@ -376,8 +376,8 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
 rapi_error_t rapi_aligner_state_free(struct rapi_aligner_state* state);
 
 static inline rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read) {
-	if (n_frag >= 0 || n_frag < batch->n_frags
-	 || n_read >= 0 || n_read < batch->n_reads_frag) {
+	if (n_frag >= 0 && n_frag < batch->n_frags
+	 && n_read >= 0 && n_read < batch->n_reads_frag) {
 	  return batch->reads + (n_frag * batch->n_reads_frag + n_read);
   }
   return NULL; // else coordinates are out of bounds

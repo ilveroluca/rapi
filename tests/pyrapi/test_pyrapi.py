@@ -226,6 +226,8 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertRaises(IndexError, self.w.get_read, 0, 1)
         self.assertRaises(IndexError, self.w.get_read, 1, 0)
         self.assertRaises(IndexError, self.w.get_read, 1, 1)
+        self.assertRaises(TypeError, self.w.get_read, None, 0)
+        self.assertRaises(TypeError, self.w.get_read, 0, None)
 
     def test_iteration_values(self):
         seqs = stuff.get_mini_ref_seqs()[0:2]
