@@ -83,7 +83,6 @@ def create_input(options):
             raise RuntimeError("Unexpected number of prq input files %d!" % len(options.input))
 
 
-
 def parse_args(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('ref')
@@ -104,6 +103,8 @@ def parse_args(args=None):
     return options
 
 def main(argv=None):
+    batch_size = 100000 # n reads
+    assert batch_size % 2 == 0
     options = parse_args(argv)
     plugin = pyrapi.load_aligner('rapi_bwa')
 
@@ -120,31 +121,49 @@ def main(argv=None):
     _log.info("Reference loaded")
 
     batch = plugin.read_batch(2 if pe else 1)
+    # allocate space for reads
+    batch.reserve(100000 / batch.n_reads_per_frag)
+
+    aligner = plugin.aligner(opts)
+
+    # print SAM header
+    print plugin.format_sam_hdr(ref)
 
     input_generator = create_input(options)
 
-    _log.info('loading data')
-    for reads in input_generator:
-        read1 = reads[0]
-        batch.append(read1['id'], read1['seq'], read1['q'], plugin.QENC_SANGER)
-        if pe:
-            read2 = reads[1]
-            batch.append(read2['id'], read2['seq'], read2['q'], plugin.QENC_SANGER)
+    def _load_batch():
+        batch.clear()
+        _log.info('loading batch %s', batch_count)
+        for reads in input_generator:
+            read1 = reads[0]
+            batch.append(read1['id'], read1['seq'], read1['q'], plugin.QENC_SANGER)
+            if pe:
+                read2 = reads[1]
+                batch.append(read2['id'], read2['seq'], read2['q'], plugin.QENC_SANGER)
+            if len(batch) >= batch_size:
+                break
+        # return whether or not the batch is empty
+        return len(batch) != 0
 
-    _log.info('Loaded %s reads', len(batch))
+    def _process_batch():
+        _log.info("aligning...")
+        aligner.align_reads(ref, batch)
+        _log.info("finished aligning. Printing output")
+        for idx in xrange(batch.n_fragments):
+            sam = plugin.format_sam(batch, idx)
+            print sam
 
-    _log.info("aligning...")
-    aligner = plugin.aligner(opts)
-    aligner.align_reads(ref, batch)
-    _log.info("finished aligning")
+    done = False
 
-    _log.info("Here's the output")
-    print plugin.format_sam_hdr(ref)
-    for idx, fragment in enumerate(batch):
-        _log.info('fragment')
-        assert len(fragment) == 2
-        sam = plugin.format_sam(batch, idx)
-        print sam
+    batch_count = 0
+    while not done:
+        batch_count += 1
+        _log.info("Batch %s", batch_count)
+        has_data = _load_batch()
+        if has_data:
+            _process_batch()
+        else:
+            done = True
 
     ref.unload()
 
