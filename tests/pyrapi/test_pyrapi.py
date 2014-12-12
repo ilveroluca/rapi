@@ -119,9 +119,9 @@ class TestPyrapiReadBatch(unittest.TestCase):
 
     def test_reserve(self):
         self.w.reserve(10)
-        self.assertGreaterEqual(10, self.w.capacity())
+        self.assertGreaterEqual(10, self.w.capacity)
         self.w.reserve(100)
-        self.assertGreaterEqual(100, self.w.capacity())
+        self.assertGreaterEqual(100, self.w.capacity)
         self.assertEquals(0, self.w.n_fragments)
         self.assertEquals(0, len(self.w))
         self.assertRaises(ValueError, self.w.reserve, -1)
@@ -181,7 +181,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.w.clear()
         # after clear, the length should be back to zero, but the capacity should be unaffected.
         self.assertEquals(0, len(self.w))
-        self.assertGreaterEqual(self.w.capacity(), 1)
+        self.assertGreaterEqual(self.w.capacity, 1)
 
     def test_set_read_out_of_bounds(self):
         self.assertRaises(ValueError, self.w.set_read, 0, 0, "some id", "AGCT", None, rapi.QENC_SANGER)

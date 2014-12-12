@@ -772,6 +772,11 @@ int rapi_batch_wrap_n_reads_per_frag_get(const rapi_batch_wrap* self) {
 int rapi_batch_wrap_n_fragments_get(const rapi_batch_wrap* self) {
     return self->len / self->batch->n_reads_frag;
 }
+
+rapi_ssize_t rapi_batch_wrap_capacity_get(const rapi_batch_wrap* wrap) {
+  return rapi_batch_read_capacity(wrap->batch);
+}
+
 %}
 
 // This one to the SWIG interpreter.
@@ -861,13 +866,13 @@ typedef struct {
   /** Number of complete fragments inserted */
   const int n_fragments;
 
+  /** Number of reads for which we have allocated memory. */
+  const rapi_ssize_t capacity;
+
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.
    */
   rapi_ssize_t rapi___len__() const { return $self->len; }
-
-  /** Number of reads for which we have allocated memory. */
-  int capacity() const { return rapi_batch_read_capacity($self->batch); }
 
   rapi_read* get_read(rapi_ssize_t n_fragment, int n_read)
   {
