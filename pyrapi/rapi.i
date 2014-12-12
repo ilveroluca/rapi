@@ -881,10 +881,11 @@ typedef struct {
     // accessing space where reads have been inserted.
     //
     // * In both cases, if the returned value is NULL an IndexError is raised
-    // in the exception block
+    // in the %exception block
     if (n_fragment * $self->batch->n_reads_frag + n_read >= $self->len) {
-      return NULL;
+        return NULL;
     }
+    
     return rapi_get_read($self->batch, n_fragment, n_read);
   }
 

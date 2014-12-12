@@ -75,7 +75,6 @@ static void rapi_print_bwa_flag_string(FILE* out, const int flag)
 	fprintf(out, "\n");
 }
 
-
 /*
  * Writes a null-terminated string representation of the SAM flag to buf20.
  * Guaranteed not to write more than 20 bytes.
@@ -382,10 +381,10 @@ rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output)
 		ksprintf(output, "@SQ\tSN:%s\tLN:%lld\n", ref->contigs[i].name, ref->contigs[i].len);
 
 	ksprintf(output, "@PG\tID:rapi (%s)\tPN:rapi (%s)\tVN:%s (%s)\n",
-		rapi_aligner_name(),
-		rapi_aligner_name(),
-		rapi_plugin_version(),
-		rapi_aligner_version());
+	    rapi_aligner_name(),
+	    rapi_aligner_name(),
+	    rapi_plugin_version(),
+	    rapi_aligner_version());
 	kputs("@CO File generated through the RAPI aligner interface using the specified aligner plug-in", output);
 	return RAPI_NO_ERROR;
 }
@@ -1088,7 +1087,8 @@ static void bwa_worker_2(void *data, int i, int tid)
 		// This function does not return an error code but aborts if things go wrong.
 		// Unfortunately this strategy is nested deep in the BWA code.
 		//mem_sam_pe(w->opt, w->bns, w->pac, w->pes, (w->n_processed>>1) + i, &w->seqs[i<<1], &w->regs[i<<1]);
-		_bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i, &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
+		_bwa_mem_pe(w->opt, w->rapi_ref, w->pes, w->n_processed / 2 + i,
+		            &(w->read_batch->seqs[2 * i]), &w->regs[2 * i], &(w->rapi_reads[2 * i]));
 		free(w->regs[2 * i].a); kv_init(w->regs[2 * i]);
 		free(w->regs[2 * i + 1].a); kv_init(w->regs[2 * i + 1]);
 	}
@@ -1264,8 +1264,8 @@ rapi_error_t rapi_set_read(rapi_batch* batch,
 	        int q_offset) {
 	rapi_error_t error_code = RAPI_NO_ERROR;
 
-	if (n_frag < 0 || n_frag >= batch->n_frags
-	 || n_read < 0 || n_read >= batch->n_reads_frag)
+	if (n_frag < 0 || n_frag >= batch->n_frags ||
+	    n_read < 0 || n_read >= batch->n_reads_frag)
 		return RAPI_PARAM_ERROR;
 
 	rapi_read* read = rapi_get_read(batch, n_frag, n_read);
