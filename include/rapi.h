@@ -9,9 +9,11 @@
 
 #define RAPI_API_VERSION "0.0"
 
-#include <stdint.h>
+#include <stddef.h>
 #include <kstring.h>
 #include <kvec.h>
+
+typedef long long rapi_ssize_t;
 
 typedef int rapi_error_t;
 
@@ -208,7 +210,7 @@ typedef struct {
  */
 typedef struct {
 	char * name;
-	uint32_t len;
+	rapi_ssize_t len;
 	char * assembly_identifier;
 	char * species;
 	char * uri;
@@ -235,7 +237,7 @@ typedef kvec_t(rapi_tag) rapi_tag_list;
 
 typedef struct {
 	rapi_contig* contig;
-	unsigned long int pos; // 1-based
+	rapi_ssize_t pos; // 1-based
 	uint8_t mapq;
 	int score; // aligner-specific score
 
@@ -271,7 +273,7 @@ typedef struct {
  * Batches of reads
  */
 typedef struct {
-	int n_frags;
+	rapi_ssize_t n_frags;
 	int n_reads_frag;
 	rapi_read * reads;
 } rapi_batch;
@@ -315,7 +317,7 @@ rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_f
  *
  * In case of error, the batch is not modified.
  */
-rapi_error_t rapi_reads_reserve(rapi_batch* batch, int n_fragments);
+rapi_error_t rapi_reads_reserve(rapi_batch* batch, rapi_ssize_t n_fragments);
 
 /**
  * Empty a `batch`, clearing any reads stored therein.  The `batch` will be
@@ -333,7 +335,7 @@ rapi_error_t rapi_reads_free( rapi_batch * batch );
 /**
  * Number of reads that fit in curretly allocated space.
  */
-static inline int rapi_batch_read_capacity(const rapi_batch* batch) {
+static inline rapi_ssize_t rapi_batch_read_capacity(const rapi_batch* batch) {
 	return batch->n_frags * batch->n_reads_frag;
 }
 
@@ -347,7 +349,7 @@ static inline int rapi_batch_read_capacity(const rapi_batch* batch) {
  * \param qual per-base quality, or NULL
  * \param q_offset offset from 0 for the base quality values (e.g., 33 for Sanger, 0 for byte values)
  */
-rapi_error_t rapi_set_read(rapi_batch * batch, int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
+rapi_error_t rapi_set_read(rapi_batch * batch, rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
 
 /* Align */
@@ -369,11 +371,11 @@ rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_
  * \param state Provide the state initialized with rapi_aligner_state_init.
  */
 rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
-    int start_frag, int end_frag, rapi_aligner_state* state );
+    rapi_ssize_t start_frag, rapi_ssize_t end_frag, rapi_aligner_state* state );
 
 rapi_error_t rapi_aligner_state_free(struct rapi_aligner_state* state);
 
-static inline rapi_read* rapi_get_read(const rapi_batch* batch, int n_frag, int n_read) {
+static inline rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read) {
 	if (n_frag >= 0 || n_frag < batch->n_frags
 	 || n_read >= 0 || n_read < batch->n_reads_frag) {
 	  return batch->reads + (n_frag * batch->n_reads_frag + n_read);
@@ -401,7 +403,7 @@ void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstri
  *
  * \param output An initialized kstring_t to which the SAM will be appended.
  */
-rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* output);
+rapi_error_t rapi_format_sam(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output);
 
 /**
  * Format the SAM header for the given reference.  The header will also contain

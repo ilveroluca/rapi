@@ -108,6 +108,31 @@ typedef int rapi_error_t;
   }
 }
 
+/*** typemaps rapi_ssize_t <--> Python integer */
+%typemap(out) rapi_ssize_t {
+    $result = PyLong_FromLongLong($1);
+    if (!$result) {
+        SWIG_fail;
+    }
+}
+
+%typemap(in) rapi_ssize_t {
+    if (PyInt_Check($input)) {
+        $1 = (rapi_ssize_t)PyInt_AsLong($input);
+    }
+    else if (PyLong_Check($input)) {
+        $1 = (rapi_ssize_t)PyLong_AsLongLong($input);
+    }
+    else {
+        SWIG_exception_fail(SWIG_TypeError, "Argument must be an integer");
+    }
+
+    if ($1 == -1 && PyErr_Occurred()) {
+        // There was some other problem with the conversion
+        SWIG_fail;
+    }
+}
+
 /*
 We take an analogous strategy to define a type rapi_bool that we only use
 for this interface.
@@ -658,7 +683,7 @@ rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
   for (int i = 0; i < fragment_size; ++i) {
     const rapi_read* read = rapi_get_read($1.batch, $1.fragment_num, i);
     if (read == NULL) {
-      PERROR("Failed to fetch read (rapi_get_read(batch, %d, %d) returned NULL\n", $1.fragment_num, i);
+      PERROR("Failed to fetch read (rapi_get_read(batch, %lld, %d) returned NULL\n", $1.fragment_num, i);
       Py_DECREF(tuple);
       SWIG_exception_fail(SWIG_RuntimeError, "Error retrieving read");
     }
@@ -730,7 +755,7 @@ SWIGINTERN struct read_batch_iter* new_read_batch_iter(struct rapi_batch_wrap* b
 %{ // this declaration is inserted in the C code
 typedef struct rapi_batch_wrap {
   rapi_batch* batch;
-  size_t len; // number of reads inserted in batch (as opposed to the space reserved)
+  rapi_ssize_t len; // number of reads inserted in batch (as opposed to the space reserved)
 } rapi_batch_wrap;
 %}
 
@@ -757,7 +782,7 @@ typedef struct {
 %{
 typedef struct {
   const rapi_batch* batch;
-  int fragment_num;
+  rapi_ssize_t fragment_num;
 } rapi_fragment;
 %}
 typedef struct {
@@ -839,12 +864,12 @@ typedef struct {
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.
    */
-  int rapi___len__() const { return $self->len; }
+  rapi_ssize_t rapi___len__() const { return $self->len; }
 
   /** Number of reads for which we have allocated memory. */
   int capacity() const { return rapi_batch_read_capacity($self->batch); }
 
-  rapi_read* get_read(int n_fragment, int n_read)
+  rapi_read* get_read(rapi_ssize_t n_fragment, int n_read)
   {
     // Since the underlying code merely checks whether we're indexing
     // allocated space, we precede it with an additional check whether we're
@@ -858,7 +883,7 @@ typedef struct {
     return rapi_get_read($self->batch, n_fragment, n_read);
   }
 
-  rapi_error_t reserve(int n_reads) {
+  rapi_error_t reserve(rapi_ssize_t n_reads) {
     if (n_reads < 0) {
         PERROR("n_reads must be >= 0");
         return RAPI_PARAM_ERROR;
@@ -881,13 +906,13 @@ typedef struct {
     if (!id) id = "";
     if (!seq) seq = "";
 
-    int fragment_num = $self->len / $self->batch->n_reads_frag;
+    rapi_ssize_t fragment_num = $self->len / $self->batch->n_reads_frag;
     int read_num = $self->len % $self->batch->n_reads_frag;
 
-    size_t read_capacity = rapi_batch_wrap_capacity($self);
+    rapi_ssize_t read_capacity = rapi_batch_wrap_capacity_get($self);
     if (read_capacity < $self->len + 1) {
       // double the space
-      size_t new_capacity = read_capacity > 0 ? read_capacity * 2 : 2;
+      rapi_ssize_t new_capacity = read_capacity > 0 ? read_capacity * 2 : 2;
       error = rapi_batch_wrap_reserve($self, new_capacity);
       if (error != RAPI_NO_ERROR) {
         return error;
@@ -910,7 +935,7 @@ typedef struct {
     return error;
   }
 
-  rapi_error_t set_read(int n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset)
+  rapi_error_t set_read(rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset)
   {
     // if id or seq are NULL set them to the empty string and pass them down to the plugin.
     if (!id) id = "";
@@ -923,7 +948,7 @@ typedef struct {
     else {
       // If the user set a read that is beyond the current batch length, reset the
       // batch length to the new limit.
-      int index = n_frag * $self->batch->n_reads_frag + n_read;
+      rapi_ssize_t index = n_frag * $self->batch->n_reads_frag + n_read;
       if ($self->len <= index)
         $self->len = index + 1;
     }
@@ -1017,13 +1042,13 @@ typedef struct {
     }
 
     if (batch->len % batch->batch->n_reads_frag != 0) {
-      PERROR("Incomplete fragment in batch! Number of reads appended (%zd) is not a multiple of the number of reads per fragment (%d)\n",
+      PERROR("Incomplete fragment in batch! Number of reads appended (%lld) is not a multiple of the number of reads per fragment (%d)\n",
         batch->len, batch->batch->n_reads_frag);
       return RAPI_GENERIC_ERROR;
     }
 
-    int start_fragment = 0;
-    int end_fragment = batch->len / batch->batch->n_reads_frag;
+    rapi_ssize_t start_fragment = 0;
+    rapi_ssize_t end_fragment = batch->len / batch->batch->n_reads_frag;
     return rapi_align_reads(ref, batch->batch, start_fragment, end_fragment, $self);
   }
 }
@@ -1042,7 +1067,7 @@ typedef struct {
 %newobject format_sam;
 %newobject format_sam_hdr;
 %inline %{
-char* format_sam(const rapi_batch_wrap* wrapper, int n_frag) {
+char* format_sam(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
   if (NULL == wrapper) {
     SWIG_Error(SWIG_TypeError, "wrapper argument cannot be None");
     return NULL;

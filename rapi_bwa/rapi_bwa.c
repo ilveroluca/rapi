@@ -337,7 +337,7 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
  * However, BWA currently supports single and paired reads, so that's all we're
  * implementing in this function.
  */
-rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* output)
+rapi_error_t rapi_format_sam(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output)
 {
 	///// validate function arguments
 	if (NULL == batch || NULL == output) {
@@ -362,9 +362,10 @@ rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* out
 
 	// check for errors retrieving reads
 	if (NULL == read || (batch->n_reads_frag > 1 && NULL == mate)) {
-			PERROR("Error fetching reads for fragment %d: read is %s NULL; mate is %s NULL. Batch n_reads_frag: %d; n_frags: %d.\n",
-					n_frag, (read != NULL ? "not" : ""), (mate != NULL ? "not" : ""), batch->n_reads_frag, batch->n_frags);
-			return RAPI_GENERIC_ERROR;
+		PERROR("Error fetching reads for fragment %lld: read is %s NULL; mate is %s NULL. Batch n_reads_frag: %d; n_frags: %lld.\n",
+		        n_frag, (read != NULL ? "not" : ""), (mate != NULL ? "not" : ""),
+		        batch->n_reads_frag, batch->n_frags);
+		return RAPI_GENERIC_ERROR;
 	}
 
 	rapi_error_t error = _rapi_format_sam_read(read, mate, 1, output);
@@ -378,7 +379,7 @@ rapi_error_t rapi_format_sam(const rapi_batch* batch, int n_frag, kstring_t* out
 rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output)
 {
 	for (int i = 0; i < ref->n_contigs; ++i)
-		ksprintf(output, "@SQ\tSN:%s\tLN:%d\n", ref->contigs[i].name, ref->contigs[i].len);
+		ksprintf(output, "@SQ\tSN:%s\tLN:%lld\n", ref->contigs[i].name, ref->contigs[i].len);
 
 	ksprintf(output, "@PG\tID:rapi (%s)\tPN:rapi (%s)\tVN:%s (%s)\n",
 		rapi_aligner_name(),
@@ -394,23 +395,23 @@ rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output)
 
 /******** Internal structures *****/
 typedef struct {
-	unsigned long n_bases;
-	int n_reads;
+	rapi_ssize_t n_bases;
+	rapi_ssize_t n_reads;
 	int n_reads_per_frag;
 	bseq1_t* seqs;
 } bwa_batch;
 
 static void _print_bwa_batch(FILE* out, const bwa_batch* read_batch)
 {
-	fprintf(out, "batch with %ld bases, %d reads, %d reads per fragment",
-			read_batch->n_bases, read_batch->n_reads, read_batch->n_reads_per_frag);
+	fprintf(out, "batch with %lld bases, %lld reads, %d reads per fragment",
+	        read_batch->n_bases, read_batch->n_reads, read_batch->n_reads_per_frag);
 	if (read_batch->n_reads_per_frag > 0)
-		fprintf(out, " (so %d fragments)\n",	read_batch->n_reads / read_batch->n_reads_per_frag);
+		fprintf(out, " (so %lld fragments)\n", read_batch->n_reads / read_batch->n_reads_per_frag);
 	else
 		fprintf(out, "\n");
 
 	fprintf(out, "=== Reads: ===\n");
-	for (int r = 0; r < read_batch->n_reads; ++r) {
+	for (rapi_ssize_t r = 0; r < read_batch->n_reads; ++r) {
 		const bseq1_t* bwa_read = read_batch->seqs + r;
 		fprintf(out, "-=-=--=\n");
 		fprintf(out, "name: %s\n", bwa_read->name);
@@ -609,8 +610,8 @@ static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* 
 	}
 
 	if (end_fragment > batch->n_frags || start_fragment > end_fragment) {
-		PERROR("start or end fragmet is out of bounds. Got start %d and end %d but we have %d fragments\n",
-				start_fragment, end_fragment, batch->n_frags);
+		PERROR("start or end fragmet is out of bounds. Got start %d and end %d but we have %lld fragments\n",
+		        start_fragment, end_fragment, batch->n_frags);
 		return RAPI_PARAM_ERROR;
 	}
 
@@ -1103,15 +1104,15 @@ static void bwa_worker_2(void *data, int i, int tid)
 
 	if (error != RAPI_NO_ERROR) {
 		err_fatal(__func__, "%s (%d) while running %s end alignments\n",
-				rapi_error_name(error), error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
+		rapi_error_name(error), error, ((w->opt->flag & MEM_F_PE) ? "pair" : "single"));
 	}
 }
 
 #endif
 /********** end modified BWA code *****************/
 
-rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch, int start_fragment, int end_fragment,
-		rapi_aligner_state* state )
+rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
+        rapi_ssize_t start_fragment, rapi_ssize_t end_fragment, rapi_aligner_state* state )
 {
 	rapi_error_t error = RAPI_NO_ERROR;
 
@@ -1195,7 +1196,7 @@ rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_f
 	return RAPI_NO_ERROR;
 }
 
-rapi_error_t rapi_reads_reserve(rapi_batch* batch, int n_fragments)
+rapi_error_t rapi_reads_reserve(rapi_batch* batch, rapi_ssize_t n_fragments)
 {
 	if (n_fragments < 0)
 		return RAPI_PARAM_ERROR;
@@ -1205,8 +1206,8 @@ rapi_error_t rapi_reads_reserve(rapi_batch* batch, int n_fragments)
 	if (n_fragments > batch->n_frags)
 	{
 		// Current space insufficient.  Need to reallocate.
-		int old_n_reads = batch->n_frags * batch->n_reads_frag;
-		int new_n_reads = n_fragments * batch->n_reads_frag;
+		rapi_ssize_t old_n_reads = batch->n_frags * batch->n_reads_frag;
+		rapi_ssize_t new_n_reads = n_fragments * batch->n_reads_frag;
 		rapi_read* space = realloc(batch->reads, new_n_reads * sizeof(batch->reads[0]));
 		if (space == NULL)
 			return RAPI_MEMORY_ERROR;
@@ -1222,7 +1223,7 @@ rapi_error_t rapi_reads_reserve(rapi_batch* batch, int n_fragments)
 
 static void _rapi_free_read_structures(rapi_batch* batch)
 {
-	for (int f = 0; f < batch->n_frags; ++f) {
+	for (rapi_ssize_t f = 0; f < batch->n_frags; ++f) {
 		for (int r = 0; r < batch->n_reads_frag; ++r) {
 			rapi_read* read = rapi_get_read(batch, f, r);
 			// the reads use a single chunk of memory for id, seq and quality
@@ -1258,9 +1259,9 @@ rapi_error_t rapi_reads_free(rapi_batch* batch )
 }
 
 rapi_error_t rapi_set_read(rapi_batch* batch,
-			int n_frag, int n_read,
-			const char* name, const char* seq, const char* qual,
-			int q_offset) {
+	        rapi_ssize_t n_frag, int n_read,
+	        const char* name, const char* seq, const char* qual,
+	        int q_offset) {
 	rapi_error_t error_code = RAPI_NO_ERROR;
 
 	if (n_frag < 0 || n_frag >= batch->n_frags
