@@ -145,33 +145,38 @@ rapi_error_t rapi_format_tag(const rapi_tag* tag, kstring_t* str) {
 	return error;
 }
 
-/*
- * Format SAM for a single read, using the first alignment in the
- * rapi_read->alignments list.
- *
- * \param read_num Refers to `read`. Should be 1 or 2.
+/**
+ * Produce SAM for `read`, using the alignment at index i_aln, or no alignment (as unmapped read) if i_aln < 0.
  */
-static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read* mate, int read_num, kstring_t* output)
+static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const rapi_read* mate, int read_num, kstring_t* output)
 {
+	/**** code based on mem_aln2sam in BWA ***/
+
 	if (NULL == read) {
-		PERROR("rapi_format_sam: NULL read pointer\n");
+		PERROR("_rapi_format_sam_aln: NULL read pointer\n");
 		return RAPI_PARAM_ERROR;
 	}
 
-	/**** code based on mem_aln2sam in BWA ***/
+	if (read->n_alignments > 0 && i_aln >= read->n_alignments) {
+		PERROR("_rapi_format_sam_aln: i_aln out of bounds\n");
+		return RAPI_PARAM_ERROR;
+	}
+
 	rapi_alignment tmp_read, tmp_mate;
 
-	if (read->n_alignments > 0) {
-		tmp_read = *read->alignments;
-    }
-	else
+	if (i_aln < 0) { // select no alignment
 		memset(&tmp_read, 0, sizeof(tmp_read));
+	}
+	else {
+		tmp_read = read->alignments[i_aln];
+	}
 
 	if (mate && mate->n_alignments > 0) {
 		tmp_mate = *mate->alignments;
-    }
-	else
+  }
+	else {
 		memset(&tmp_mate, 0, sizeof(tmp_mate));
+	}
 
 	if (mate) {
 		tmp_read.paired = 1;
@@ -214,6 +219,9 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 		flag |= aln->secondary_aln ? 0x100 : 0; // secondary alignment
 	}
 
+	// supplementary alignment -- i.e., additional alignments that are not marked as secondary
+	flag |= (i_aln > 0 && !aln->secondary_aln) ? 0x800 : 0;
+
 	kputs(read->id, output); kputc('\t', output); // QNAME\t
 	kputw((flag & 0xffff), output); kputc('\t', output); // FLAG
 
@@ -221,10 +229,9 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 		kputs(aln->contig->name, output); kputc('\t', output); // RNAME
 		kputl(aln->pos, output); kputc('\t', output); // POS
 		kputw(aln->mapq, output); kputc('\t', output); // MAPQ
-		// XXX: BWA forces hard clipping for supplementary alignments -- i.e., additional
-		// alignments that are not marked as secondary. At the moment we're only printing
-		// the first primary alignment.
-		rapi_put_cigar(aln->n_cigar_ops, aln->cigar_ops, 0, output);
+		// BWA forces hard clipping for supplementary alignments -- i.e., additional
+		// alignments that are not marked as secondary.  Those alignments are have the bit 0x800
+		rapi_put_cigar(aln->n_cigar_ops, aln->cigar_ops, (i_aln > 0 && !aln->secondary_aln) ? 1 : 0, output);
 	}
 	else
 		kputsn("*\t0\t0\t*", 7, output); // unmapped
@@ -255,22 +262,25 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 	}
 	else {
 		int i, begin = 0, end = read->length;
-		// Trim the printed sequence -- BWA did this for supplementary alignments
-		// (those after the first in the list and not labelled as secondary 0x100)
-		// if (aln->n_cigar_ops > 0) {
-		// 	if (which && ((p->cigar[0]&0xf) == 4 || (p->cigar[0]&0xf) == 3)) qb += p->cigar[0]>>4;
-		// 	if (which && ((p->cigar[p->n_cigar-1]&0xf) == 4 || (p->cigar[p->n_cigar-1]&0xf) == 3)) qe -= p->cigar[p->n_cigar-1]>>4;
-		// }
-		// ks_resize(str, str->l + (qe - qb) + 1);
-		int resize = output->l + read->length + 1;
+		// Trim the printed sequence for supplementary alignments
+		// (those after the first in the list and not labeled as secondary 0x100)
+		if (aln->n_cigar_ops > 0) {
+			if (i_aln > 0 && (aln->cigar_ops[0].op == RAPI_CIG_S || aln->cigar_ops[0].op == RAPI_CIG_H)) {
+				begin += aln->cigar_ops[0].len;
+			}
+			if (i_aln > 0 && (aln->cigar_ops[aln->n_cigar_ops - 1].op == RAPI_CIG_S || aln->cigar_ops[aln->n_cigar_ops - 1].op == RAPI_CIG_H)) {
+				end -= aln->cigar_ops[aln->n_cigar_ops - 1].len;
+			}
+		}
+		int new_size = output->l + (end - begin) + 1; // +1 for delimiter
 		if (read->qual)
-			resize += read->length + 1; // more room for the qual sequence
-		ks_resize(output, resize);
+			new_size += (end - begin) + 1; // more room for the qual sequence
+		ks_resize(output, new_size);
 
 		if (!aln->reverse_strand) { // the forward strand
-			kputsn(read->seq, read->length, output);
+			kputsn(read->seq + begin, end - begin, output);
 			kputc('\t', output);
-			if (read->qual) { // printf qual
+			if (read->qual) { // print qual
 				for (i = begin; i < end; ++i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
 			}
@@ -279,7 +289,7 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 		else { // the reverse strand
 			for (i = end - 1; i >= begin; --i) output->s[output->l++] = "TGCAN"[nst_nt4_table[(int)read->seq[i]]];
 			kputc('\t', output);
-			if (read->qual) { // printf qual
+			if (read->qual) { // print qual
 				for (i = end - 1; i >= begin; --i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
 			}
@@ -323,6 +333,33 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 	//		}
 	//	}
 	//}
+
+	return error;
+}
+
+/*
+ * Format SAM for a single read, using the first alignment in the
+ * rapi_read->alignments list.
+ *
+ * \param read_num Refers to `read`. Should be 1 or 2.
+ */
+static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read* mate, int read_num, kstring_t* output)
+{
+	if (NULL == read) {
+		PERROR("_rapi_format_sam_read: NULL read pointer\n");
+		return RAPI_PARAM_ERROR;
+	}
+	rapi_error_t error = RAPI_NO_ERROR;
+
+	if (read->n_alignments == 0) {
+		error = _rapi_format_sam_aln(read, -1, mate, read_num, output);
+	}
+	else {
+		for (int i = 0; i < read->n_alignments && !error; ++i) {
+			if (i > 0) kputc('\n', output);
+			error = _rapi_format_sam_aln(read, i, mate, read_num, output);
+		}
+	}
 
 	return error;
 }
