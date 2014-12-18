@@ -40,6 +40,14 @@ static const char*const rapi_error_name(rapi_error_t e)
 
 static const char rapi_cigops_char[] = "MIDSH";
 
+#define RAPI_CIG_M            0 // Match
+#define RAPI_CIG_I            1 // Insertion
+#define RAPI_CIG_D            2 // Deletion
+#define RAPI_CIG_S            3 // Soft-clip
+#define RAPI_CIG_H            4 // Hard-clip
+#define RAPI_CIG_N            5 // Skipped region from the reference
+#define RAPI_CIG_P            6 // Padding
+
 /* Key-value TYPES */
 
 #define RAPI_VTYPE_CHAR       1
