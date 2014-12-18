@@ -56,17 +56,33 @@ def compare_headers(header_a, header_b):
 
 def compare_alignments(aln1, aln2):
     # expect everything to be the same except tag order
+    def find_nth(s, n, char):
+        if n <= 0 or not char:
+            raise ValueError()
+        pos = 0
+        while True:
+            pos = s.find(char, pos)
+            n = n - 1
+            if n == 0:
+                return pos
+            if pos < 0: # not found
+                return -1
+            pos += 1
+
     def split_parts(aln):
-        parts = aln.rsplit('\t', 4)
-        return dict(aln=parts[0], tags=set(parts[1:]))
+        start_tags = find_nth(aln, 11, "\t")
+        if start_tags < 0: # no tags
+            start_tags = len(aln)
+        tags = set( t for t in aln[start_tags+1:].split('\t') if not t.startswith('SA'))
+        return dict(aln=aln[0:start_tags], tags=tags)
 
     alignments = map(split_parts, (aln1, aln2))
 
     result = False
     if alignments[0]['aln'] != alignments[1]['aln']:
-        report("alignments DIFFER: '%s' and '%s'" % (alignments[0]['aln'], alignments[1]['aln']))
+        report("alignments DIFFER: \n\t'%s'\nand\n\t'%s'" % (alignments[0]['aln'], alignments[1]['aln']))
     elif alignments[0]['tags'] != alignments[1]['tags']:
-        aln_ids = [ a.split('\t', 1)[0] for a in alignments ]
+        aln_ids = [ a['aln'].split('\t', 1)[0] for a in alignments ]
         report("alignment tags DIFFER for alignments %s and %s -> { %s } != { %s }" %
                 (aln_ids[0], aln_ids[1], ','.join(alignments[0]['tags']), ','.join(alignments[1]['tags'])))
     else:
@@ -99,6 +115,7 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
 
+    print >> sys.stderr, ">>>>>>>>>> WARNING:  IGNORING SA TAGS !!!!!! <<<<<<<"
     file_a, file_b = args
     ok = compare_sam_files(file_a, file_b)
     sys.exit(0 if ok else 1)
