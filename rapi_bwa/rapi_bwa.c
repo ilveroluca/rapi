@@ -273,14 +273,17 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 			if (read->qual) { // printf qual
 				for (i = begin; i < end; ++i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
-			} else kputc('*', output);
-		} else { // the reverse strand
-			for (i = begin-1; i >= begin; --i) output->s[output->l++] = "TGCAN"[nst_nt4_table[(int)read->seq[i]]];
+			}
+			else kputc('*', output);
+		}
+		else { // the reverse strand
+			for (i = end - 1; i >= begin; --i) output->s[output->l++] = "TGCAN"[nst_nt4_table[(int)read->seq[i]]];
 			kputc('\t', output);
 			if (read->qual) { // printf qual
-				for (i = begin-1; i >= begin; --i) output->s[output->l++] = read->qual[i];
+				for (i = end - 1; i >= begin; --i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
-			} else kputc('*', output);
+			}
+			else kputc('*', output);
 		}
 	}
 
@@ -1064,7 +1067,7 @@ static void bwa_worker_1(void *data, int i, int tid)
 	const bntseq_t* const bns    = bwaidx->bns;
 	const uint8_t*  const pac    = bwaidx->pac;
 
-	PDEBUG("bwa_worker_1: MEM_F_PE is %sset\n", ((w->opt->flag & MEM_F_PE) == 0 ? "not " : " "));
+	//PDEBUG("bwa_worker_1: MEM_F_PE is %sset\n", ((w->opt->flag & MEM_F_PE) == 0 ? "not " : " "));
 	if (w->opt->flag & MEM_F_PE) {
 		int read = 2*i;
 		int mate = 2*i + 1;
@@ -1079,7 +1082,7 @@ static void bwa_worker_1(void *data, int i, int tid)
 static void bwa_worker_2(void *data, int i, int tid)
 {
 	bwa_worker_t *w = (bwa_worker_t*)data;
-	PDEBUG("bwa_worker_2 with i %d\n", i);
+	//PDEBUG("bwa_worker_2 with i %d\n", i);
 	rapi_error_t error = RAPI_NO_ERROR;
 
 	if ((w->opt->flag & MEM_F_PE)) {
