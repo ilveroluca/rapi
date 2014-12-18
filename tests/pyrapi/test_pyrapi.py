@@ -366,6 +366,22 @@ class TestPyrapiAlignment(unittest.TestCase):
             ialn.n_left = x
         self.assertRaises(AttributeError, assign_to_n_left, 33)
 
+    def _compare_sam_records(self, a_sam, b_sam):
+        print >> sys.stderr, "comparing \n\n\t", a_sam, "\n\t", b_sam
+        # The two outputs may not be identical because the order or the tags isn't defined.
+
+        a_tag_start = re.search(r'\t[A-Z][A-Z]:[A-z]:.*', a_sam).start()
+        b_tag_start = re.search(r'\t[A-Z][A-Z]:[A-z]:.*', b_sam).start()
+
+        self.assertEqual(a_sam[0:a_tag_start], b_sam[0:b_tag_start])
+
+        # get the part of the string that contains the tags.  The '+1' is
+        # because the regex we used to find the tags began with a tab, which
+        # we want to skip.
+        a_tags = set( a_sam[a_tag_start+1:].split('\t') )
+        b_tags = set( b_sam[b_tag_start+1:].split('\t') )
+        self.assertEquals(a_tags, b_tags)
+
     def test_sam(self):
         # We ran this command line:
         #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta mini_ref/mini_ref_seqs.fastq
@@ -380,27 +396,17 @@ class TestPyrapiAlignment(unittest.TestCase):
         # This is the output from BWA, without the SAM header.
         expected = [
             """read_00	65	chr1	32461	60	60M	=	32581	121	AAAACTGACCCACACAGAAAAACTAATTGTGAGAACCAATATTATACTAAATTCATTTGA	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
-            """read_00	129	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0"""
+            """read_00	129	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
+            """read_00_rev	113	chr1	32461	60	60M	=	32581	121	AAAACTGACCCACACAGAAAAACTAATTGTGAGAACCAATATTATACTAAATTCATTTGA	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
+            """read_00_rev	177	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0"""
         ]
 
-        rapi_sam = rapi.format_sam(self.batch, 0).split('\n')
-        # The two outputs may not be identical because the order or the tags isn't defined.
+        # we produce SAM for the first pair in our set and the last one (which is the
+        # first pair reversed and complemented)
+        rapi_sam = rapi.format_sam(self.batch, 0).split('\n') + rapi.format_sam(self.batch, 4).split('\n')
 
-        bwa_tag_start = [ re.search(r'\tNM:.*', line).start() for line in expected ]
-        rapi_tag_start = [ re.search(r'\t[A-Z][A-Z]:[A-z]:.*', line).start() for line in rapi_sam ]
-
-        bwa_no_tags = '\n'.join([ s[0:bwa_tag_start[i]] for i, s in enumerate(expected) ])
-        rapi_no_tags = '\n'.join([ s[0:rapi_tag_start[i]] for i, s in enumerate(rapi_sam) ])
-        self.assertEqual(bwa_no_tags, rapi_no_tags)
-
-        # now verify the tags
-        for read_num in xrange(len(bwa_tag_start)):
-            # get the part of the string that contains the tags.  The '+1' is
-            # because the regex we used to find the tags began with a tab, which
-            # we want to skip.
-            bwa_tags = expected[read_num][(bwa_tag_start[read_num]+1):]
-            rapi_tags = rapi_sam[read_num][(rapi_tag_start[read_num]+1):]
-            self.assertEquals(set(bwa_tags.split('\t')), set(rapi_tags.split('\t')))
+        for i in xrange(len(rapi_sam)):
+            self._compare_sam_records(expected[i], rapi_sam[i])
 
     def test_get_insert_size(self):
         aln_read = self.batch.get_read(0, 0).get_aln(0)
