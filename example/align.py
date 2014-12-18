@@ -4,6 +4,7 @@ import argparse
 import logging
 import re
 import sys
+import time
 
 import pyrapi
 
@@ -103,6 +104,7 @@ def parse_args(args=None):
     return options
 
 def main(argv=None):
+    start_time = time.time()
     batch_size = 100000 # n reads
     assert batch_size % 2 == 0
     options = parse_args(argv)
@@ -166,6 +168,8 @@ def main(argv=None):
             done = True
 
     ref.unload()
+    end_time = time.time()
+    _log.info("Total runtime: %0.3f seconds", end_time - start_time)
 
 if __name__ == '__main__':
     main()
