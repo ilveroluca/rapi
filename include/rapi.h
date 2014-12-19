@@ -194,11 +194,14 @@ static inline int rapi_tag_get_dbl( const rapi_tag* kv, double * value    ) KV_G
  */
 typedef struct {
 	int ignore_unsupported;
-	/* Standard Ones - Differently implemented by aligners*/
+	/* Standard options */
+	// filtering
 	int mapq_min;
 	int isize_min;
 	int isize_max;
-	/* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
+
+	// multithreading -- implementation may ignore it if single-threaded
+	int n_threads;
 
 	/* Aligner specific parameters in 'parameters' list.
 	 * LP: I'm thinking we might want to drop this list in favour

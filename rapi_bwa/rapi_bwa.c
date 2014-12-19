@@ -526,6 +526,7 @@ rapi_error_t rapi_opts_init( rapi_opts * my_opts )
 	my_opts->mapq_min     = 0;
 	my_opts->isize_min    = 0;
 	my_opts->isize_max    = bwa_opt->max_ins;
+	my_opts->n_threads    = 1;
 	kv_init(my_opts->parameters);
 
 	return RAPI_NO_ERROR;
@@ -732,6 +733,7 @@ static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
 {
 	bwa_opts->T = opts->mapq_min;
 	bwa_opts->max_ins = opts->isize_max;
+	bwa_opts->n_threads = opts->n_threads;
 
 	// TODO: other options provided through 'parameters' field
 	return RAPI_NO_ERROR;

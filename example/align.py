@@ -90,6 +90,7 @@ def parse_args(args=None):
     parser.add_argument('input', type=argparse.FileType('r'), nargs='*', default=sys.stdin)
     parser.add_argument('--format', choices=['fastq', 'prq'], default='fastq')
     parser.add_argument('--se', action="store_true", default=False)
+    parser.add_argument('-t', '--nthreads', type=int, metavar='N', default=1)
 
     options = parser.parse_args(args)
 
@@ -100,6 +101,9 @@ def parse_args(args=None):
 
     if options.se:
         raise NotImplementedError("Sorry. Single-end alignments not implemented")
+
+    if options.nthreads <= 0:
+        parser.error("nthreads must be greater than 0")
 
     return options
 
@@ -112,8 +116,11 @@ def main(argv=None):
 
     opts = plugin.opts()
     plugin.init(opts)
+    opts.n_threads = options.nthreads
     _log.info("Using the %s aligner plugin, aligner version %s, plugin version %s",
             plugin.aligner_name(), plugin.aligner_version(), plugin.plugin_version())
+    _log.info("Number of threads: %s", opts.n_threads)
+
     pe = not options.se
     _log.info("Working in %s mode", 'paired-end' if pe else 'single-end')
     _log.info("Reading data in %s format", options.format)
