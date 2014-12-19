@@ -263,36 +263,45 @@ static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const
 		kputsn("*\t*", 3, output);
 	}
 	else {
-		int i, begin = 0, end = read->length;
-		// Trim the printed sequence for supplementary alignments
-		// (those after the first in the list and not labeled as secondary 0x100)
+		int i, end = read->length;
+		int front_trim = 0, rear_trim = 0;
+		// Trim the printed sequence for supplementary alignments (those after the
+		// first in the list, so i_aln > 0, and not labeled as secondary 0x100)
 		if (aln->n_cigar_ops > 0) {
 			if (i_aln > 0 && (aln->cigar_ops[0].op == RAPI_CIG_S || aln->cigar_ops[0].op == RAPI_CIG_H)) {
-				begin += aln->cigar_ops[0].len;
+				front_trim = aln->cigar_ops[0].len;
 			}
 			if (i_aln > 0 && (aln->cigar_ops[aln->n_cigar_ops - 1].op == RAPI_CIG_S || aln->cigar_ops[aln->n_cigar_ops - 1].op == RAPI_CIG_H)) {
-				end -= aln->cigar_ops[aln->n_cigar_ops - 1].len;
+				rear_trim = aln->cigar_ops[aln->n_cigar_ops - 1].len;
 			}
 		}
-		int new_size = output->l + (end - begin) + 1; // +1 for delimiter
+		int trimmed_length = read->length - front_trim - rear_trim;
+		int new_size = output->l + trimmed_length + 1; // +1 for delimiter
 		if (read->qual)
-			new_size += (end - begin) + 1; // more room for the qual sequence
+			new_size += trimmed_length + 1; // more room for the qual sequence
 		ks_resize(output, new_size);
 
 		if (!aln->reverse_strand) { // the forward strand
-			kputsn(read->seq + begin, end - begin, output);
+			// forward strand is simple:  front and rear trimming done to natural
+			// start and end of the sequence.
+			kputsn(read->seq + front_trim, trimmed_length, output);
 			kputc('\t', output);
 			if (read->qual) { // print qual
-				for (i = begin; i < end; ++i) output->s[output->l++] = read->qual[i];
+				for (i = front_trim; i < end - rear_trim; ++i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
 			}
 			else kputc('*', output);
 		}
 		else { // the reverse strand
-			for (i = end - 1; i >= begin; --i) output->s[output->l++] = "TGCAN"[nst_nt4_table[(int)read->seq[i]]];
+			// For reads on reverse strand, the CIGAR is applied backwards with respect to
+			// the read->seq array.  The front_trim is applied to the end of the read and the
+			// rear_trim is applied to the start.  Moreover, we have to print the reverse complement
+			// of the read, so we "print" the bases in reverse order, while complementing by
+			// indexing into the TGCAN char array.
+			for (i = end - front_trim - 1; i >= rear_trim; --i) output->s[output->l++] = "TGCAN"[nst_nt4_table[(int)read->seq[i]]];
 			kputc('\t', output);
 			if (read->qual) { // print qual
-				for (i = end - 1; i >= begin; --i) output->s[output->l++] = read->qual[i];
+				for (i = end - front_trim - 1; i >= rear_trim; --i) output->s[output->l++] = read->qual[i];
 				output->s[output->l] = 0;
 			}
 			else kputc('*', output);
