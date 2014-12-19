@@ -86,7 +86,7 @@ static void rapi_print_bwa_flag_string(FILE* out, const int flag)
 int rapi_flag_string(const int flag, char* buf20)
 {
 	const int max_length = 20 - 1; // 1 for null terminator
-	char names[] = { 'p',    'P',    'u',    'U',    'r',    'R',    '1',    '2',    's',    'f',    'd',   'S' };
+	char names[] = { 'p',    'P',    'u',    'U',    'r',    'R',    '1',    '2',    's',    'f',    'd',   's' };
 	int values[] = { 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080, 0x0100, 0x0200, 0x0400, 0x0800 };
 	int str_pos = 0;
 
