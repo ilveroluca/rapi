@@ -317,37 +317,10 @@ static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const
 
 	rapi_error_t error = RAPI_NO_ERROR;
 
+	// write all othere tags
 	for (int t = 0; t < kv_size(aln->tags) && RAPI_NO_ERROR == error; ++t) {
 		kputc('\t', output);
 		error = rapi_format_tag(&kv_A(aln->tags, t), output);
-	}
-
-	if (error == RAPI_NO_ERROR && !(aln->secondary_aln)) { // not multi-hit
-		// look for the first alignment in the list, which is not the alignment that
-		// we're serializing (i.e., i_aln), and is not a secondary alignment
-		int should_write_sa_tag = 0;
-		for (int i = 0; i < read->n_alignments; ++i) {
-			if (i != i_aln && !read->alignments[i].secondary_aln) {
-				should_write_sa_tag = 1;
-				break;
-			}
-		}
-		if (should_write_sa_tag) { // there are other primary hits; output them
-			kputsn("\tSA:Z:", 6, output);
-			for (int i = 0; i < read->n_alignments; ++i) {
-				const rapi_alignment*const sa = read->alignments + i;
-
-				// proceed if: 1) different from the current; 2) not shadowed multi hit
-				if (i == i_aln || sa->secondary_aln) continue;
-				kputs(sa->contig->name, output); kputc(',', output);
-				kputl(sa->pos, output); kputc(',', output); // XXX: BWA has sa->pos + 1
-				kputc(sa->reverse_strand ? '-' : '+', output); kputc(',', output);
-				rapi_put_cigar(sa->n_cigar_ops, sa->cigar_ops, 0, output);
-				kputc(',', output); kputw(sa->mapq, output);
-				kputc(',', output); kputw(sa->n_mismatches, output);
-				kputc(';', output);
-			}
-		}
 	}
 
 	return error;
@@ -901,32 +874,51 @@ static int _bwa_aln_to_rapi_aln(const rapi_ref* rapi_ref, rapi_read* our_read, i
 			rapi_tag_set_key(pTag, "XS");
 			rapi_tag_set_long(pTag, bwa_aln->sub);
 		}
+	}
 
-		// TODO: extra tags
-		/* this section outputs other primary hits in the SA tag
-		if (!(bwa_aln->flag & 0x100)) { // not multi-hit
-			for (i = 0; i < n; ++i)
-				if (i != which && !(bwa_aln_list[i].flag&0x100)) break;
-			if (i < n) { // there are other primary hits; output them
-				kputsn("\tSA:Z:", 6, str);
-				for (i = 0; i < n; ++i) {
-					const mem_aln_t *r = &bwa_aln_list[i];
-					int k;
-					if (i == which || (bwa_aln_list[i].flag&0x100)) continue; // proceed if: 1) different from the current; 2) not shadowed multi hit
-					kputs(bns->anns[r->rid].name, str); kputc(',', str);
-					kputl(r->pos+1, str); kputc(',', str);
-					kputc("+-"[r->is_rev], str); kputc(',', str);
-					for (k = 0; k < r->n_cigar; ++k) {
-						kputw(r->cigar[k]>>4, str); kputc("MIDSH"[r->cigar[k]&0xf], str);
-					}
-					kputc(',', str); kputw(r->mapq, str);
-					kputc(',', str); kputw(r->NM, str);
-					kputc(';', str);
+	// generate SA tags for all alignments in the list
+	kstring_t tmp_sa = { 0, 0, NULL };
+	for (int i_aln = 0; i_aln < our_read->n_alignments; ++i_aln) {
+		tmp_sa.l = 0; // reposition the string cursor to the beginning
+		rapi_alignment*const aln = our_read->alignments + i_aln;
+
+		if (!(aln->secondary_aln)) { // not multi-hit --
+			// XXX: actually, secondary_aln is set if BWA set either 0x100 or 0x10000
+			// are set in the alignments' flag.  On the other hand, BWA's original code only
+			// checks the 0x100 bit :-o
+
+			// Find the first alignment in the list, which is not the main alignment that
+			// we're considering (i.e., i_aln), and is not a secondary alignment
+			int other_primary = 0;
+			for (other_primary = 0; other_primary < our_read->n_alignments; ++other_primary) {
+				if (other_primary != i_aln && !our_read->alignments[other_primary].secondary_aln)
+					break;
+			}
+			if (other_primary < our_read->n_alignments) { // there are other primary hits; output them
+				for (; other_primary < our_read->n_alignments; ++other_primary) {
+					const rapi_alignment*const sa = our_read->alignments + other_primary;
+
+					// proceed if: 1) different from the current; 2) not shadowed multi hit
+					if (other_primary == i_aln || sa->secondary_aln) continue;
+
+					kputs(sa->contig->name, &tmp_sa); kputc(',', &tmp_sa);
+					kputl(sa->pos, &tmp_sa); kputc(',', &tmp_sa); // XXX: BWA has sa->pos + 1
+					kputc(sa->reverse_strand ? '-' : '+', &tmp_sa); kputc(',', &tmp_sa);
+					rapi_put_cigar(sa->n_cigar_ops, sa->cigar_ops, 0, &tmp_sa);
+					kputc(',', &tmp_sa); kputw(sa->mapq, &tmp_sa);
+					kputc(',', &tmp_sa); kputw(sa->n_mismatches, &tmp_sa);
+					kputc(';', &tmp_sa);
 				}
+
+				// now set the tag
+				rapi_tag* pTag = kv_pushp(rapi_tag, aln->tags);
+				rapi_tag_set_key(pTag, "SA");
+				rapi_tag_set_text(pTag, tmp_sa.s);
 			}
 		}
-		*/
 	}
+	free(tmp_sa.s);
+
 	return RAPI_NO_ERROR;
 }
 
