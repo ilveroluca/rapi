@@ -73,7 +73,7 @@ def compare_alignments(aln1, aln2):
         start_tags = find_nth(aln, 11, "\t")
         if start_tags < 0: # no tags
             start_tags = len(aln)
-        tags = set( t for t in aln[start_tags+1:].split('\t') if not t.startswith('SA'))
+        tags = set( t for t in aln[start_tags+1:].split('\t') )
         return dict(aln=aln[0:start_tags], tags=tags)
 
     alignments = map(split_parts, (aln1, aln2))
@@ -115,7 +115,6 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
 
-    print >> sys.stderr, ">>>>>>>>>> WARNING:  IGNORING SA TAGS !!!!!! <<<<<<<"
     file_a, file_b = args
     ok = compare_sam_files(file_a, file_b)
     sys.exit(0 if ok else 1)

@@ -311,7 +311,6 @@ static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const
 	// print optional tags
 	if (aln->n_cigar_ops > 0) {
 		kputsn("\tNM:i:", 6, output); kputw(aln->n_mismatches, output);
-		//kputsn("\tMD:Z:", 6, output); kputs((char*)(p->cigar + p->n_cigar), str);
 	}
 
 	if (aln->score >= 0) { kputsn("\tAS:i:", 6, output); kputw(aln->score, output); }
@@ -323,27 +322,33 @@ static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const
 		error = rapi_format_tag(&kv_A(aln->tags, t), output);
 	}
 
-	//if (!(aln->flag & 0x100)) { // not multi-hit
-	//	for (i = 0; i < n; ++i)
-	//		if (i != which && !(list[i].flag&0x100)) break;
-	//	if (i < n) { // there are other primary hits; output them
-	//		kputsn("\tSA:Z:", 6, str);
-	//		for (i = 0; i < n; ++i) {
-	//			const mem_aln_t *r = &list[i];
-	//			int k;
-	//			if (i == which || (list[i].flag&0x100)) continue; // proceed if: 1) different from the current; 2) not shadowed multi hit
-	//			kputs(bns->anns[r->rid].name, str); kputc(',', str);
-	//			kputl(r->pos+1, str); kputc(',', str);
-	//			kputc("+-"[r->is_rev], str); kputc(',', str);
-	//			for (k = 0; k < r->n_cigar; ++k) {
-	//				kputw(r->cigar[k]>>4, str); kputc("MIDSH"[r->cigar[k]&0xf], str);
-	//			}
-	//			kputc(',', str); kputw(r->mapq, str);
-	//			kputc(',', str); kputw(r->NM, str);
-	//			kputc(';', str);
-	//		}
-	//	}
-	//}
+	if (error == RAPI_NO_ERROR && !(aln->secondary_aln)) { // not multi-hit
+		// look for the first alignment in the list, which is not the alignment that
+		// we're serializing (i.e., i_aln), and is not a secondary alignment
+		int should_write_sa_tag = 0;
+		for (int i = 0; i < read->n_alignments; ++i) {
+			if (i != i_aln && !read->alignments[i].secondary_aln) {
+				should_write_sa_tag = 1;
+				break;
+			}
+		}
+		if (should_write_sa_tag) { // there are other primary hits; output them
+			kputsn("\tSA:Z:", 6, output);
+			for (int i = 0; i < read->n_alignments; ++i) {
+				const rapi_alignment*const sa = read->alignments + i;
+
+				// proceed if: 1) different from the current; 2) not shadowed multi hit
+				if (i == i_aln || sa->secondary_aln) continue;
+				kputs(sa->contig->name, output); kputc(',', output);
+				kputl(sa->pos, output); kputc(',', output); // XXX: BWA has sa->pos + 1
+				kputc(sa->reverse_strand ? '-' : '+', output); kputc(',', output);
+				rapi_put_cigar(sa->n_cigar_ops, sa->cigar_ops, 0, output);
+				kputc(',', output); kputw(sa->mapq, output);
+				kputc(',', output); kputw(sa->n_mismatches, output);
+				kputc(';', output);
+			}
+		}
+	}
 
 	return error;
 }
