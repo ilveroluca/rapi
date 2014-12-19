@@ -41,3 +41,20 @@ def get_mini_ref_seqs():
     if _mini_ref_seqs is None:
         _mini_ref_seqs = read_seqs(MiniRefSequencesTxt)
     return _mini_ref_seqs
+
+
+_complement = {
+    'A':'T',
+    'G':'C',
+    'C':'G',
+    'T':'A',
+    'N':'N',
+    'a':'t',
+    'g':'c',
+    'c':'g',
+    't':'a',
+    'n':'n'
+}
+
+def rev_complement(seq):
+    return ''.join( _complement[base] for base in seq[::-1] )
