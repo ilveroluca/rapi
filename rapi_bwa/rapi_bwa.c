@@ -202,20 +202,22 @@ static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const
 	if (read_num == 1) flag |= 0x40;
 	if (read_num == 2) flag |= 0x80;
 
-	// XXX: this implementation differs from BWA's behaviour when only one read in a pair is mapped.
-	// In that case, BWA copies the coordinates of the mapped read to the unmapped one.  This
-	// influences the flags printed by BWA, the coordinates and also the cigar.
-
 	flag |= (mate && !mate_aln->mapped) ? 0x8 : 0; // is mate unmapped
-	flag |= (mate && mate_aln->mapped && mate_aln->reverse_strand) ? 0x20 : 0; // is mate on the reverse strand
+	// for the 0x20 flag, we set it regardless of whether the mate is mapped.  If
+	// the mate is not mapped but the read is, then the flag will have been copied
+	// from the read a few lines above.  This replicates BWA's behaviour.
+	flag |= (mate && mate_aln->reverse_strand) ? 0x20 : 0; // is mate on the reverse strand
 
 	flag |= aln->paired ? 0x1 : 0; // is paired in sequencing
 	flag |= aln->mapped ? 0 : 0x4; // is unmapped
 
+	// As for the 0x20 flag, the same logic goes here for the 0x10 flag.
+	// If the read isn't mapped aln->reverse_strand will have been copied from the mate.
+	flag |= aln->reverse_strand ? 0x10 : 0; // is on the reverse strand
+
 	if (aln->mapped)
 	{
 		flag |= aln->prop_paired ? 0x2 : 0;
-		flag |= aln->reverse_strand ? 0x10 : 0; // is on the reverse strand
 		flag |= aln->secondary_aln ? 0x100 : 0; // secondary alignment
 	}
 
