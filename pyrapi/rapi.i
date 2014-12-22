@@ -301,6 +301,8 @@ typedef struct {
   int mapq_min;
   int isize_min;
   int isize_max;
+  int n_threads;
+
   /* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
 
   // TODO: how to wrap this thing?
