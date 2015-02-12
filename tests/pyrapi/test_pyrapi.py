@@ -283,6 +283,17 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.ref.unload()
         rapi.shutdown()
 
+
+    def test_read_attributes(self):
+        rapi_read = self.batch.get_read(0, 0)
+        self.assertEqual("read_00", rapi_read.id)
+        # shortcut attributes that access the first alignment
+        self.assertFalse(rapi_read.prop_paired)
+        self.assertTrue(rapi_read.mapped)
+        self.assertFalse(rapi_read.reverse_strand)
+        self.assertEqual(60, rapi_read.mapq)
+        self.assertEqual(60, rapi_read.score)
+
     def test_alignment_struct(self):
         rapi_read = self.batch.get_read(0, 0)
         self.assertEqual("read_00", rapi_read.id)
@@ -341,8 +352,6 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertEqual(2, aln.n_mismatches)
         md_tag = aln.get_tags()['MD']
         self.assertEqual('15T16C27', md_tag)
-
-
 
     def test_get_aln_out_of_bounds(self):
         rapi_read = self.batch.get_read(0, 0)

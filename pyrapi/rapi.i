@@ -732,7 +732,49 @@ typedef struct {
     rapi_alignment_iter* iter_aln() const {
         return new_rapi_alignment_iter($self->alignments, $self->n_alignments);
     }
+
+    // synthesize some high-level boolean attributes.  These
+    // look at the "main" alignment (first one, if any)
+    rapi_bool prop_paired;
+    rapi_bool mapped;
+    rapi_bool reverse_strand;
+    int score;
+    uint8_t mapq;
 };
+
+%{
+rapi_bool rapi_read_prop_paired_get(const rapi_read* read) {
+    return read->n_alignments > 0 && rapi_alignment_prop_paired_get(read->alignments);
+}
+
+rapi_bool rapi_read_mapped_get(const rapi_read* read) {
+    return read->n_alignments > 0 && rapi_alignment_mapped_get(read->alignments);
+}
+
+rapi_bool rapi_read_reverse_strand_get(const rapi_read* read) {
+    return read->n_alignments > 0 && rapi_alignment_reverse_strand_get(read->alignments);
+}
+
+int rapi_read_score_get(const rapi_read* read) {
+    if (read->n_alignments <= 0) {
+        return 0;
+    }
+    else {
+        return read->alignments->score;
+    }
+}
+
+uint8_t rapi_read_mapq_get(const rapi_read* read) {
+    if (read->n_alignments <= 0) {
+        return 0;
+    }
+    else {
+        return read->alignments->mapq;
+    }
+}
+
+%}
+
 
 /*
  * We wrap the rapi_batch in a shell class to implement some higher level
