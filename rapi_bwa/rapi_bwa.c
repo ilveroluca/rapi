@@ -559,7 +559,7 @@ rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 	if ( NULL == ref_struct || NULL == reference_path )
 		return RAPI_PARAM_ERROR;
 
-	const bwaidx_t*const bwa_idx = bwa_idx_load(reference_path, BWA_IDX_ALL);
+	const bwaidx_t*const bwa_idx = bwa_idx_load(reference_path, BWA_IDX_ALL, 1 /* use_mmap */);
 	if ( NULL == bwa_idx )
 		return RAPI_GENERIC_ERROR;
 

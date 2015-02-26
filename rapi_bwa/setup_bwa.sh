@@ -3,8 +3,8 @@
 set -o errexit
 set -o nounset
 
-BWA_REPO="https://github.com/lh3/bwa.git"
-BWA_RELEASE="0.7.8"
+BWA_REPO="https://github.com/ilveroluca/bwa.git"
+BWA_TAG="0.7.8-mmap"
 
 if [ $# -eq 0 ]; then
     BWA_DIR="$(mktemp --dry-run bwa-build-XXXXXXXXXXXXXXXXX)"
