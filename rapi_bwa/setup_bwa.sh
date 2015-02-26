@@ -28,11 +28,13 @@ fi
 # check whether we're running on Linux
 if type -P uname >/dev/null && [ $(uname) == 'Linux' ]; then
     # if so, add '-fPIC' to CFLAGS
-    sed -i -e 's/CFLAGS\s*=.*/& -fPIC/' Makefile
+    sed -e 's/CFLAGS\s*=.*/& -fPIC/' Makefile > Makefile.rapi_edit
+else
+    cp --force Makefile Makefile.rapi_edit
 fi
 
 # build libbwa.a
 make clean
-make libbwa.a
+make -f Makefile.rapi_edit libbwa.a
 
 exit 0
