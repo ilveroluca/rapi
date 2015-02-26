@@ -13,11 +13,17 @@ else
 fi
 echo "Using BWA build directory $BWA_DIR"
 
-git clone "${BWA_REPO}" "${BWA_DIR}"
+if [ ! -d "${BWA_DIR}" ]; then
+	git clone "${BWA_REPO}" "${BWA_DIR}"
+	cd "${BWA_DIR}"
+	git checkout "${BWA_TAG}"
+else
+	echo "###########################################" >&2
+	echo "  Reusing BWA directory ${BWA_DIR} as is"    >&2
+	echo "###########################################" >&2
+	cd "${BWA_DIR}"
+fi
 
-cd "${BWA_DIR}"
-
-git checkout "${BWA_RELEASE}"
 
 # check whether we're running on Linux
 if type -P uname >/dev/null && [ $(uname) == 'Linux' ]; then
