@@ -12,6 +12,8 @@ before_install:
     - export PATH=$HOME/bin:$PATH
     - swig -version
 
-install: make clean all
+install:
+    - make clean all
+    - (cd pyrapi && python setup.py install)
 
 script: python tests/pyrapi/test_pyrapi.py

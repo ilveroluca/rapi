@@ -1,16 +1,6 @@
 
 
 import os
-import sys
-
-src_root_dir = \
-        os.path.abspath(
-            os.path.join(
-                os.path.dirname(__file__), '../..'))
-
-def append_src_to_pypath():
-    sys.path.append(src_root_dir)
-
 
 MiniRef = \
         os.path.abspath(

@@ -23,21 +23,23 @@ rapi_bwa: bwa_lib
 	$(MAKE) -C rapi_bwa/
    
 pyrapi: bwa_lib rapi_bwa
-	$(MAKE) -C pyrapi/
+	(cd pyrapi && python setup.py build)
 
 example: pyrapi
 	$(MAKE) -C example
 
 clean:
+	$(MAKE) -C rapi_bwa/ clean
+	(cd pyrapi && python setup.py clean --all)
+
+
+distclean: clean
 	# Remove automatically built BWA, if it exists
 	rm -rf "$(PWD)/bwa-auto-build"
-	$(MAKE) -C rapi_bwa/ clean
-	$(MAKE) -C pyrapi/ clean
-
 
 tests: pyrapi
 	python tests/pyrapi/test_pyrapi.py
 
 
-.PHONY: clean tests pyrapi rapi_bwa example
+.PHONY: clean distclean tests pyrapi rapi_bwa example
 

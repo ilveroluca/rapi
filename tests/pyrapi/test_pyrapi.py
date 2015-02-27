@@ -5,7 +5,6 @@ import sys
 import unittest
 
 import stuff
-stuff.append_src_to_pypath()
 
 import pyrapi.rapi as rapi
 
