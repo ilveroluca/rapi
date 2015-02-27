@@ -483,7 +483,7 @@ rapi_error_t rapi_init(const rapi_opts* opts)
 	return RAPI_NO_ERROR;
 }
 
-rapi_error_t rapi_shutdown() {
+rapi_error_t rapi_shutdown(void) {
 	/* no op */
 	return RAPI_NO_ERROR;
 }
@@ -538,17 +538,17 @@ rapi_error_t rapi_opts_free( rapi_opts * my_opts )
 	return RAPI_NO_ERROR;
 }
 
-const char* rapi_aligner_name()
+const char* rapi_aligner_name(void)
 {
 	return "bwa-mem";
 }
 
-const char* rapi_aligner_version()
+const char* rapi_aligner_version(void)
 {
 	return WRAPPED_BWA_VERSION;
 }
 
-const char* rapi_plugin_version()
+const char* rapi_plugin_version(void)
 {
 	return RAPI_BWA_PLUGIN_VERSION;
 }

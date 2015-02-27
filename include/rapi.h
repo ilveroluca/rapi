@@ -299,12 +299,12 @@ rapi_error_t rapi_opts_free( rapi_opts * my_opts );
 
 /* Init and tear down library */
 rapi_error_t rapi_init(const rapi_opts* opts);
-rapi_error_t rapi_shutdown();
+rapi_error_t rapi_shutdown(void);
 
 /* Aligner Version */
-const char* rapi_aligner_name();
-const char* rapi_aligner_version();
-const char* rapi_plugin_version();
+const char* rapi_aligner_name(void);
+const char* rapi_aligner_version(void);
+const char* rapi_plugin_version(void);
 
 /* Load reference */
 rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
