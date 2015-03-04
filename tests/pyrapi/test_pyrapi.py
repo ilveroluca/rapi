@@ -266,6 +266,25 @@ class TestPyrapiReadBatch(unittest.TestCase):
 
 
 class TestPyrapiAlignment(unittest.TestCase):
+
+    # We ran this command line:
+    #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta mini_ref/mini_ref_seqs.fastq
+    # First 8 lines == first two reads from fastq file.
+    # BWA version: 0.7.8-r455
+    # The BWA options only serve to tell it not to filter any reads from the output:
+    #    * -p: first query file consists of interleaved paired-end sequences
+    #    * -T 0: minimum score to output [30]
+    #    * -a output all alignments for SE or unpaired PE
+    #
+    # We're using no options with RAPI, which is equivalent to that command line.
+    # This is the output from BWA, without the SAM header.
+    ExpectedSam = [
+        """read_00	65	chr1	32461	60	60M	=	32581	121	AAAACTGACCCACACAGAAAAACTAATTGTGAGAACCAATATTATACTAAATTCATTTGA	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
+        """read_00	129	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
+        """read_00_rev	113	chr1	32461	60	60M	=	32581	121	AAAACTGACCCACACAGAAAAACTAATTGTGAGAACCAATATTATACTAAATTCATTTGA	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEES	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
+        """read_00_rev	177	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEES	NM:i:0	MD:Z:60	AS:i:60	XS:i:0"""
+    ]
+
     def setUp(self):
         self.opts = rapi.opts()
         rapi.init(self.opts)
@@ -374,7 +393,6 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertRaises(AttributeError, assign_to_n_left, 33)
 
     def _compare_sam_records(self, a_sam, b_sam):
-        print >> sys.stderr, "comparing \n\n\t", a_sam, "\n\t", b_sam
         # The two outputs may not be identical because the order or the tags isn't defined.
 
         a_tag_start = re.search(r'\t[A-Z][A-Z]:[A-z]:.*', a_sam).start()
@@ -395,30 +413,23 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertRaises(IndexError, rapi.format_sam_by_batch, self.batch, 10000)
 
     def test_sam_batch(self):
-        # We ran this command line:
-        #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta mini_ref/mini_ref_seqs.fastq
-        # First 8 lines == first two reads from fastq file.
-        # BWA version: 0.7.8-r455
-        # The BWA options only serve to tell it not to filter any reads from the output:
-        #    * -p: first query file consists of interleaved paired-end sequences
-        #    * -T 0: minimum score to output [30]
-        #    * -a output all alignments for SE or unpaired PE
-        #
-        # We're using no options with RAPI, which is equivalent to that command line.
-        # This is the output from BWA, without the SAM header.
-        expected = [
-            """read_00	65	chr1	32461	60	60M	=	32581	121	AAAACTGACCCACACAGAAAAACTAATTGTGAGAACCAATATTATACTAAATTCATTTGA	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
-            """read_00	129	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
-            """read_00_rev	113	chr1	32461	60	60M	=	32581	121	AAAACTGACCCACACAGAAAAACTAATTGTGAGAACCAATATTATACTAAATTCATTTGA	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEES	NM:i:0	MD:Z:60	AS:i:60	XS:i:0""",
-            """read_00_rev	177	chr1	32581	60	60M	=	32461	-121	CAAAAGTTAACCCATATGGAATGCAATGGAGGAAATCAATGACATATCAGATCTAGAAAC	EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEES	NM:i:0	MD:Z:60	AS:i:60	XS:i:0"""
-        ]
-
         # we produce SAM for the first pair in our set and the last one (which is the
         # first pair reversed and complemented)
         rapi_sam = rapi.format_sam_by_batch(self.batch, 0).split('\n') + rapi.format_sam_by_batch(self.batch, 4).split('\n')
 
         for i in xrange(len(rapi_sam)):
-            self._compare_sam_records(expected[i], rapi_sam[i])
+            self._compare_sam_records(self.ExpectedSam[i], rapi_sam[i])
+
+    def test_sam_fragment(self):
+        self.assertRaises(TypeError, rapi.format_sam)
+        self.assertRaises(TypeError, rapi.format_sam, 42)
+
+        first_fragment = next(f for f in self.batch)
+        # generate SAM for first fragment, for which we have the expected result in self.ExpectedSam
+        rapi_sam = rapi.format_sam(first_fragment).split('\n')
+        self.assertEquals(2, len(rapi_sam))
+        for i in 0, 1:
+            self._compare_sam_records(self.ExpectedSam[i], rapi_sam[i])
 
     def test_get_insert_size(self):
         aln_read = self.batch.get_read(0, 0).get_aln(0)

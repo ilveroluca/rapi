@@ -929,7 +929,7 @@ typedef struct {
     if (n_fragment * $self->batch->n_reads_frag + n_read >= $self->len) {
         return NULL;
     }
-    
+
     return rapi_get_read($self->batch, n_fragment, n_read);
   }
 
@@ -1130,6 +1130,60 @@ typedef struct {
 }
 
 %inline %{
+
+/**
+ * Input: some python sequence of rapi reads.
+ */
+char* format_sam(PyObject* pyobj) {
+  char* retval = NULL;
+  const rapi_read** read_ptrs = NULL;
+
+  if (!PySequence_Check(pyobj)) {
+    SWIG_Error(SWIG_TypeError, "Expected a sequence type");
+    return NULL;
+  }
+
+  Py_ssize_t len = PySequence_Length(pyobj);
+  if (len < 0) {
+    SWIG_Error(SWIG_RuntimeError, "Failed to get length of sequence");
+    return NULL;
+  }
+
+  read_ptrs = calloc(len, sizeof(rapi_read*));
+  if (NULL == read_ptrs) {
+    SWIG_Error(SWIG_MemoryError, "Failed to allocate memory");
+    goto clean;
+  }
+
+  for (Py_ssize_t i = 0; i < len; ++i) {
+    PyObject* swig_read = PySequence_Fast_GET_ITEM(pyobj, i); // borrowed reference
+    // Get the rapi read from the python sequence and write a pointer to it into our `read_ptrs` array
+    if (!swig_read
+      || !SwigPyObject_Check(swig_read)
+      || !SWIG_IsOK(SWIG_ConvertPtr(swig_read, (void**)&(read_ptrs[i]), SWIGTYPE_p_rapi_read, 0))) {
+      SWIG_Error(SWIG_TypeError, "Expecting a sequence a RAPI read_ptrs");
+      goto clean;
+    }
+  }
+
+  // now we can finally call our formatting function
+  kstring_t str = { 0, 0, NULL };
+  rapi_error_t error = rapi_format_sam(read_ptrs, len, &str);
+
+  if (error == RAPI_NO_ERROR)
+    retval = str.s; // Python must free this string
+  else {
+    free(str.s);
+    SWIG_Error(rapi_swig_error_type(error), "Error formatting SAM");
+    // leave retval as NULL
+  }
+
+clean:
+  free((rapi_read*)read_ptrs);
+  return retval;
+}
+
+
 char* format_sam_by_batch(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
   if (NULL == wrapper) {
     SWIG_Error(SWIG_TypeError, "wrapper argument cannot be None");

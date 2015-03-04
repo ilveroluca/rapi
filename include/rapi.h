@@ -406,6 +406,19 @@ void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstri
 /**
  * Format SAM for all reads in the given fragment.
  *
+ * \param reads: pointer to list of read pointers; reads must be ordered first to last
+ *
+ * \param n_reads: number of reads in list
+ *
+ * \param output: str where output will be written
+ *
+ * \param output An initialized kstring_t to which the SAM will be appended.
+ */
+rapi_error_t rapi_format_sam(const rapi_read** reads, int n_reads, kstring_t* output);
+
+/**
+ * Format SAM for all reads in the indicated fragment.
+ *
  * \param batch A read batch.
  *
  * \param n_frag The index of the fragment within the batch whose reads will be

@@ -173,7 +173,7 @@ static rapi_error_t _rapi_format_sam_aln(const rapi_read* read, int i_aln, const
 
 	if (mate && mate->n_alignments > 0) {
 		tmp_mate = *mate->alignments;
-  }
+	}
 	else {
 		memset(&tmp_mate, 0, sizeof(tmp_mate));
 	}
@@ -352,6 +352,41 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
 
 	return error;
 }
+
+
+/*
+ * Format SAM for an entire fragment.
+ *
+ * SAM read records contain information that depends on other reads in the
+ * same template (e.g., insert size, alignment coordinates for other reads,
+ * flags for first/last read in template, etc.).  Generating all same for an
+ * entire template within the context of a single function call makes it feasible
+ * to implement this without changing the API (all the necessary info should
+ * already be in here).
+ *
+ * However, BWA currently supports single and paired reads, so that's all we're
+ * implementing in this function.
+ *
+ * \param reads: pointer to list of reads; reads must be ordered first to last
+ * \param n_reads: number of reads in list; MUST be 1 or 2
+ * \param output: str where output will be written
+ */
+
+rapi_error_t rapi_format_sam(const rapi_read** reads, int n_reads, kstring_t* output)
+{
+	if (n_reads <= 0 || n_reads > 2) {
+		PERROR("n_reads must be 1 or 2\n");
+		return RAPI_PARAM_ERROR;
+	}
+
+	rapi_error_t error = _rapi_format_sam_read(reads[0], (n_reads == 1 ? NULL : reads[1]), 1, output);
+	if (n_reads == 2 && RAPI_NO_ERROR == error) {
+		kputc('\n', output);
+		error = _rapi_format_sam_read(reads[1], reads[0], 2, output);
+	}
+	return error;
+}
+
 /**
  * Format SAM for an entire fragment.
  *
@@ -381,8 +416,8 @@ rapi_error_t rapi_format_sam_b(const rapi_batch* batch, rapi_ssize_t n_frag, kst
 	//// get read and mate
 
 	int i_read = 0, i_mate = 1;
-  const int n_reads = batch->n_reads_frag; 
-  const rapi_read* reads[2] = { NULL, NULL };
+	const int n_reads = batch->n_reads_frag;
+	const rapi_read* reads[2] = { NULL, NULL };
 
 	reads[0] = rapi_get_read(batch, n_frag, i_read);
 	if (n_reads > 1)
@@ -401,7 +436,7 @@ rapi_error_t rapi_format_sam_b(const rapi_batch* batch, rapi_ssize_t n_frag, kst
 		kputc('\n', output);
 		error = _rapi_format_sam_read(reads[1], reads[0], 2, output);
 	}
-  return error;
+	return error;
 }
 
 
