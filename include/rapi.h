@@ -414,7 +414,7 @@ void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstri
  *
  * \param output An initialized kstring_t to which the SAM will be appended.
  */
-rapi_error_t rapi_format_sam(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output);
+rapi_error_t rapi_format_sam_b(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output);
 
 /**
  * Format the SAM header for the given reference.  The header will also contain

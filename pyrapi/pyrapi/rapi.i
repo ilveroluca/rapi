@@ -1108,16 +1108,17 @@ typedef struct {
  ****** other stuff              *******
  ***************************************/
 
-/* rapi_format_sam
+/* rapi_format_sam_b
  *
  * This function allocates a new string with malloc and returns it. To tell
  * the SWIG wrapper about this, so that it marks the memory to be freed once
  * dereferenced, we need to use the '%newobject' directive.
  */
-%newobject format_sam;
+%newobject format_sam_b;
 %newobject format_sam_hdr;
+
 %inline %{
-char* format_sam(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
+char* format_sam_by_batch(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
   if (NULL == wrapper) {
     SWIG_Error(SWIG_TypeError, "wrapper argument cannot be None");
     return NULL;
@@ -1129,7 +1130,7 @@ char* format_sam(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
   }
 
   kstring_t str = { 0, 0, NULL };
-  rapi_error_t error = rapi_format_sam(wrapper->batch, n_frag, &str);
+  rapi_error_t error = rapi_format_sam_b(wrapper->batch, n_frag, &str);
   if (error == RAPI_NO_ERROR)
     return str.s; // Python must free this string
   else {

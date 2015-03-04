@@ -128,7 +128,7 @@ int main(int argc, const char* argv[])
 
 	for (int frag = 0; frag < reads.n_frags; ++frag) {
 		sam_buffer.l = 0;
-		rapi_format_sam(&reads, frag, &sam_buffer);
+		rapi_format_sam_b(&reads, frag, &sam_buffer);
 		printf("%s\n", sam_buffer.s);
 	}
 

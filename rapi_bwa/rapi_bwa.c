@@ -365,7 +365,7 @@ static rapi_error_t _rapi_format_sam_read(const rapi_read* read, const rapi_read
  * However, BWA currently supports single and paired reads, so that's all we're
  * implementing in this function.
  */
-rapi_error_t rapi_format_sam(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output)
+rapi_error_t rapi_format_sam_b(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output)
 {
 	///// validate function arguments
 	if (NULL == batch || NULL == output) {
@@ -381,28 +381,29 @@ rapi_error_t rapi_format_sam(const rapi_batch* batch, rapi_ssize_t n_frag, kstri
 	//// get read and mate
 
 	int i_read = 0, i_mate = 1;
-	const rapi_read* read = NULL;
-	const rapi_read* mate = NULL;
+  const int n_reads = batch->n_reads_frag; 
+  const rapi_read* reads[2] = { NULL, NULL };
 
-	read = rapi_get_read(batch, n_frag, i_read);
-	if (batch->n_reads_frag > 1)
-		mate = rapi_get_read(batch, n_frag, i_mate);
+	reads[0] = rapi_get_read(batch, n_frag, i_read);
+	if (n_reads > 1)
+		reads[1] = rapi_get_read(batch, n_frag, i_mate);
 
 	// check for errors retrieving reads
-	if (NULL == read || (batch->n_reads_frag > 1 && NULL == mate)) {
+	if (NULL == reads[0] || (n_reads > 1 && NULL == reads[1])) {
 		PERROR("Error fetching reads for fragment %lld: read is %s NULL; mate is %s NULL. Batch n_reads_frag: %d; n_frags: %lld.\n",
-		        n_frag, (read != NULL ? "not" : ""), (mate != NULL ? "not" : ""),
-		        batch->n_reads_frag, batch->n_frags);
+		        n_frag, (reads[0] != NULL ? "not" : ""), (reads[1] != NULL ? "not" : ""),
+		        n_reads, batch->n_frags);
 		return RAPI_GENERIC_ERROR;
 	}
 
-	rapi_error_t error = _rapi_format_sam_read(read, mate, 1, output);
-	if (mate != NULL && RAPI_NO_ERROR == error) {
+	rapi_error_t error = _rapi_format_sam_read(reads[0], (n_reads == 1 ? NULL : reads[1]), 1, output);
+	if (n_reads == 2 && RAPI_NO_ERROR == error) {
 		kputc('\n', output);
-		error = _rapi_format_sam_read(mate, read, 2, output);
+		error = _rapi_format_sam_read(reads[1], reads[0], 2, output);
 	}
-	return error;
+  return error;
 }
+
 
 rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output)
 {

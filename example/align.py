@@ -159,7 +159,7 @@ def main(argv=None):
         aligner.align_reads(ref, batch)
         _log.info("finished aligning. Printing output")
         for idx in xrange(batch.n_fragments):
-            sam = plugin.format_sam(batch, idx)
+            sam = plugin.format_sam_b(batch, idx)
             print sam
 
     done = False

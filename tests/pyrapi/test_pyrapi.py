@@ -283,7 +283,6 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.ref.unload()
         rapi.shutdown()
 
-
     def test_read_attributes(self):
         rapi_read = self.batch.get_read(0, 0)
         self.assertEqual("read_00", rapi_read.id)
@@ -391,7 +390,12 @@ class TestPyrapiAlignment(unittest.TestCase):
         b_tags = set( b_sam[b_tag_start+1:].split('\t') )
         self.assertEquals(a_tags, b_tags)
 
-    def test_sam(self):
+    def test_sam_batch_error_checking(self):
+        self.assertRaises(TypeError, rapi.format_sam_by_batch, None, None)
+        self.assertRaises(TypeError, rapi.format_sam_by_batch, 42, 42)
+        self.assertRaises(IndexError, rapi.format_sam_by_batch, self.batch, 10000)
+
+    def test_sam_batch(self):
         # We ran this command line:
         #     bwa mem -p -T 0 -a mini_ref/mini_ref.fasta mini_ref/mini_ref_seqs.fastq
         # First 8 lines == first two reads from fastq file.
@@ -412,7 +416,7 @@ class TestPyrapiAlignment(unittest.TestCase):
 
         # we produce SAM for the first pair in our set and the last one (which is the
         # first pair reversed and complemented)
-        rapi_sam = rapi.format_sam(self.batch, 0).split('\n') + rapi.format_sam(self.batch, 4).split('\n')
+        rapi_sam = rapi.format_sam_by_batch(self.batch, 0).split('\n') + rapi.format_sam_by_batch(self.batch, 4).split('\n')
 
         for i in xrange(len(rapi_sam)):
             self._compare_sam_records(expected[i], rapi_sam[i])
