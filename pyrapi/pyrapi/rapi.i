@@ -1108,14 +1108,26 @@ typedef struct {
  ****** other stuff              *******
  ***************************************/
 
-/* rapi_format_sam_b
+/***
+ * Swig's default output typemap to wrap char* strings converts NULL
+ * into a None (in Python).  The following functions return NULL to indicate
+ * an error so we need to handle them differently.
  *
- * This function allocates a new string with malloc and returns it. To tell
- * the SWIG wrapper about this, so that it marks the memory to be freed once
- * dereferenced, we need to use the '%newobject' directive.
+ * NOTE:  keep this stuff at the end of this file, unless you plan on restoring
+ * the default output char* typemap.
  */
-%newobject format_sam_b;
-%newobject format_sam_hdr;
+%typemap(out) char* {
+
+  if ($1) {
+    // convert char* to a string in the target language.
+    // Unfortunately with Python this requires making a copy of the string.
+    $result = SWIG_FromCharPtr((const char *)$1);
+    free((char*)$1);
+  }
+  else {
+    $result = NULL;
+  }
+}
 
 %inline %{
 char* format_sam_by_batch(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
