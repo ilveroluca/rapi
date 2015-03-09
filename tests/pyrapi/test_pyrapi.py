@@ -36,6 +36,18 @@ class TestPyrapi(unittest.TestCase):
         self.assertGreater(len(ver), 0)
         self.assertGreater(len(plugin_version), 0)
 
+    def test_set_some_options(self):
+        self.opts.n_threads = 11
+        self.assertEquals(11, self.opts.n_threads)
+
+        self.opts.mapq_min = 5
+        self.assertEquals(5, self.opts.mapq_min)
+
+        self.opts.isize_min = 250
+        self.assertEquals(250, self.opts.isize_min)
+
+        self.opts.isize_max = 500
+        self.assertEquals(500, self.opts.isize_max)
 
 class TestPyrapiRef(unittest.TestCase):
     def setUp(self):
