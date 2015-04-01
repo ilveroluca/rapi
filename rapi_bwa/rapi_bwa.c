@@ -826,7 +826,7 @@ int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops)
 	int len = 0;
 	for (int k = 0; k < n_cigar; ++k) {
 		int op = cigar_ops[k].op;
-		if (op == 0 || op == 2)
+		if (op == RAPI_CIG_M || op == RAPI_CIG_D)
 			len += cigar_ops[k].len;
 	}
 	return len;
