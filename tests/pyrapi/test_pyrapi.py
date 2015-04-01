@@ -450,6 +450,11 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertEqual(-121, rapi.get_insert_size(aln_mate, aln_read))
         self.assertEqual(0, rapi.get_insert_size(aln_read, aln_read))
 
+    def test_get_rlen(self):
+        aln_read = self.batch.get_read(0, 0).get_aln(0)
+        self.assertEquals(60, aln_read.get_rlen())
+        # XXX: weak test.  alignments are too simple
+
 
 #    def test_align_se(self):
 #        aligner = rapi.aligner(self.opts)

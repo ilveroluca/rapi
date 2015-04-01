@@ -633,6 +633,10 @@ typedef struct {
     rapi_tag_list get_tags() const {
         return $self->tags;
     }
+
+    int get_rlen() const {
+      return rapi_get_rlen($self->n_cigar_ops, $self->cigar_ops);
+    }
 };
 
 
