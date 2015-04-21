@@ -796,7 +796,7 @@ void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstri
 	if (n_ops > 0) {
 		for (int i = 0; i < n_ops; ++i) {
 			int c = ops[i].op;
-			if (c == 3 || c == 4) c = force_hard_clip ? 4 : 3;
+			if (c == RAPI_CIG_S || c == RAPI_CIG_H) c = force_hard_clip ? RAPI_CIG_H : RAPI_CIG_S;
 			kputw(ops[i].len, output);
 			kputc(rapi_cigops_char[c], output);
 		}
