@@ -460,6 +460,18 @@ typedef struct {
 
 // List of cigar ops.  We use the same strategy as for rapi_fragment
 %typemap(out) rapi_cigar_ops {
+    /**
+    * Convert rapi_cigar_ops to tuples (char, len), where the operation
+    * character corresponds to the one used in CIGAR notation:
+    * 
+    * M  0
+    * I  1
+    * D  2
+    * S  3
+    * H  4
+    * N  5
+    * P  6
+    */
     // $1 is variable of tupel rapi_cigar_ops
     PyObject* ret_tuple = PyTuple_New($1.len);
     if (ret_tuple == NULL) {
@@ -564,6 +576,11 @@ static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
 %}
 
 %typemap(out) rapi_tag_list {
+    /**
+     *  Map a rapi_tag_list to a dict( str -> value ).
+     *  The key is always a string, but the value will be converted to the
+     *  appropriate Python type.
+     */
     PyObject* dict = PyDict_New();
     if (dict == NULL) {
         SWIG_exception_fail(SWIG_MemoryError, "Failed to allocate dict");
