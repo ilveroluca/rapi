@@ -203,6 +203,10 @@ typedef struct {
 	// multithreading -- implementation may ignore it if single-threaded
 	int n_threads;
 
+	// Whether to share references in memory with other processes using RAPI
+	// (if the implementation supports it)
+	int share_ref_mem;
+
 	/* Aligner specific parameters in 'parameters' list.
 	 * LP: I'm thinking we might want to drop this list in favour
 	 * of letting the user set aligner-specific options through the

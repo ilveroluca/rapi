@@ -25,6 +25,7 @@ typedef struct {
 	int isize_min;
 	int isize_max;
 	int n_threads;
+	int share_ref_mem;
     mem_opt_t* bwa_opts;
 } library_opts;
 
@@ -547,6 +548,7 @@ static rapi_error_t _set_library_opts(library_opts* lib_opts, const rapi_opts* o
 	lib_opts->isize_min = opts->isize_min;
 	lib_opts->isize_max = opts->isize_max;
 	lib_opts->n_threads = opts->n_threads;
+	lib_opts->share_ref_mem = opts->share_ref_mem;
 	lib_opts->bwa_opts = mem_opt_init();
 	if (NULL == lib_opts->bwa_opts)
 		return RAPI_MEMORY_ERROR;
@@ -624,6 +626,7 @@ rapi_error_t rapi_opts_init( rapi_opts * my_opts )
 	my_opts->isize_min    = 0;
 	my_opts->isize_max    = bwa_opt->max_ins;
 	my_opts->n_threads    = 1;
+	my_opts->share_ref_mem = 1;
 	kv_init(my_opts->parameters);
 
 	return RAPI_NO_ERROR;
@@ -656,7 +659,7 @@ rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 	if ( NULL == ref_struct || NULL == reference_path )
 		return RAPI_PARAM_ERROR;
 
-	const bwaidx_t*const bwa_idx = bwa_idx_load(reference_path, BWA_IDX_ALL, 1 /* use_mmap */);
+	const bwaidx_t*const bwa_idx = bwa_idx_load(reference_path, BWA_IDX_ALL, _library_opts_get()->share_ref_mem);
 	if ( NULL == bwa_idx )
 		return RAPI_GENERIC_ERROR;
 

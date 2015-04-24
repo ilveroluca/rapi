@@ -303,6 +303,7 @@ typedef struct {
   int isize_min;
   int isize_max;
   int n_threads;
+  rapi_bool share_ref_mem;
 
   /* Mismatch / Gap_Opens / Quality Trims --> Generalize ? */
 

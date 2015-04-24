@@ -49,6 +49,10 @@ class TestPyrapi(unittest.TestCase):
         self.opts.isize_max = 500
         self.assertEquals(500, self.opts.isize_max)
 
+        self.assertEquals(True, self.opts.share_ref_mem)
+        self.opts.share_ref_mem = False
+        self.assertEquals(False, self.opts.share_ref_mem)
+
 class TestPyrapiRef(unittest.TestCase):
     def setUp(self):
         self.opts = rapi.opts()
