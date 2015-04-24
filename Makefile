@@ -23,7 +23,7 @@ rapi_bwa: bwa_lib
 	$(MAKE) -C rapi_bwa/
    
 pyrapi: bwa_lib rapi_bwa
-	(cd pyrapi && python setup.py build)
+	(cd pyrapi && python setup.py clean --all && python setup.py build)
 
 example: pyrapi
 	$(MAKE) -C example
