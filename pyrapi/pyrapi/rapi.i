@@ -147,6 +147,7 @@ typedef int rapi_bool;
         $result = Py_True;
     else
         $result = Py_False;
+    Py_INCREF($result);
 }
 
 /****

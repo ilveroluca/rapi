@@ -455,6 +455,17 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertEquals(60, aln_read.get_rlen())
         # XXX: weak test.  alignments are too simple
 
+    def test_refcnt_problem(self):
+        alignment = self.batch.get_read(0, 0).get_aln(0)
+        one_ref = alignment.mapped
+        first_ref_count = sys.getrefcount(one_ref)
+        next_ref = alignment.mapped
+        # With `next_ref` we added a reference to the same boolean object after
+        # we originally checkout the ref count and stored it as `first_ref_count`.
+        # Therefore, barring multithreaded code (which this test isn't!) the
+        # following assertion should hold:
+        self.assertGreater(sys.getrefcount(next_ref), first_ref_count)
+
 
 #    def test_align_se(self):
 #        aligner = rapi.aligner(self.opts)
