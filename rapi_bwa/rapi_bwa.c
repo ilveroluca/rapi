@@ -19,6 +19,17 @@
 
 #define RAPI_BWA_PLUGIN_VERSION  "0.1.0-dev"
 
+/* Internal configuration structure */
+typedef struct {
+	int mapq_min;
+	int isize_min;
+	int isize_max;
+	int n_threads;
+    mem_opt_t* bwa_opts;
+} library_opts;
+
+library_opts* _g_library_opts = NULL;
+
 const char vtype_char[] = {
 	'0',
 	'A', // RAPI_VTYPE_CHAR       1
@@ -490,7 +501,7 @@ static void _print_bwa_batch(FILE* out, const bwa_batch* read_batch)
  * Definition of the aligner state structure.
  */
 struct rapi_aligner_state {
-	const rapi_opts* opts;
+	const library_opts* opts;
 	int64_t n_reads_processed;
 	// paired-end stats
 	mem_pestat_t pes[4];
@@ -512,15 +523,65 @@ char* strdup(const char* str)
 }
 #endif
 
-/* Init Library */
-rapi_error_t rapi_init(const rapi_opts* opts)
-{
-	// no op
+static rapi_error_t _library_opts_init(void) {
+    _g_library_opts = calloc(1, sizeof(library_opts));
+    if (!_g_library_opts) {
+        PERROR("_library_opts_init Failed to allocate space for library options");
+        return RAPI_MEMORY_ERROR;
+    }
+    return RAPI_NO_ERROR;
+}
+
+static rapi_error_t _library_opts_free(void) {
+    if (_g_library_opts) {
+        if (_g_library_opts->bwa_opts)
+            free(_g_library_opts->bwa_opts);
+        free(_g_library_opts);
+        _g_library_opts = NULL;
+    }
+    return RAPI_NO_ERROR;
+}
+
+static rapi_error_t _set_library_opts(library_opts* lib_opts, const rapi_opts* opts) {
+	lib_opts->mapq_min = opts->mapq_min;
+	lib_opts->isize_min = opts->isize_min;
+	lib_opts->isize_max = opts->isize_max;
+	lib_opts->n_threads = opts->n_threads;
+	lib_opts->bwa_opts = mem_opt_init();
+	if (NULL == lib_opts->bwa_opts)
+		return RAPI_MEMORY_ERROR;
+
+	if (opts->_private) {
+		// XXX: copying the mem_opt_t structure is simple at the moment,
+		// but keep an eye out on future changes to it.
+		const mem_opt_t* src = (mem_opt_t*)opts->_private;
+		memcpy(lib_opts->bwa_opts, src, sizeof(mem_opt_t));
+	}
+
 	return RAPI_NO_ERROR;
 }
 
+static inline const library_opts* _library_opts_get(void) {
+	return _g_library_opts;
+}
+
+/* Init Library */
+rapi_error_t rapi_init(const rapi_opts* opts)
+{
+	_library_opts_free();
+	rapi_error_t error = _library_opts_init();
+	if (RAPI_NO_ERROR != error)
+		return error;
+
+	if (opts)
+		return _set_library_opts(_g_library_opts, opts);
+	else
+		return RAPI_NO_ERROR;
+}
+
 rapi_error_t rapi_shutdown(void) {
-	/* no op */
+	_library_opts_free();
+
 	return RAPI_NO_ERROR;
 }
 
@@ -765,7 +826,7 @@ void adjust_bwa_opts(mem_opt_t* opt, const mem_opt_t* override)
 	}
 }
 
-static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
+static int _convert_opts(const library_opts* opts, mem_opt_t* bwa_opts)
 {
 	bwa_opts->T = opts->mapq_min;
 	bwa_opts->max_ins = opts->isize_max;
@@ -777,16 +838,45 @@ static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
 
 rapi_error_t rapi_aligner_state_init(struct rapi_aligner_state** ret_state, const rapi_opts* opts)
 {
+	rapi_error_t error;
+	const library_opts* lib_opts;
+	library_opts* tmp = NULL;
+
+	if (opts) {
+		tmp = calloc(1, sizeof(library_opts));
+		if (!tmp) return RAPI_MEMORY_ERROR;
+
+		error = _set_library_opts(tmp, opts);
+
+		if (error != RAPI_NO_ERROR) {
+			free(tmp);
+			return error;
+		}
+		lib_opts = tmp;
+	}
+	else {
+		lib_opts = _library_opts_get();
+	}
+
 	// allocate and zero the structure
 	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
-	if (NULL == state)
+	if (NULL == state) {
+		if (_library_opts_get() != lib_opts) // if it's not the library-wide option structure
+			free(tmp); // free through tmp avoid the warning about dropping 'const'
 		return RAPI_MEMORY_ERROR;
-	state->opts = opts;
+	}
+
+	state->opts = lib_opts;
+
 	return RAPI_NO_ERROR;
 }
 
 rapi_error_t rapi_aligner_state_free(rapi_aligner_state* state)
 {
+	if (state->opts != _library_opts_get()) {
+		free((library_opts*)state->opts);
+		state->opts = NULL;
+	}
 	free(state);
 	return RAPI_NO_ERROR;
 }
@@ -1209,7 +1299,7 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
 		return RAPI_PARAM_ERROR;
 
 	// "extract" BWA-specific structures
-	mem_opt_t*const bwa_opt = (mem_opt_t*) state->opts->_private;
+	mem_opt_t*const bwa_opt = (mem_opt_t*) state->opts->bwa_opts;
 
 	if (batch->n_reads_frag == 2) // paired-end
 		bwa_opt->flag |= MEM_F_PE;
