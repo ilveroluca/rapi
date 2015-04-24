@@ -800,7 +800,7 @@ failed_allocation:
  * So, if you change 'a' set the 'override' accordingly and call this function.  E.g.,
  *
  * <pre>
- *   rapi_opts* opt = rapi_init_opts();
+ *   rapi_opts* opt = rapi_opts_init();
  *   mem_opt_t* bwa_opts = (mem_opt_t*) opt->_private;
  *   bwa_opts->a = 2;
  *   bwa_opts->b = 5;
