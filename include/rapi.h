@@ -366,7 +366,18 @@ rapi_error_t rapi_set_read(rapi_batch * batch, rapi_ssize_t n_frag, int n_read, 
 /* Align */
 typedef struct rapi_aligner_state rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
-rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state);
+/**
+ * Create the aligner state structure.
+ *
+ * The library should initialize the aligner based on the options passed to
+ * rapi_init().  However, the user can provide new options that superceed the
+ * library-wide configuration.  Alternatively, \param opts is NULL.
+ *
+ * \param ret_state Return argument for the new aligner state.
+ * \param opts User-specified options, or NULL if the user wants to use the options passed to rapi_init.
+ * \return rapi_error_t Return code.
+ */
+rapi_error_t rapi_aligner_state_init(struct rapi_aligner_state** ret_state, const rapi_opts* opts);
 
 /**
  * Align the reads in batch to ref.

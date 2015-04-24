@@ -1093,7 +1093,7 @@ typedef struct {
 %extend rapi_aligner_state {
   rapi_aligner_state(const rapi_opts* opts) {
     struct rapi_aligner_state* pState;
-    rapi_error_t error = rapi_aligner_state_init(opts, &pState);
+    rapi_error_t error = rapi_aligner_state_init(&pState, opts);
     if (error != RAPI_NO_ERROR) {
       SWIG_Error(rapi_swig_error_type(error), "Error initializing aligner");
       return NULL;

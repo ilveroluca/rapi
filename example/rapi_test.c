@@ -115,7 +115,7 @@ int main(int argc, const char* argv[])
 			reads.n_frags, reads.n_reads_frag);
 
 	rapi_aligner_state* state;
-	error = rapi_aligner_state_init(&opts, &state);
+	error = rapi_aligner_state_init(&state, NULL);
 	check_error(error, "Failed to initialize aligner state");
 	fprintf(stderr, "initialized aligner state\n");
 

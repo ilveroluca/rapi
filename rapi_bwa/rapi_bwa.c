@@ -775,7 +775,7 @@ static int _convert_opts(const rapi_opts* opts, mem_opt_t* bwa_opts)
 	return RAPI_NO_ERROR;
 }
 
-rapi_error_t rapi_aligner_state_init(const rapi_opts* opts, struct rapi_aligner_state** ret_state)
+rapi_error_t rapi_aligner_state_init(struct rapi_aligner_state** ret_state, const rapi_opts* opts)
 {
 	// allocate and zero the structure
 	rapi_aligner_state* state = *ret_state = calloc(1, sizeof(rapi_aligner_state));
