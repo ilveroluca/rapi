@@ -56,6 +56,7 @@ class TestPyrapi(unittest.TestCase):
 class TestPyrapiRef(unittest.TestCase):
     def setUp(self):
         self.opts = rapi.opts()
+        self.opts.share_ref_mem = False # for Travis
         rapi.init(self.opts)
         self.ref = rapi.ref(stuff.MiniRef)
 
@@ -303,6 +304,7 @@ class TestPyrapiAlignment(unittest.TestCase):
 
     def setUp(self):
         self.opts = rapi.opts()
+        self.opts.share_ref_mem = False # for Travis
         rapi.init(self.opts)
         self.ref = rapi.ref(stuff.MiniRef)
         aligner = rapi.aligner(self.opts)
