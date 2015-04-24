@@ -728,7 +728,7 @@ void _free_bwa_batch_contents(bwa_batch* batch)
 }
 
 
-static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, const rapi_opts* opts, int start_fragment, int end_fragment, bwa_batch* bwa_seqs)
+static rapi_error_t _batch_to_bwa_seq(const rapi_batch* batch, int start_fragment, int end_fragment, bwa_batch* bwa_seqs)
 {
 	if (start_fragment < 0 && end_fragment < 0) {
 		start_fragment = 0;
@@ -1309,7 +1309,7 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
 
 	// traslate our read structure into BWA reads
 	bwa_batch bwa_seqs;
-	if ((error = _batch_to_bwa_seq(batch, state->opts, start_fragment, end_fragment, &bwa_seqs)))
+	if ((error = _batch_to_bwa_seq(batch, start_fragment, end_fragment, &bwa_seqs)))
 		return error;
 	fprintf(stderr, "Converted reads to BWA structures.\n");
 
