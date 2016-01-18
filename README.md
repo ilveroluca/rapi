@@ -42,6 +42,15 @@ programs.
 The more interesting bit is probably the Python interface to RAPI, which you can
 find under `pyrapi`.  If you have all the necessary
 
+Authors
+---------
+
+RAPI is written by Luca Pireddu (pireddu@crs4.it).
+
+Thanks go to these people for their contributions:
+  * Riccardo Berutti (berutti@berutti.net)
+  * Sebastian Schoenherr (sebastian.schoenherr@uibk.ac.at)
+
 
 FAQ
 -------
