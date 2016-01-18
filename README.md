@@ -3,6 +3,10 @@ rapi
 
 Read aligner API
 
+This project defines an API for a short read aligner (to map short reads to a
+reference sequence).  It also includes a reference implementation that wraps
+BWA-MEM and Python bindings for the API.
+
 
 Compiling
 ---------------
