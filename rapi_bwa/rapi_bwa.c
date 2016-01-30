@@ -925,6 +925,31 @@ int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops)
 	return len;
 }
 
+rapi_error_t rapi_rev_comp(char* seq, int len)
+{
+	// we have complement values for 0..25.  Invalid bases are given a space
+	static const char*const complement = "T G   C      N     A      ";
+
+	if (len < 0 || !seq)
+		return RAPI_PARAM_ERROR;
+
+	for (int i = 0; i < len / 2; ++i) {
+		if (seq[i] < 'A' || seq[i] > 'T') return RAPI_PARAM_ERROR;
+		const char tmp = complement[ seq[i] - 'A' ];
+		const int other = len - i - 1;
+		if (seq[other] < 'A' || seq[other] > 'T') return RAPI_PARAM_ERROR;
+		seq[i] = complement[ seq[other] - 'A' ];
+		seq[other] = tmp;
+	}
+	if (len % 2 == 1) { // odd length
+		const int center = len / 2;
+		if (seq[center] < 'A' || seq[center] > 'T') return RAPI_PARAM_ERROR;
+		seq[center] = complement[ seq[center] - 'A' ];
+	}
+
+	return RAPI_NO_ERROR;
+}
+
 
 /********** modified BWA code *****************/
 

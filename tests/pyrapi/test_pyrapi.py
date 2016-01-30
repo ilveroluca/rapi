@@ -53,6 +53,16 @@ class TestPyrapi(unittest.TestCase):
         self.opts.share_ref_mem = False
         self.assertEquals(False, self.opts.share_ref_mem)
 
+    def test_rev_comp(self):
+        seq = "AGCTN" # odd length
+        self.assertEquals("NAGCT", rapi.rev_comp(seq))
+        seq = "AGCTNA"  # even length
+        self.assertEquals("TNAGCT", rapi.rev_comp(seq))
+        self.assertEquals("", rapi.rev_comp(""))
+        self.assertRaises(TypeError, rapi.rev_comp, 2)
+        self.assertRaises(TypeError, rapi.rev_comp, None)
+        self.assertRaises(ValueError, rapi.rev_comp, "tnagct")
+
 class TestPyrapiRef(unittest.TestCase):
     def setUp(self):
         self.opts = rapi.opts()

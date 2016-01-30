@@ -1130,6 +1130,45 @@ typedef struct {
 /***************************************
  ****** other stuff              *******
  ***************************************/
+%rename(rev_comp) rapi_rev_comp_wrapper;
+
+// The next two typemaps configure the OutValue for the rapi_rev_comp_wrapper
+// function.
+%typemap(argout) PyObject** OutValue {
+  $result = *$1;
+}
+// This one tells SWIG that the OutValue argument isn't used for input.
+// It also allocates a temporary local variable to hold the output value,
+// and sets $1 to point to it.
+%typemap(in, numinputs=0) PyObject** OutValue(PyObject* temp) {
+  $1 = &temp;
+}
+
+rapi_error_t rapi_rev_comp_wrapper(PyObject* seq, PyObject** OutValue);
+
+%{
+rapi_error_t rapi_rev_comp_wrapper(PyObject* seq, PyObject** outRevComp) {
+  if (!PyString_Check(seq)) {
+    return RAPI_TYPE_ERROR;
+  }
+
+  Py_ssize_t seq_len = PyString_GET_SIZE(seq);
+  PyObject* retval = PyString_FromStringAndSize(PyString_AS_STRING(seq), seq_len);
+  if (!retval) {
+    return RAPI_GENERIC_ERROR;
+  }
+
+  char* tmp_str = PyString_AS_STRING(retval);
+  rapi_error_t error = rapi_rev_comp(tmp_str, seq_len);
+  if (error != RAPI_NO_ERROR) {
+    Py_DECREF(retval);
+    retval = NULL;
+  }
+
+  *outRevComp = retval;
+  return error;
+}
+%}
 
 /***
  * Swig's default output typemap to wrap char* strings converts NULL
