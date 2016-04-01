@@ -58,7 +58,7 @@ void print_alignments(const rapi_batch* batch, FILE* out)
 
 				fprintf(out, "\t%d", flag);
 				if (aln->mapped)
-					fprintf(out, "\t%s\t%ld", aln->contig->name, aln->pos);
+					fprintf(out, "\t%s\t%zd", aln->contig->name, aln->pos);
 				else
 					fprintf(out, "\t*\t*");
 
@@ -111,7 +111,7 @@ int main(int argc, const char* argv[])
 	}
 
 	fprintf(stderr, "Allocated read batch\n");
-	fprintf(stderr, "\tn_frags: %d; n_reads_frag: %d\n",
+	fprintf(stderr, "\tn_frags: %zd; n_reads_frag: %d\n",
 			reads.n_frags, reads.n_reads_frag);
 
 	rapi_aligner_state* state;
