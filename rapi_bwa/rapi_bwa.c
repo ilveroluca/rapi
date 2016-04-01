@@ -1331,76 +1331,18 @@ static void bwa_worker_2(void *data, int i, int tid)
 #endif
 /********** end modified BWA code *****************/
 
-rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
-        rapi_ssize_t start_fragment, rapi_ssize_t end_fragment, rapi_aligner_state* state )
+/******* Read batch functions *******/
+
+#define BatchGetReads(batch_ptr) ( (rapi_read*) ((batch_ptr)->_private) )
+
+rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read)
 {
-	rapi_error_t error = RAPI_NO_ERROR;
-
-	if (batch->n_reads_frag > 2)
-		return RAPI_OP_NOT_SUPPORTED_ERROR;
-
-	if (batch->n_reads_frag <= 0)
-		return RAPI_PARAM_ERROR;
-
-	// "extract" BWA-specific structures
-	mem_opt_t*const bwa_opt = (mem_opt_t*) state->opts->bwa_opts;
-
-	if (batch->n_reads_frag == 2) // paired-end
-		bwa_opt->flag |= MEM_F_PE;
-
-	if ((error = _convert_opts(state->opts, bwa_opt)))
-		return error;
-
-	// traslate our read structure into BWA reads
-	bwa_batch bwa_seqs;
-	if ((error = _batch_to_bwa_seq(batch, start_fragment, end_fragment, &bwa_seqs)))
-		return error;
-	fprintf(stderr, "Converted reads to BWA structures.\n");
-
-	fprintf(stderr, "Going to process.\n");
-	mem_alnreg_v *regs = malloc(bwa_seqs.n_reads * sizeof(mem_alnreg_v));
-	if (NULL == regs) {
-		error = RAPI_MEMORY_ERROR;
-		goto clean_up;
-	}
-
-	extern void kt_for(int n_threads, void (*func)(void*,int,int), void *data, int n);
-	bwa_worker_t w;
-	w.opt = bwa_opt;
-	w.read_batch = &bwa_seqs;
-	w.regs = regs;
-	w.pes = state->pes;
-	w.n_processed = state->n_reads_processed;
-	w.rapi_ref = ref;
-	w.rapi_reads = batch->reads;
-
-	fprintf(stderr, "Calling bwa_worker_1. ");
-	rapi_print_bwa_flag_string(stderr, bwa_opt->flag);
-
-	int n_fragments = (bwa_opt->flag & MEM_F_PE) ? bwa_seqs.n_reads / 2 : bwa_seqs.n_reads;
-	kt_for(bwa_opt->n_threads, bwa_worker_1, &w, n_fragments); // find mapping positions
-
-	if (bwa_opt->flag & MEM_F_PE) { // infer insert sizes if not provided
-		// TODO: support manually setting insert size dist parameters
-		// if (pes0) memcpy(pes, pes0, 4 * sizeof(mem_pestat_t)); // if pes0 != NULL, set the insert-size distribution as pes0
-		mem_pestat(bwa_opt, ((bwaidx_t*)ref->_private)->bns->l_pac, bwa_seqs.n_reads, regs, w.pes); // infer the insert size distribution from data
-	}
-	kt_for(bwa_opt->n_threads, bwa_worker_2, &w, n_fragments); // generate alignment
-
-	// run the alignment
-	state->n_reads_processed += bwa_seqs.n_reads;
-	fprintf(stderr, "processed %" PRId64 " reads\n", state->n_reads_processed);
-
-clean_up:
-	free(regs);
-	_free_bwa_batch_contents(&bwa_seqs);
-
-	return error;
+	if (n_frag >= 0 && n_frag < batch->n_frags
+	 && n_read >= 0 && n_read < batch->n_reads_frag) {
+	  return BatchGetReads(batch) + (n_frag * batch->n_reads_frag + n_read);
+  }
+  return NULL; // else coordinates are out of bounds
 }
-
-/******* Generic functions ***********
- * These are generally usable. We should put them in a generic rapi.c file.
- *************************************/
 
 /* Allocate reads */
 rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments )
@@ -1408,8 +1350,8 @@ rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_f
 	if (n_fragments < 0 || n_reads_fragment < 0)
 		return RAPI_PARAM_ERROR;
 
-	batch->reads = calloc( n_reads_fragment * n_fragments, sizeof(rapi_read) );
-	if (NULL == batch->reads)
+	batch->_private = calloc( n_reads_fragment * n_fragments, sizeof(BatchGetReads(batch)[0]) );
+	if (NULL == BatchGetReads(batch))
 		return RAPI_MEMORY_ERROR;
 	batch->n_frags = n_fragments;
 	batch->n_reads_frag = n_reads_fragment;
@@ -1428,14 +1370,14 @@ rapi_error_t rapi_reads_reserve(rapi_batch* batch, rapi_ssize_t n_fragments)
 		// Current space insufficient.  Need to reallocate.
 		rapi_ssize_t old_n_reads = batch->n_frags * batch->n_reads_frag;
 		rapi_ssize_t new_n_reads = n_fragments * batch->n_reads_frag;
-		rapi_read* space = realloc(batch->reads, new_n_reads * sizeof(batch->reads[0]));
+		rapi_read* space = realloc(BatchGetReads(batch), new_n_reads * sizeof(BatchGetReads(batch)[0]));
 		if (space == NULL)
 			return RAPI_MEMORY_ERROR;
 		else {
 			// set new space to 0
-			memset(space + old_n_reads, 0, (new_n_reads - old_n_reads) * sizeof(batch->reads[0]));
+			memset(space + old_n_reads, 0, (new_n_reads - old_n_reads) * sizeof(BatchGetReads(batch)[0]));
 			batch->n_frags = n_fragments;
-			batch->reads = space;
+			batch->_private = space;
 		}
 	}
 	return RAPI_NO_ERROR;
@@ -1464,7 +1406,7 @@ static void _rapi_free_read_structures(rapi_batch* batch)
 rapi_error_t rapi_reads_clear(rapi_batch* batch)
 {
 	_rapi_free_read_structures(batch);
-	memset(batch->reads, 0,  batch->n_reads_frag * batch->n_frags * sizeof(rapi_read));
+	memset(BatchGetReads(batch), 0,  batch->n_reads_frag * batch->n_frags * sizeof(BatchGetReads(batch)[0]));
 
 	return RAPI_NO_ERROR;
 }
@@ -1472,7 +1414,7 @@ rapi_error_t rapi_reads_clear(rapi_batch* batch)
 rapi_error_t rapi_reads_free(rapi_batch* batch )
 {
 	_rapi_free_read_structures(batch);
-	free(batch->reads);
+	free(BatchGetReads(batch));
 	memset(batch, 0, sizeof(*batch));
 
 	return RAPI_NO_ERROR;
@@ -1548,3 +1490,70 @@ error:
 	return error_code;
 }
 
+/******* Read alignment ******/
+rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
+        rapi_ssize_t start_fragment, rapi_ssize_t end_fragment, rapi_aligner_state* state )
+{
+	rapi_error_t error = RAPI_NO_ERROR;
+
+	if (batch->n_reads_frag > 2)
+		return RAPI_OP_NOT_SUPPORTED_ERROR;
+
+	if (batch->n_reads_frag <= 0)
+		return RAPI_PARAM_ERROR;
+
+	// "extract" BWA-specific structures
+	mem_opt_t*const bwa_opt = (mem_opt_t*) state->opts->bwa_opts;
+
+	if (batch->n_reads_frag == 2) // paired-end
+		bwa_opt->flag |= MEM_F_PE;
+
+	if ((error = _convert_opts(state->opts, bwa_opt)))
+		return error;
+
+	// traslate our read structure into BWA reads
+	bwa_batch bwa_seqs;
+	if ((error = _batch_to_bwa_seq(batch, start_fragment, end_fragment, &bwa_seqs)))
+		return error;
+	fprintf(stderr, "Converted reads to BWA structures.\n");
+
+	fprintf(stderr, "Going to process.\n");
+	mem_alnreg_v *regs = malloc(bwa_seqs.n_reads * sizeof(mem_alnreg_v));
+	if (NULL == regs) {
+		error = RAPI_MEMORY_ERROR;
+		goto clean_up;
+	}
+
+	extern void kt_for(int n_threads, void (*func)(void*,int,int), void *data, int n);
+	bwa_worker_t w;
+	w.opt = bwa_opt;
+	w.read_batch = &bwa_seqs;
+	w.regs = regs;
+	w.pes = state->pes;
+	w.n_processed = state->n_reads_processed;
+	w.rapi_ref = ref;
+	w.rapi_reads = BatchGetReads(batch);
+
+	fprintf(stderr, "Calling bwa_worker_1. ");
+	rapi_print_bwa_flag_string(stderr, bwa_opt->flag);
+
+	int n_fragments = (bwa_opt->flag & MEM_F_PE) ? bwa_seqs.n_reads / 2 : bwa_seqs.n_reads;
+	kt_for(bwa_opt->n_threads, bwa_worker_1, &w, n_fragments); // find mapping positions
+
+	if (bwa_opt->flag & MEM_F_PE) { // infer insert sizes if not provided
+		// TODO: support manually setting insert size dist parameters
+		// if (pes0) memcpy(pes, pes0, 4 * sizeof(mem_pestat_t)); // if pes0 != NULL, set the insert-size distribution as pes0
+		mem_pestat(bwa_opt, ((bwaidx_t*)ref->_private)->bns->l_pac, bwa_seqs.n_reads, regs, w.pes); // infer the insert size distribution from data
+	}
+	kt_for(bwa_opt->n_threads, bwa_worker_2, &w, n_fragments); // generate alignment
+
+	// run the alignment
+	state->n_reads_processed += bwa_seqs.n_reads;
+	fprintf(stderr, "processed %" PRId64 " reads\n", state->n_reads_processed);
+
+clean_up:
+	free(regs);
+	_free_bwa_batch_contents(&bwa_seqs);
+
+	return error;
+}

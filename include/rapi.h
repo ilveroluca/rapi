@@ -304,7 +304,7 @@ typedef struct {
 typedef struct {
 	rapi_ssize_t n_frags;
 	int n_reads_frag;
-	rapi_read * reads;
+	void * _private;
 } rapi_batch;
 
 
@@ -415,13 +415,8 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
 
 rapi_error_t rapi_aligner_state_free(struct rapi_aligner_state* state);
 
-static inline rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read) {
-	if (n_frag >= 0 && n_frag < batch->n_frags
-	 && n_read >= 0 && n_read < batch->n_reads_frag) {
-	  return batch->reads + (n_frag * batch->n_reads_frag + n_read);
-  }
-  return NULL; // else coordinates are out of bounds
-}
+rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read);
+
 
 long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate);
 
@@ -438,8 +433,6 @@ void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstri
  * \param reads: pointer to list of read pointers; reads must be ordered first to last
  *
  * \param n_reads: number of reads in list
- *
- * \param output: str where output will be written
  *
  * \param output An initialized kstring_t to which the SAM will be appended.
  */
