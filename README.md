@@ -16,8 +16,10 @@ Run `make`.
 You'll need to have some tools on your system:
 
 * git
-* python 2.x
 * Swig 3
+* python 2.x, including dev files
+* python-setuptools
+* zlib-dev
 
 Plus everything necessary to build C programs.
 
