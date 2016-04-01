@@ -2,6 +2,7 @@
 CC = gcc
 AR = ar
 
+SHELL=/bin/bash
 
 PYTHON_INCLUDES := $(shell python-config --includes)
 PYTHON_PREFIX := $(shell python-config --prefix)
@@ -12,6 +13,8 @@ CFLAGS := -g -Wall -O2 -std=c99 -fPIC
 RAPI_BWA := ../rapi_bwa/librapi_bwa.a
 SHARED := _rapi.so
 UNAME := $(shell uname)
+# I've seen swig installed under various names.  Look for all of them
+SWIG := $(shell type -P swig swig3 swig3.{0..9})
 
 
 .SUFFIXES:.c .o
@@ -23,7 +26,8 @@ UNAME := $(shell uname)
 all: $(SHARED)
 
 rapi_wrap.c: ../include/rapi.h rapi.i
-	swig -builtin -python $(INCLUDES) -o rapi_wrap.c rapi.i
+	$(info "Using SWIG executable $(SWIG)")
+	$(SWIG) -builtin -python $(INCLUDES) -o rapi_wrap.c rapi.i
 
 rapi_wrap.o: rapi_wrap.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c rapi_wrap.c

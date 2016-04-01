@@ -7,9 +7,28 @@ import sys
 from setuptools import setup, Extension
 
 from distutils.command.build import build
+from distutils.command.build_ext import build_ext
 from setuptools.command.install import install
 from distutils.command.clean import clean
 from distutils import log
+
+def find_swig():
+    for path in os.environ['PATH'].split(os.pathsep):
+        swigs = glob(os.path.join(path, 'swig*'))
+        if swigs:
+            return swigs[0]
+    return None
+
+class CustomBuildExt(build_ext):
+    """
+    Custom build_ext used merely to inject code to find the swig executable.
+    """
+    def finalize_options(self):
+        build_ext.finalize_options(self)
+        log.info("Running CustomBuildExt.finalize_options")
+        if not self.swig:
+            self.swig = find_swig()
+            log.info("Using swig found at %s", self.swig)
 
 
 class CustomBuild(build):
@@ -57,6 +76,7 @@ bwa_rapi_extension = Extension(
 setup(
     cmdclass={
         'build': CustomBuild,
+        'build_ext': CustomBuildExt,
         'install': CustomInstall,
         'clean':  CustomClean,
     },
