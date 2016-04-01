@@ -452,14 +452,14 @@ class TestPyrapiAlignment(unittest.TestCase):
         self.assertEquals(a_tags, b_tags)
 
     def test_sam_batch_error_checking(self):
-        self.assertRaises(TypeError, rapi.format_sam_by_batch, None, None)
-        self.assertRaises(TypeError, rapi.format_sam_by_batch, 42, 42)
-        self.assertRaises(IndexError, rapi.format_sam_by_batch, self.batch, 10000)
+        self.assertRaises(TypeError, rapi.format_sam_from_batch, None, None)
+        self.assertRaises(TypeError, rapi.format_sam_from_batch, 42, 42)
+        self.assertRaises(IndexError, rapi.format_sam_from_batch, self.batch, 10000)
 
     def test_sam_batch(self):
         # we produce SAM for the first pair in our set and the last one (which is the
         # first pair reversed and complemented)
-        rapi_sam = rapi.format_sam_by_batch(self.batch, 0).split('\n') + rapi.format_sam_by_batch(self.batch, 4).split('\n')
+        rapi_sam = rapi.format_sam_from_batch(self.batch, 0).split('\n') + rapi.format_sam_from_batch(self.batch, 4).split('\n')
 
         for i in xrange(len(rapi_sam)):
             self._compare_sam_records(self.ExpectedSam[i], rapi_sam[i])

@@ -1246,7 +1246,7 @@ clean:
 }
 
 
-char* format_sam_by_batch(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
+char* format_sam_from_batch(const rapi_batch_wrap* wrapper, rapi_ssize_t n_frag) {
   if (NULL == wrapper) {
     SWIG_Error(SWIG_TypeError, "wrapper argument cannot be None");
     return NULL;
