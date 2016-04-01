@@ -19,7 +19,7 @@ You'll need to have some tools on your system:
 * python 2.x
 * Swig 3
 
-Plus everything necessary to build C programa.
+Plus everything necessary to build C programs.
 
 
 Running tests
@@ -34,13 +34,24 @@ Using it
 
 That's too complicated to explain in this README file :-D
 
-The API is defined in `include/rapi.h`.  The only implementation existing at the
-momemnt wraps BWA-MEM; you can find it under `rapi_bwa`, where you'll also find
-a static library (after building it, of course) that you can link to your own
-programs.
+C interface
++++++++++++++++
 
-The more interesting bit is probably the Python interface to RAPI, which you can
-find under `pyrapi`.  If you have all the necessary
+The API is defined in `include/rapi.h`.  You can find an example showing how to
+use it under `example/rapi_test.c`.  The only plug-in implementation existing at
+the moment wraps BWA-MEM; you can find it under `rapi_bwa`, where you'll also
+find a static library (after building it, of course) that you can link to your
+own programs.
+
+
+Python interface
++++++++++++++++++++
+
+An equally interesting bit is the Python interface to RAPI, which you can
+find under `pyrapi`.  The script `example/align.py` implements a command-line
+interface to the aligner (you can use it to align reads in fastq files and
+generate SAM).
+
 
 Authors
 ---------
