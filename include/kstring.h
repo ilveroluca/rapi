@@ -101,6 +101,16 @@ static inline int ks_resize(kstring_t *s, size_t size)
 	return 0;
 }
 
+static inline int ktrunc(kstring_t* s, size_t newlen)
+{
+  if (newlen > s->l) // can't grow with ktrunc
+    return -1;
+  s->l = newlen;
+  if (s->m) // if we have a buffer, set end-of-str character
+    s->s[newlen] = 0;
+  return 0;
+}
+
 static inline char *ks_str(kstring_t *s)
 {
 	return s->s;
