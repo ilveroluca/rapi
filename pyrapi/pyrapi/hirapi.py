@@ -65,9 +65,9 @@ class HiRapiAligner(object):
     Qenc_Sanger = pyrapi.rapi.QENC_SANGER
     Qenc_Illumina = pyrapi.rapi.QENC_ILLUMINA
 
-    def __init__(self, rapi_plugin_id, paired=True):
+    def __init__(self, rapi_plugin_id, paired=True, opts=None):
         self._plugin = pyrapi.load_aligner(rapi_plugin_id)
-        self._opts = HiRapiOpts(self._plugin)
+        self._opts = opts if opts else HiRapiOpts(self._plugin)
         self._plugin.init(self._opts._rapi_opts)
         self._batch = self._plugin.read_batch(2 if paired else 1)
 
