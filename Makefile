@@ -40,15 +40,14 @@ rapi_bwa: bwa_lib
 	$(MAKE) -C rapi_bwa/
    
 pyrapi: bwa_lib rapi_bwa
-	(cd pyrapi && python setup.py clean --all && python setup.py build)
+	(cd bindings/pyrapi && python setup.py clean --all && python setup.py build)
 
 example: pyrapi
 	$(MAKE) -C example
 
 clean:
 	$(MAKE) -C rapi_bwa/ clean
-	(cd pyrapi && python setup.py clean --all)
-
+	$(MAKE) -C bindings/ clean
 
 distclean: clean
 	# Remove automatically built BWA, if it exists
@@ -56,7 +55,6 @@ distclean: clean
 
 tests: pyrapi
 	python tests/pyrapi/test_pyrapi.py
-
 
 .PHONY: clean distclean tests pyrapi rapi_bwa example
 

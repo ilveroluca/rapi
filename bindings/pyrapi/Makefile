@@ -8,14 +8,15 @@ PYTHON_INCLUDES := $(shell python-config --includes)
 PYTHON_PREFIX := $(shell python-config --prefix)
 PYTHON_LIBS := $(shell python-config --libs)
 
-INCLUDES := -I../include $(PYTHON_INCLUDES)
+INTERFACE := ../rapi.i
+ROOT := ../..
+INCLUDES := -I$(ROOT)/include $(PYTHON_INCLUDES)
 CFLAGS := -g -Wall -O2 -std=c99 -fPIC
-RAPI_BWA := ../rapi_bwa/librapi_bwa.a
+RAPI_BWA := $(ROOT)/rapi_bwa/librapi_bwa.a
 SHARED := _rapi.so
 UNAME := $(shell uname)
 # I've seen swig installed under various names.  Look for all of them
 SWIG := $(shell type -P swig swig3 swig3.{0..9})
-
 
 .SUFFIXES:.c .o
 .PHONY: clean
@@ -25,9 +26,9 @@ SWIG := $(shell type -P swig swig3 swig3.{0..9})
 
 all: $(SHARED)
 
-rapi_wrap.c: ../include/rapi.h rapi.i
+rapi_wrap.c: $(ROOT)/include/rapi.h $(INTERFACE)
 	$(info "Using SWIG executable $(SWIG)")
-	$(SWIG) -builtin -python $(INCLUDES) -o rapi_wrap.c rapi.i
+	$(SWIG) -builtin -python $(INCLUDES) -o rapi_wrap.c $(INTERFACE)
 
 rapi_wrap.o: rapi_wrap.c
 	$(CC) $(CFLAGS) $(INCLUDES) -c rapi_wrap.c
@@ -43,3 +44,4 @@ endif
 
 clean:
 	rm -f $(SHARED) rapi_wrap.[co] rapi.py rapi.pyc
+	python setup.py clean --all

@@ -79,12 +79,19 @@ class CustomClean(clean):
         clean.run(self)
 
 
+#####
+pyrapi_dir = os.path.dirname(os.path.abspath(__file__))
+print >> sys.stderr, "pyrapi/setup.py changing directory into", pyrapi_dir
+os.chdir(pyrapi_dir)
+#####
+
+ProjectRoot = "../.."
 
 bwa_rapi_extension = Extension(
-    'pyrapi._rapi', ['pyrapi/rapi.i'],
-    swig_opts=['-builtin', '-I../include'],
-    include_dirs=['../include'],
-    library_dirs=['../rapi_bwa'],
+    'pyrapi._rapi', ['rapi.i'],
+    swig_opts=['-builtin', '-I%s' % os.path.join(ProjectRoot, 'include'), ],
+    include_dirs=[os.path.join(ProjectRoot, 'include')],
+    library_dirs=[os.path.join(ProjectRoot, 'rapi_bwa')],
     libraries=['rapi_bwa', 'z'],
     extra_compile_args=['-std=c99'])
 

@@ -3,7 +3,8 @@ bwa-auto-build
 *.so
 *.a
 tags
-pyrapi/rapi_wrap.c
-pyrapi/rapi.py
+bindings/pyrapi/rapi_wrap.c
+bindings/pyrapi/rapi.py
+bindings/pyrapi/pyrapi.egg-info/
 rapi_bwa/bwa_header.h
 example/rapi_test
