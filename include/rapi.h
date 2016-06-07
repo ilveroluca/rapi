@@ -83,7 +83,7 @@ static inline void rapi_kstr_init(kstring_t* s) {
 }
 
 
-typedef struct {
+typedef struct rapi_param {
 	kstring_t name;
 	uint8_t type;
 	union {
@@ -144,7 +144,7 @@ static inline int rapi_param_get_long(const rapi_param* kv, long * value      ) 
 static inline int rapi_param_get_dbl( const rapi_param* kv, double * value    ) KV_GET_IMPL(RAPI_VTYPE_REAL, value.real)
 
 /* Key-value list */
-typedef struct {
+typedef struct rapi_tag {
 	char key[RAPI_MAX_TAG_LEN + 1]; // null-terminated
 	uint8_t type;
 	union {
@@ -206,7 +206,7 @@ static inline int rapi_tag_get_dbl( const rapi_tag* kv, double * value    ) KV_G
 /**
  * Options.
  */
-typedef struct {
+typedef struct rapi_opts {
 	int ignore_unsupported;
 	/* Standard options */
 	// filtering
@@ -237,7 +237,7 @@ typedef struct {
 /**
  * Reference
  */
-typedef struct {
+typedef struct rapi_contig {
 	char * name;
 	rapi_ssize_t len;
 	char * assembly_identifier;
@@ -246,7 +246,7 @@ typedef struct {
 	char * md5;
 } rapi_contig;
 
-typedef struct {
+typedef struct rapi_ref {
 	char * path;
 	int n_contigs;
 	rapi_contig * contigs;
@@ -257,14 +257,14 @@ typedef struct {
 /**
  * Alignment
  */
-typedef struct {
+typedef struct rapi_cigar {
 	uint32_t op:4,
 	         len:28;
 } rapi_cigar;
 
 typedef kvec_t(rapi_tag) rapi_tag_list;
 
-typedef struct {
+typedef struct rapi_alignment {
 	rapi_contig* contig;
 	rapi_ssize_t pos; // 1-based
 	uint8_t mapq;
@@ -289,7 +289,7 @@ typedef struct {
 /**
  * Reads
  */
-typedef struct {
+typedef struct rapi_read {
 	char * id;   // NULL-terminated
 	char * seq;  // NULL-terminated, capital letters in [AGCTN]
 	char * qual; // NULL-terminated, ASCII-encoded in Sanger q+33 format
@@ -301,7 +301,7 @@ typedef struct {
 /**
  * Batches of reads
  */
-typedef struct {
+typedef struct rapi_batch {
 	rapi_ssize_t n_frags;
 	int n_reads_frag;
 	void * _private;
