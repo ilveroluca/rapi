@@ -29,7 +29,7 @@ export BWA_PATH := $(PWD)/bwa-auto-build
 
 $(info "Using BWA_PATH = $(BWA_PATH)")
 
-all: rapi_bwa pyrapi example
+all: rapi_bwa pyrapi jrapi example
 
 bwa_lib: $(BWA_PATH)/libbwa.a
 
@@ -41,6 +41,9 @@ rapi_bwa: bwa_lib
    
 pyrapi: bwa_lib rapi_bwa
 	(cd bindings/pyrapi && python setup.py clean --all && python setup.py build)
+
+jrapi: bwa_lib rapi_bwa
+	make -C bindings/jrapi
 
 example: pyrapi
 	$(MAKE) -C example
