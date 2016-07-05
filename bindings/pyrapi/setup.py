@@ -72,23 +72,19 @@ class CustomClean(clean):
     def run(self):
         log.info("Running CustomClean")
         my_dir = os.path.dirname(__file__)
-        for pattern in ('rapi.py', 'rapi_wrap.*', '_rapi.so'):
+        for pattern in ('rapi.py', 'rapi.pyc', 'pyrapi_wrap.*', '_rapi.so'):
             for f in glob(os.path.join(my_dir, 'pyrapi', pattern)):
                 log.info("Removing %s", f)
                 os.remove(f)
         clean.run(self)
 
 
-#####
 pyrapi_dir = os.path.dirname(os.path.abspath(__file__))
-print >> sys.stderr, "pyrapi/setup.py changing directory into", pyrapi_dir
-os.chdir(pyrapi_dir)
-#####
-
-ProjectRoot = "../.."
+ProjectRoot = os.path.abspath(os.path.join(pyrapi_dir, "../.."))
+print >> sys.stderr, "Project root:", ProjectRoot
 
 bwa_rapi_extension = Extension(
-    'pyrapi._rapi', ['rapi.i'],
+    'pyrapi._rapi', ['pyrapi/pyrapi.i'],
     swig_opts=['-builtin', '-I%s' % os.path.join(ProjectRoot, 'include'), ],
     include_dirs=[os.path.join(ProjectRoot, 'include')],
     library_dirs=[os.path.join(ProjectRoot, 'rapi_bwa')],

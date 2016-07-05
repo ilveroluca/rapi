@@ -16,7 +16,7 @@
 ###############################################################################
 
 clean:
-	$(MAKE) -C pyrapi clean
+	(cd pyrapi && python setup.py clean --all)
 
 
 .PHONY: clean
