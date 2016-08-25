@@ -1542,6 +1542,7 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
 	rapi_print_bwa_flag_string(stderr, bwa_opt->flag);
 
 	int n_fragments = (bwa_opt->flag & MEM_F_PE) ? bwa_seqs.n_reads / 2 : bwa_seqs.n_reads;
+	fprintf(stderr, "Mapping in %d threads.\n", bwa_opt->n_threads);
 	kt_for(bwa_opt->n_threads, bwa_worker_1, &w, n_fragments); // find mapping positions
 
 	if (bwa_opt->flag & MEM_F_PE) { // infer insert sizes if not provided
