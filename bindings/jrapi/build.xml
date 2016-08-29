@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="jrapi" default="package" basedir=".">
+  <!-- user directories -->
+  <property name="src.dir" value="src" />
+  <property name="gensrc.dir" value="gensrc" />
+  <property name="test.dir" value="tests" />
+  <property name="build.dir" value="build" />
+  <property name="class.dir" value="classes" />
+  <property name="test.class.dir" value="test-${class.dir}" />
+  <property name="jar.file" value="${ant.project.name}.jar" />
+  <property name="jrapi.so" value="${basedir}/jrapi.so" />
+
+  <property name="version" value="0.1.0" />
+
+  <property name="debug.build" value="false" />
+  <echo message="debug.build: ${debug.build}" />
+
+  <!-- extra properties -->
+  <property environment="env"/>
+
+  <fileset id="junit_jars_ubuntu" dir="/usr/share/java">
+    <include name="junit4.jar"/>
+    <include name="hamcrest-*.jar"/>
+  </fileset>
+
+  <!-- tasks -->
+  <target name="set_classpaths">
+    <path id="build.classpath">
+    </path>
+
+    <path id="test.classpath">
+      <pathelement path="${class.dir}"/>
+      <pathelement path="${test.class.dir}"/>
+      <path refid="build.classpath" />
+      <fileset refid="junit_jars_ubuntu" />
+    </path>
+  </target>
+
+  <target name="clean">
+    <delete failonerror="false" dir="${build.dir}"/>
+    <delete failonerror="false" dir="${class.dir}"/>
+    <delete failonerror="false" dir="${test.class.dir}"/>
+  </target>
+
+  <target name="version_check">
+    <fail message="Please use ant version 1.7 and Java 1.6 or newer (using ${ant.version} and Java ${ant.java.version}).  To override this check use override_version_check=true">
+      <condition>
+        <not>
+          <or>
+            <istrue value="${override_version_check}" />
+            <and>
+              <antversion atleast="1.7"/>
+              <matches string="${ant.java.version}" pattern="1\.[6-9]" />
+            </and>
+          </or>
+        </not>
+      </condition>
+    </fail>
+  </target>
+
+  <target name="compile" depends="version_check,set_classpaths">
+    <mkdir dir="${class.dir}"/>
+    <mkdir dir="${build.dir}"/>
+
+    <javac destdir="${class.dir}" includeAntRuntime="false" debug="${debug.build}">
+      <src>
+        <pathelement path="${src.dir}"/>
+        <pathelement path="${gensrc.dir}"/>
+      </src>
+      <classpath>
+        <path  refid="build.classpath" />
+      </classpath>
+    </javac>
+
+    <manifest file="${build.dir}/MANIFEST.MF">
+      <attribute name="Built-By" value="${user.name}"/>
+      <attribute name="Specification-Title" value="JRapi"/>
+      <attribute name="Specification-Version" value="${version}"/>
+      <attribute name="Implementation-Title" value="JRapi"/>
+      <attribute name="Implementation-Version" value="${version}"/>
+    </manifest>
+  </target>
+
+  <target name="package" depends="compile">
+    <mkdir dir="${build.dir}"/>
+
+    <!-- create the jar and include the hadoop-bam jars within it, under the lib directory -->
+    <jar destfile="${build.dir}/${jar.file}" manifest="${build.dir}/MANIFEST.MF" >
+      <fileset dir="${class.dir}" />
+    </jar>
+  </target>
+
+  <target name="build-tests" depends="compile">
+    <mkdir dir="${test.class.dir}"/>
+    <javac srcdir="${test.dir}" destdir="${test.class.dir}" includeAntRuntime="false" debug="true">
+      <classpath refid="test.classpath" />
+    </javac>
+  </target>
+
+  <target name="run-tests" depends="build-tests">
+    <property name="log4jconfig" location="${test.dir}/log4j.properties" />
+
+    <junit showoutput="true" failureproperty="junit.failure" dir="${basedir}" fork="true" printsummary="withOutAndErr">
+      <sysproperty key="jrapi.so" value="${jrapi.so}" />
+      <classpath refid="test.classpath" />
+      <formatter type="brief" usefile="false"/>
+      <batchtest>
+        <fileset dir="${test.class.dir}">
+           <include name="**/Test*.class" />
+           <exclude name="**/Test*$*.class" />  <!-- exclude inner classes -->
+        </fileset>
+      </batchtest>
+      <sysproperty key="log4j.configuration" value="file://${log4jconfig}"/>
+    </junit>
+    <local name="log4jconfig" />
+    <fail if="junit.failure" message="Unit test(s) failed.  See reports!"/>
+  </target>
+
+  <target name="run-one-test" depends="build-tests">
+    <fail unless="run.class" message="You must set the class to run with -Drun.class=&lt;your class&gt;" />
+    <echo message="Running class ${run.class}" />
+    <property name="log4jconfig" location="${test.dir}/log4j.properties" />
+    <java classname="${run.class}">
+      <classpath refid="test.classpath" />
+      <sysproperty key="log4j.configuration" value="file://${log4jconfig}"/>
+    </java>
+    <local name="log4jconfig" />
+  </target>
+
+  <target name="classpath" depends="set_classpaths">
+    <property name="myclasspath" refid="test.classpath"/>
+    <echo message="CLASSPATH=${myclasspath}" />
+  </target>
+
+  <target name="all" depends="clean,package,run-tests" />
+</project>
