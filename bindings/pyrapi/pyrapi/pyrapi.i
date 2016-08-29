@@ -4,6 +4,7 @@
 
 %include "exception.i"
 
+
 /******* swig -builtin option *******
 PyErr_SetString wouldn't raise a Python exception until I
 started calling swig with the "-builtin" option.
@@ -12,6 +13,8 @@ started calling swig with the "-builtin" option.
 
 
 %module rapi
+
+%include "../rapi_swig_helpers.i"
 
 %header %{
 
@@ -186,13 +189,8 @@ Tell swig about stdint and kvec
 *****/
 %include "stdint.i"; // needed to tell swig about types such as uint32_t, uint8_t, etc.
 
-
-//%include "kvec.h"// This %includes are needed since we have some structure elements that are kvec_t;
-
-
-// a couple of constants
-#define QENC_SANGER   33
-#define QENC_ILLUMINA 64
+// things common to all bindings
+%include "../rapi_common.i"
 
 /***** A macro for an array iterator type*******/
 %define rapi_array_iter(type)
