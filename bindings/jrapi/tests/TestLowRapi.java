@@ -8,21 +8,46 @@ import static org.junit.Assert.*;
 
 public class TestLowRapi
 {
+  private static final String RELATIVE_MINI_REF = "../../tests/mini_ref/mini_ref.fasta";
+  private static File jrapiBaseDir;
+
   private opts rapiOpts;
   private int error;
+  private File miniRefPath;
 
   @BeforeClass
   public static void initSharedObj()
   {
+    String basedirProperty = System.getProperty("jrapi.basedir");
+    if (basedirProperty == null)
+    {
+      System.err.println("jrapi.basedir property is not defined.  Using CWD as base directory");
+      jrapiBaseDir = new File(".");
+    }
+    else
+    {
+      System.err.println("Using " + basedirProperty + " as base directory");
+      jrapiBaseDir = new File(basedirProperty);
+    }
+
     loadPlugin(null);
   }
 
   @Before
   public void init()
   {
+    miniRefPath = new File(jrapiBaseDir, RELATIVE_MINI_REF);
     rapiOpts = new opts();
     error = Rapi.init(rapiOpts);
-    assertEquals(0, error);
+    assertEquals(Rapi.NO_ERROR, error);
+  }
+
+  @After
+  public void tearDown()
+  {
+    error = Rapi.shutdown();
+    assertEquals(Rapi.NO_ERROR, error);
+
   }
 
   @Test
@@ -32,6 +57,22 @@ public class TestLowRapi
     assertTrue(Rapi.aligner_version().startsWith("0."));
     assertTrue(Rapi.plugin_version().startsWith("0."));
   }
+
+  @Test
+  public void testLoadUnloadRef()
+  {
+    ref refObj = new ref();
+    error = Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
+    assertEquals(Rapi.NO_ERROR, error);
+
+    assertEquals(1, refObj.getN_contigs());
+
+    error = Rapi.ref_free(refObj);
+    assertEquals(Rapi.NO_ERROR, error);
+  }
+
+
+
 
   public static void loadPlugin(String path)
   {

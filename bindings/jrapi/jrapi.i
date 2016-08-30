@@ -9,6 +9,14 @@ Remove rapi_ prefix from all function and structure names.
 Make sure this general rename comes before the ignore clauses below
 or they won't have effect.
 */
+%rename("NO_ERROR")               "RAPI_NO_ERROR";
+%rename("GENERIC_ERROR")          "RAPI_GENERIC_ERROR";
+%rename("OP_NOT_SUPPORTED_ERROR") "RAPI_OP_NOT_SUPPORTED_ERROR";
+%rename("MEMORY_ERROR")           "RAPI_MEMORY_ERROR";
+%rename("PARAM_ERROR")            "RAPI_PARAM_ERROR";
+%rename("TYPE_ERROR")             "RAPI_TYPE_ERROR";
+
+
 %rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
 
 
@@ -61,6 +69,15 @@ typedef int rapi_bool;
 
 /************ begin wrapping functions and structures **************/
 
+// LP: can we avoid redefining the value of the constant here?
+#define RAPI_NO_ERROR                    0
+#define RAPI_GENERIC_ERROR              -1
+#define RAPI_OP_NOT_SUPPORTED_ERROR     -20
+#define RAPI_MEMORY_ERROR               -30
+#define RAPI_PARAM_ERROR                -40
+#define RAPI_TYPE_ERROR                 -50
+
+
 
 %mutable;
 /********* rapi_opts *******/
@@ -79,12 +96,16 @@ typedef struct {
   //kvec_t(rapi_param) parameters;
 } rapi_opts;
 
-%immutable;
 
 ///* Init and tear down library */
 rapi_error_t rapi_init(const rapi_opts* opts);
 rapi_error_t rapi_shutdown(void);
 
+
+/****** IMMUTABLE *******/
+// Everything from here down is read-only
+
+%immutable;
 
 /*
 The char* returned by the following functions are wrapped automatically by
@@ -94,12 +115,35 @@ const char* rapi_aligner_name(void);
 const char* rapi_aligner_version(void);
 const char* rapi_plugin_version(void);
 
-///* Load reference */
-//rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
-//
-///* Free reference */
-//rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
-//
+/***************************************
+ ****** rapi_contig and rapi_ref *******
+ ***************************************/
+
+
+typedef struct {
+  char * name;
+  uint32_t len;
+  char * assembly_identifier;
+  char * species;
+  char * uri;
+  char * md5;
+} rapi_contig;
+
+
+typedef struct {
+  char * path;
+  int n_contigs;
+} rapi_ref;
+
+
+/* Load reference */
+rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
+
+/* Free reference */
+rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
+
+
+
 ///* Allocate reads */
 //rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
 //

@@ -103,6 +103,7 @@
 
     <junit showoutput="true" failureproperty="junit.failure" dir="${basedir}" fork="true" printsummary="withOutAndErr">
       <sysproperty key="jrapi.so" value="${jrapi.so}" />
+      <sysproperty key="jrapi.basedir" value="${basedir}" />
       <classpath refid="test.classpath" />
       <formatter type="brief" usefile="false"/>
       <batchtest>
