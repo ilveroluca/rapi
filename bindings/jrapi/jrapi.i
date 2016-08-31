@@ -43,6 +43,7 @@ or they won't have effect.
 rapi_error_t is the error type for the RAPI library.
 */
 typedef int rapi_error_t;
+typedef long long rapi_ssize_t;
 
 %inline %{
 typedef int rapi_bool;
@@ -81,7 +82,7 @@ typedef int rapi_bool;
 
 %mutable;
 /********* rapi_opts *******/
-typedef struct {
+typedef struct rapi_opts {
   int ignore_unsupported;
   /* Standard Ones - Differently implemented by aligners*/
   int mapq_min;
@@ -120,7 +121,7 @@ const char* rapi_plugin_version(void);
  ***************************************/
 
 
-typedef struct {
+typedef struct rapi_contig {
   char * name;
   uint32_t len;
   char * assembly_identifier;
@@ -130,7 +131,7 @@ typedef struct {
 } rapi_contig;
 
 
-typedef struct {
+typedef struct rapi_ref {
   char * path;
   int n_contigs;
 } rapi_ref;
@@ -143,11 +144,47 @@ rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct )
 rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
 
 
+/***************************************/
+/*      Alignments                     */
+/***************************************/
 
-///* Allocate reads */
-//rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
-//
-//
+typedef struct rapi_alignment {
+  rapi_contig* contig;
+  unsigned long int pos; // 1-based
+  uint8_t mapq;
+  int score; // aligner-specific score
+
+  uint8_t n_mismatches;
+  uint8_t n_gap_opens;
+  uint8_t n_gap_extensions;
+} rapi_alignment;
+
+
+/***************************************/
+/*      Reads and read batches         */
+/***************************************/
+typedef struct rapi_read {
+  char * id;
+  char * seq;
+  char * qual;
+  unsigned int length;
+} rapi_read;
+
+
+typedef struct rapi_batch {
+  rapi_ssize_t n_frags;
+  int n_reads_frag;
+} rapi_batch;
+
+/* Allocate and load reads */
+rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
+rapi_error_t rapi_reads_reserve(rapi_batch* batch, rapi_ssize_t n_fragments);
+rapi_error_t rapi_reads_clear(rapi_batch* batch);
+rapi_error_t rapi_reads_free(rapi_batch * batch);
+rapi_ssize_t rapi_batch_read_capacity(const rapi_batch* batch);
+rapi_error_t rapi_set_read(rapi_batch * batch, rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
+rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read);
+
 //rapi_error_t rapi_aligner_state_init(struct rapi_aligner_state** ret_state, const rapi_opts* opts);
 //
 //rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,

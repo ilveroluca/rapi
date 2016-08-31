@@ -11,10 +11,10 @@ public class TestLowRapiBatch
   private batch b;
 
   private static final String[][] some_reads = {
-      { "read_id/1-1", "AGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT", "11##############################" },
-      { "read_id/1-2", "TCGATCGATCGATCGATCGATCGATCGATCGA", "12$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" },
-      { "read_id/2-1", "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTA", "21##############################" },
-      { "read_id/2-2", "CGATCGATCGATCGATCGATCGATCGATCGAT", "22$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" }
+    { "read_id/1-1", "AGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT", "11##############################" },
+    { "read_id/1-2", "TCGATCGATCGATCGATCGATCGATCGATCGA", "12$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" },
+    { "read_id/2-1", "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTA", "21##############################" },
+    { "read_id/2-2", "CGATCGATCGATCGATCGATCGATCGATCGAT", "22$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" }
   };
 
   @BeforeClass
@@ -45,46 +45,46 @@ public class TestLowRapiBatch
   @Test
   public void testAllocateBatch()
   {
-      // batch already allocated in init()
-      assertEquals(2, b.getN_reads_frag());
-      assertEquals(1, b.getN_frags());
+    // batch already allocated in init()
+    assertEquals(2, b.getN_reads_frag());
+    assertEquals(1, b.getN_frags());
   }
 
   @Test
   public void testSetAndGetRead()
   {
-      error = loadSomeReads(1);
+    error = loadSomeReads(1);
 
-      read r_get = Rapi.get_read(b, 0, 0);
-      assertNotNull(r_get);
-      assertEquals(some_reads[0][0], r_get.getId());
-      assertEquals(some_reads[0][1], r_get.getSeq());
-      assertEquals(some_reads[0][2], r_get.getQual());
-      assertEquals(some_reads[0][1].length(), r_get.getLength());
+    read r_get = Rapi.get_read(b, 0, 0);
+    assertNotNull(r_get);
+    assertEquals(some_reads[0][0], r_get.getId());
+    assertEquals(some_reads[0][1], r_get.getSeq());
+    assertEquals(some_reads[0][2], r_get.getQual());
+    assertEquals(some_reads[0][1].length(), r_get.getLength());
 
-      r_get = Rapi.get_read(b, 0, 1);
-      assertNotNull(r_get);
-      assertEquals(some_reads[1][0], r_get.getId());
-      assertEquals(some_reads[1][1], r_get.getSeq());
-      assertEquals(some_reads[1][2], r_get.getQual());
+    r_get = Rapi.get_read(b, 0, 1);
+    assertNotNull(r_get);
+    assertEquals(some_reads[1][0], r_get.getId());
+    assertEquals(some_reads[1][1], r_get.getSeq());
+    assertEquals(some_reads[1][2], r_get.getQual());
 
-      Rapi.reads_reserve(b, 2);
-      error = Rapi.set_read(b, 1, 0, some_reads[2][0], some_reads[2][1], some_reads[2][2], Rapi.QENC_SANGER);
-      assertEquals(Rapi.NO_ERROR, error);
-      error = Rapi.set_read(b, 1, 1, some_reads[3][0], some_reads[3][1], some_reads[3][2], Rapi.QENC_SANGER);
-      assertEquals(Rapi.NO_ERROR, error);
+    Rapi.reads_reserve(b, 2);
+    error = Rapi.set_read(b, 1, 0, some_reads[2][0], some_reads[2][1], some_reads[2][2], Rapi.QENC_SANGER);
+    assertEquals(Rapi.NO_ERROR, error);
+    error = Rapi.set_read(b, 1, 1, some_reads[3][0], some_reads[3][1], some_reads[3][2], Rapi.QENC_SANGER);
+    assertEquals(Rapi.NO_ERROR, error);
 
-      r_get = Rapi.get_read(b, 1, 0);
-      assertNotNull(r_get);
-      assertEquals(some_reads[2][0], r_get.getId());
-      assertEquals(some_reads[2][1], r_get.getSeq());
-      assertEquals(some_reads[2][2], r_get.getQual());
+    r_get = Rapi.get_read(b, 1, 0);
+    assertNotNull(r_get);
+    assertEquals(some_reads[2][0], r_get.getId());
+    assertEquals(some_reads[2][1], r_get.getSeq());
+    assertEquals(some_reads[2][2], r_get.getQual());
 
-      r_get = Rapi.get_read(b, 1, 1);
-      assertNotNull(r_get);
-      assertEquals(some_reads[3][0], r_get.getId());
-      assertEquals(some_reads[3][1], r_get.getSeq());
-      assertEquals(some_reads[3][2], r_get.getQual());
+    r_get = Rapi.get_read(b, 1, 1);
+    assertNotNull(r_get);
+    assertEquals(some_reads[3][0], r_get.getId());
+    assertEquals(some_reads[3][1], r_get.getSeq());
+    assertEquals(some_reads[3][2], r_get.getQual());
   }
 
   @Test
@@ -104,18 +104,18 @@ public class TestLowRapiBatch
   @Test
   public void testGetErrors()
   {
-      loadSomeReads(1);
-      // verify out-of-bounds checking
-      read r = Rapi.get_read(b, 0, 0);
-      assertNotNull(r);
-      r = Rapi.get_read(b, 1, 0);
-      assertNull(r);
-      r = Rapi.get_read(b, 0, 2);
-      assertNull(r);
-      r = Rapi.get_read(b, -1, 0);
-      assertNull(r);
-      r = Rapi.get_read(b, 0, -1);
-      assertNull(r);
+    loadSomeReads(1);
+    // verify out-of-bounds checking
+    read r = Rapi.get_read(b, 0, 0);
+    assertNotNull(r);
+    r = Rapi.get_read(b, 1, 0);
+    assertNull(r);
+    r = Rapi.get_read(b, 0, 2);
+    assertNull(r);
+    r = Rapi.get_read(b, -1, 0);
+    assertNull(r);
+    r = Rapi.get_read(b, 0, -1);
+    assertNull(r);
   }
 
   private int loadSomeReads(int n_fragments)
@@ -147,3 +147,5 @@ public class TestLowRapiBatch
     assertEquals(5*2, Rapi.batch_read_capacity(b));
   }
 }
+
+// vim: set et sw=2
