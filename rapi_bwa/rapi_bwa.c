@@ -1426,7 +1426,8 @@ rapi_error_t rapi_set_read(rapi_batch* batch,
 	        int q_offset) {
 	rapi_error_t error_code = RAPI_NO_ERROR;
 
-	if (n_frag < 0 || n_frag >= batch->n_frags ||
+	if (!batch ||
+	    n_frag < 0 || n_frag >= batch->n_frags ||
 	    n_read < 0 || n_read >= batch->n_reads_frag)
 		return RAPI_PARAM_ERROR;
 
