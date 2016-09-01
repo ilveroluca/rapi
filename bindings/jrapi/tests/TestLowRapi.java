@@ -13,7 +13,6 @@ public class TestLowRapi
   private static File jrapiBaseDir;
 
   private opts rapiOpts;
-  private int error;
   private File miniRefPath;
 
   @BeforeClass
@@ -23,19 +22,17 @@ public class TestLowRapi
   }
 
   @Before
-  public void init()
+  public void init() throws RapiException
   {
     miniRefPath = new File(jrapiBaseDir, RELATIVE_MINI_REF);
     rapiOpts = new opts();
-    error = Rapi.init(rapiOpts);
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.init(rapiOpts);
   }
 
   @After
-  public void tearDown()
+  public void tearDown() throws RapiException
   {
-    error = Rapi.shutdown();
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.shutdown();
   }
 
   @Test
@@ -47,16 +44,21 @@ public class TestLowRapi
   }
 
   @Test
-  public void testLoadUnloadRef()
+  public void testLoadUnloadRef() throws RapiException
   {
     ref refObj = new ref();
-    error = Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
 
     assertEquals(1, refObj.getN_contigs());
 
-    error = Rapi.ref_free(refObj);
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.ref_free(refObj);
+  }
+
+
+  @Test
+  public void testInstantiateAligner() throws RapiException
+  {
+    aligner_state state = Rapi.aligner_state_init(new opts());
   }
 
   public static void main(String args[])

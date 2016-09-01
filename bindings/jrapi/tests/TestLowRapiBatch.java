@@ -7,7 +7,6 @@ import static org.junit.Assert.*;
 
 public class TestLowRapiBatch
 {
-  private int error;
   private batch b;
 
   private static final String[][] some_reads = {
@@ -24,21 +23,19 @@ public class TestLowRapiBatch
   }
 
   @Before
-  public void init()
+  public void init() throws RapiException
   {
-    error = Rapi.init(new opts());
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.init(new opts());
 
     b = new batch();
-    error = Rapi.reads_alloc(b, 2, 1);
+    Rapi.reads_alloc(b, 2, 1);
   }
 
   @After
-  public void tearDown()
+  public void tearDown() throws RapiException
   {
     Rapi.reads_free(b);
-    error = Rapi.shutdown();
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.shutdown();
 
   }
 
@@ -50,10 +47,17 @@ public class TestLowRapiBatch
     assertEquals(1, b.getN_frags());
   }
 
-  @Test
-  public void testSetAndGetRead()
+  @Test(expected=RapiOutOfMemoryError.class)
+  public void testImpossibleAllocation() throws RapiException
   {
-    error = loadSomeReads(1);
+    b = new batch();
+    Rapi.reads_alloc(b, 2, 2000000000);
+  }
+
+  @Test
+  public void testSetAndGetRead() throws RapiException
+  {
+    loadSomeReads(1);
 
     read r_get = Rapi.get_read(b, 0, 0);
     assertNotNull(r_get);
@@ -69,10 +73,8 @@ public class TestLowRapiBatch
     assertEquals(some_reads[1][2], r_get.getQual());
 
     Rapi.reads_reserve(b, 2);
-    error = Rapi.set_read(b, 1, 0, some_reads[2][0], some_reads[2][1], some_reads[2][2], Rapi.QENC_SANGER);
-    assertEquals(Rapi.NO_ERROR, error);
-    error = Rapi.set_read(b, 1, 1, some_reads[3][0], some_reads[3][1], some_reads[3][2], Rapi.QENC_SANGER);
-    assertEquals(Rapi.NO_ERROR, error);
+    Rapi.set_read(b, 1, 0, some_reads[2][0], some_reads[2][1], some_reads[2][2], Rapi.QENC_SANGER);
+    Rapi.set_read(b, 1, 1, some_reads[3][0], some_reads[3][1], some_reads[3][2], Rapi.QENC_SANGER);
 
     r_get = Rapi.get_read(b, 1, 0);
     assertNotNull(r_get);
@@ -87,22 +89,29 @@ public class TestLowRapiBatch
     assertEquals(some_reads[3][2], r_get.getQual());
   }
 
-  @Test
-  public void testSetErrors()
-  {
-    // verify out-of-bounds checking
-    error = Rapi.set_read(b, 1, 0, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-    assertFalse(error == Rapi.NO_ERROR);
-    error = Rapi.set_read(b, 0, 2, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-    assertFalse(error == Rapi.NO_ERROR);
-    error = Rapi.set_read(b, -1, 0, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-    assertFalse(error == Rapi.NO_ERROR);
-    error = Rapi.set_read(b, 0, -1, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-    assertFalse(error == Rapi.NO_ERROR);
+  // verify out-of-bounds checking
+  @Test(expected=RapiInvalidParamException.class)
+  public void testSetErrors1() throws RapiException {
+    Rapi.set_read(b, 1, 0, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
+  }
+
+  @Test(expected=RapiInvalidParamException.class)
+  public void testSetErrors2() throws RapiException {
+    Rapi.set_read(b, 0, 2, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
+  }
+
+  @Test(expected=RapiInvalidParamException.class)
+  public void testSetErrors3() throws RapiException {
+    Rapi.set_read(b, -1, 0, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
+  }
+
+  @Test(expected=RapiInvalidParamException.class)
+  public void testSetErrors4() throws RapiException {
+    Rapi.set_read(b, 0, -1, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
   }
 
   @Test
-  public void testGetErrors()
+  public void testGetErrors() throws RapiException
   {
     loadSomeReads(1);
     // verify out-of-bounds checking
@@ -118,26 +127,21 @@ public class TestLowRapiBatch
     assertNull(r);
   }
 
-  private int loadSomeReads(int n_fragments)
+  private void loadSomeReads(int n_fragments) throws RapiException
   {
-    int error = Rapi.reads_reserve(b, n_fragments);
-    if (error != Rapi.NO_ERROR)
-      return error;
+    Rapi.reads_reserve(b, n_fragments);
 
     int z = 0;
     for (int i = 0; i < n_fragments; ++i) {
       for (int j = 0; j < 2; ++j) {
         z = i*some_reads[0].length + j;
-        error = Rapi.set_read(b, i, j, some_reads[z][0], some_reads[z][1], some_reads[z][2], Rapi.QENC_SANGER);
-        if (error != Rapi.NO_ERROR)
-          return error;
+        Rapi.set_read(b, i, j, some_reads[z][0], some_reads[z][1], some_reads[z][2], Rapi.QENC_SANGER);
       }
     }
-    return error;
   }
 
   @Test
-  public void testReserve()
+  public void testReserve() throws RapiException
   {
     assertEquals(1, b.getN_frags());
     Rapi.reads_reserve(b, 1);
