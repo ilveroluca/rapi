@@ -313,10 +313,58 @@ rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
 Set_exception_from_error_t(rapi_aligner_state_free);
 rapi_error_t rapi_aligner_state_free(rapi_aligner_state* state);
 
-///******* SAM output *******/
-//rapi_error_t rapi_format_sam(const rapi_read** reads, int n_reads, kstring_t* output);
-//rapi_error_t rapi_format_sam_b(const rapi_batch* batch, rapi_ssize_t n_frag, kstring_t* output);
-//rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output);
+/***************************************/
+/*      SAM output                     */
+/***************************************/
+
+// With this typemap we can create wrapper functions that receive the JNIEnv* as an argument,
+// but hiding it from the Java-side API.
+%typemap(in, numinputs=0) JNIEnv* jenv { $1 = jenv; }
+
+
+%newobject format_sam_hdr;
+%inline %{
+char* format_sam_hdr(JNIEnv* jenv, const rapi_ref* ref)
+{
+  kstring_t output = { 0, 0, NULL };
+  rapi_error_t error = rapi_format_sam_hdr(ref, &output);
+  if (error == RAPI_NO_ERROR) {
+    return output.s;
+  }
+  else {
+    do_rapi_throw(jenv, error, "Failed to format SAM header");
+    return NULL;
+  }
+}
+%}
+
+
+%newobject format_sam_batch;
+%inline %{
+char* format_sam_batch(JNIEnv* jenv, const rapi_batch* reads)
+{
+  if (!reads) {
+    do_rapi_throw(jenv, RAPI_PARAM_ERROR, "NULL read_batch pointer!");
+    return NULL;
+  }
+
+  kstring_t output = { 0, 0, NULL };
+  rapi_error_t error = RAPI_NO_ERROR;
+
+  for (rapi_ssize_t i = 0; i < reads->n_frags && error == RAPI_NO_ERROR; ++i) {
+    error = rapi_format_sam_b(reads, i, &output);
+    kputc('\n', &output);
+  }
+  if (error == RAPI_NO_ERROR) {
+    return output.s;
+  }
+  else {
+    free(output.s);
+    do_rapi_throw(jenv, error, "Failed to format SAM");
+    return NULL;
+  }
+}
+%}
 
 
 /**************************************************

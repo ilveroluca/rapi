@@ -54,6 +54,22 @@ public class TestLowRapi
     Rapi.ref_free(refObj);
   }
 
+  @Test
+  public void testFormatSAMHeader() throws RapiException
+  {
+    ref refObj = new ref();
+    Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
+    String hdr = Rapi.format_sam_hdr(refObj);
+    assertTrue(hdr.startsWith("@SQ"));
+
+    Rapi.ref_free(refObj);
+  }
+
+  @Test(expected=RapiException.class)
+  public void testFormatSAMHeaderError() throws RapiException
+  {
+    String hdr = Rapi.format_sam_hdr(null);
+  }
 
   @Test
   public void testInstantiateAligner() throws RapiException

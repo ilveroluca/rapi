@@ -127,6 +127,18 @@ public class TestLowRapiBatch
     assertNull(r);
   }
 
+  @Test
+  public void testFormatSAMBatch() throws RapiException
+  {
+    loadSomeReads(2);
+    String output = Rapi.format_sam_batch(b);
+    assertTrue(output.length() > 0);
+
+    String[] lines = output.split("\n");
+    assertEquals(4, lines.length);
+  }
+
+
   private void loadSomeReads(int n_fragments) throws RapiException
   {
     if (n_fragments > some_reads.length / 2)
