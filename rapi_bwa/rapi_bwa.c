@@ -470,6 +470,9 @@ rapi_error_t rapi_format_sam_b(const rapi_batch* batch, rapi_ssize_t n_frag, kst
 
 rapi_error_t rapi_format_sam_hdr(const rapi_ref* ref, kstring_t* output)
 {
+	if (!ref || !output)
+		return RAPI_PARAM_ERROR;
+
 	for (int i = 0; i < ref->n_contigs; ++i)
 		ksprintf(output, "@SQ\tSN:%s\tLN:%lld\n", ref->contigs[i].name, ref->contigs[i].len);
 
