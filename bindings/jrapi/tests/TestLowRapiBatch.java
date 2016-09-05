@@ -129,12 +129,15 @@ public class TestLowRapiBatch
 
   private void loadSomeReads(int n_fragments) throws RapiException
   {
+    if (n_fragments > some_reads.length / 2)
+      throw new IllegalArgumentException("Requested n_fragments (" + n_fragments + ") is greated than number of reads available for test");
+
     Rapi.reads_reserve(b, n_fragments);
 
     int z = 0;
     for (int i = 0; i < n_fragments; ++i) {
       for (int j = 0; j < 2; ++j) {
-        z = i*some_reads[0].length + j;
+        z = i*2 + j;
         Rapi.set_read(b, i, j, some_reads[z][0], some_reads[z][1], some_reads[z][2], Rapi.QENC_SANGER);
       }
     }
