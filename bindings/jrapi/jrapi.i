@@ -119,6 +119,9 @@ rapi_error_t is the error type for the RAPI library.
 typedef int rapi_error_t;
 typedef long long rapi_ssize_t;
 
+%typemap(jtype) uint8_t jshort;
+
+
 %inline %{
 typedef int rapi_bool;
 %}
@@ -144,16 +147,6 @@ typedef int rapi_bool;
 %immutable;
 
 /************ begin wrapping functions and structures **************/
-
-// LP: can we avoid redefining the value of the constant here?
-#define RAPI_NO_ERROR                    0
-#define RAPI_GENERIC_ERROR              -1
-#define RAPI_OP_NOT_SUPPORTED_ERROR     -20
-#define RAPI_MEMORY_ERROR               -30
-#define RAPI_PARAM_ERROR                -40
-#define RAPI_TYPE_ERROR                 -50
-
-
 
 %mutable;
 /********* rapi_opts *******/
@@ -228,16 +221,76 @@ rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
 /*      Alignments                     */
 /***************************************/
 
+%nodefaultctor rapi_alignment;
+
 typedef struct rapi_alignment {
   rapi_contig* contig;
   unsigned long int pos; // 1-based
-  uint8_t mapq;
+  short mapq;
   int score; // aligner-specific score
 
-  uint8_t n_mismatches;
-  uint8_t n_gap_opens;
-  uint8_t n_gap_extensions;
+  short n_mismatches;
+  short n_gap_opens;
+  short n_gap_extensions;
 } rapi_alignment;
+
+%newobject rapi_alignment::get_cigar_string;
+%extend rapi_alignment {
+
+    // synthesize boolean attributes corresponding to bitfield values
+    rapi_bool paired;
+    rapi_bool prop_paired;
+    rapi_bool mapped;
+    rapi_bool reverse_strand;
+    rapi_bool secondary_aln;
+
+/*
+    rapi_cigar_ops get_cigar_ops() const {
+        rapi_cigar_ops array;
+        array.ops = $self->cigar_ops;
+        array.len = $self->n_cigar_ops;
+        return array;
+    }
+*/
+    char* get_cigar_string() const {
+        kstring_t output = { 0, 0, NULL };
+        rapi_put_cigar($self->n_cigar_ops, $self->cigar_ops, 0, &output);
+        // return the string directly. Wrapper will be responsible for freeing it (through %newobject)
+        return output.s;
+    }
+/*
+    rapi_tag_list get_tags() const {
+        return $self->tags;
+    }
+*/
+    int get_rlen() const {
+      return rapi_get_rlen($self->n_cigar_ops, $self->cigar_ops);
+    }
+};
+
+
+%{
+rapi_bool rapi_alignment_paired_get(const rapi_alignment* aln) {
+    return aln->paired != 0;
+}
+
+rapi_bool rapi_alignment_prop_paired_get(const rapi_alignment* aln) {
+    return aln->prop_paired != 0;
+}
+
+rapi_bool rapi_alignment_mapped_get(const rapi_alignment* aln) {
+    return aln->mapped != 0;
+}
+
+rapi_bool rapi_alignment_reverse_strand_get(const rapi_alignment* aln) {
+    return aln->reverse_strand != 0;
+}
+
+rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
+    return aln->secondary_aln != 0;
+}
+%}
+
 
 
 /***************************************/
@@ -275,7 +328,6 @@ Set_exception_from_error_t(rapi_set_read)
 rapi_error_t rapi_set_read(rapi_batch * batch, rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
 rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read);
-
 
 /***************************************/
 /*      The aligner                    */
