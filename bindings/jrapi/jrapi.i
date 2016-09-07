@@ -221,11 +221,73 @@ rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
 /*      Alignments                     */
 /***************************************/
 
+%typemap(jni) rapi_cigar_ops  "jobjectArray";
+%typemap(jstype) rapi_cigar_ops  "it.crs4.rapi.AlignOp[]"
+%typemap(jtype) rapi_cigar_ops  "it.crs4.rapi.AlignOp[]"
+//%typemap(javaout) rapi_cigar_ops  "$typemap(javaout,AlignOp[])";
+
+// Map rapi_cigar_ops to an array of cigar ops
+%typemap(out, throws="RapiException") rapi_cigar_ops {
+    /**
+    * Convert rapi_cigar_ops to an array of AlignOp objects
+    */
+    jclass aln_op_clazz = (*jenv)->FindClass(jenv, "it/crs4/rapi/AlignOp");
+    if (!aln_op_clazz) {
+      do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Failed to find it/crs4/rapi/AlignOp class");
+      return $null;
+    }
+    // LP: it may be a good idea to create global references to the classes we use and cache
+    // repeately accessed class, method, and field ids.
+    jmethodID op_constr = (*jenv)->GetMethodID(jenv, aln_op_clazz, "<init>", "(CI)V");
+    if (!op_constr) {
+      do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Could not fetch AlignOp constructor");
+      return $null;
+    }
+
+    // $1 is variable of tuple rapi_cigar_ops
+    jobjectArray array = (*jenv)->NewObjectArray(jenv, $1.len, aln_op_clazz, NULL);
+    if (!array) {
+      do_rapi_throw(jenv, RAPI_MEMORY_ERROR, "Failed to allocate array for cigar ops");
+      return $null;
+    }
+
+    // for each cigar operator in the array, map it to an AlignOp object and insert it in the return array
+    for (int i = 0; i < $1.len; ++i) {
+        rapi_cigar cig = $1.ops[i];
+        char c = rapi_cigops_char[cig.op];
+        int len = cig.len;
+
+        jobject op = (*jenv)->NewObject(jenv, aln_op_clazz, op_constr, c, len);
+        if (!op) {
+          do_rapi_throw(jenv, RAPI_MEMORY_ERROR, "Failed to create new AlignOp object");
+          return $null;
+        }
+        (*jenv)->SetObjectArrayElement(jenv, array, i, op);
+    }
+
+    $result = array;
+}
+
+/* These 2 typemaps handle the conversion of the jtype to jstype typemap type
+   and vice versa */
+%typemap(javain) rapi_cigar_ops "$javainput"
+%typemap(javaout) rapi_cigar_ops {
+    return $jnicall;
+}
+
+%{
+typedef struct {
+    rapi_cigar* ops;
+    size_t len;
+} rapi_cigar_ops;
+%}
+
+
 %nodefaultctor rapi_alignment;
 
 typedef struct rapi_alignment {
   rapi_contig* contig;
-  unsigned long int pos; // 1-based
+  long int pos; // 1-based
   short mapq;
   int score; // aligner-specific score
 
@@ -234,25 +296,26 @@ typedef struct rapi_alignment {
   short n_gap_extensions;
 } rapi_alignment;
 
-%newobject rapi_alignment::get_cigar_string;
+
+
+%newobject rapi_alignment::getCigarString;
 %extend rapi_alignment {
 
     // synthesize boolean attributes corresponding to bitfield values
     rapi_bool paired;
-    rapi_bool prop_paired;
+    rapi_bool propPaired;
     rapi_bool mapped;
-    rapi_bool reverse_strand;
-    rapi_bool secondary_aln;
+    rapi_bool reverseStrand;
+    rapi_bool secondaryAln;
 
-/*
-    rapi_cigar_ops get_cigar_ops() const {
+    rapi_cigar_ops getCigarOps() const {
         rapi_cigar_ops array;
         array.ops = $self->cigar_ops;
         array.len = $self->n_cigar_ops;
         return array;
     }
-*/
-    char* get_cigar_string() const {
+
+    char* getCigarString() const {
         kstring_t output = { 0, 0, NULL };
         rapi_put_cigar($self->n_cigar_ops, $self->cigar_ops, 0, &output);
         // return the string directly. Wrapper will be responsible for freeing it (through %newobject)
@@ -274,7 +337,7 @@ rapi_bool rapi_alignment_paired_get(const rapi_alignment* aln) {
     return aln->paired != 0;
 }
 
-rapi_bool rapi_alignment_prop_paired_get(const rapi_alignment* aln) {
+rapi_bool rapi_alignment_propPaired_get(const rapi_alignment* aln) {
     return aln->prop_paired != 0;
 }
 
@@ -282,11 +345,11 @@ rapi_bool rapi_alignment_mapped_get(const rapi_alignment* aln) {
     return aln->mapped != 0;
 }
 
-rapi_bool rapi_alignment_reverse_strand_get(const rapi_alignment* aln) {
+rapi_bool rapi_alignment_reverseStrand_get(const rapi_alignment* aln) {
     return aln->reverse_strand != 0;
 }
 
-rapi_bool rapi_alignment_secondary_aln_get(const rapi_alignment* aln) {
+rapi_bool rapi_alignment_secondaryAln_get(const rapi_alignment* aln) {
     return aln->secondary_aln != 0;
 }
 %}
@@ -302,6 +365,68 @@ typedef struct rapi_read {
   char * qual;
   unsigned int length;
 } rapi_read;
+
+// Raise IndexError when rapi_read.get_aln returns NULL
+%exception rapi_read::getAln {
+    $action
+    if (result == NULL) {
+        do_rapi_throw(jenv, RAPI_PARAM_ERROR, "Alignment index out of bounds");
+    }
+}
+
+%extend rapi_read {
+
+  // synthesize some high-level boolean attributes.  These
+  // look at the "main" alignment (first one, if any)
+  rapi_bool propPaired;
+  rapi_bool mapped;
+  rapi_bool reverseStrand;
+  int score;
+  short mapq;
+
+  int getNAlignments() const { return $self->n_alignments; }
+
+  const rapi_alignment* getAln(int index) const {
+    if (index >= 0 && index < $self->n_alignments)
+      return $self->alignments + index;
+    else
+      return NULL; // exception raise in %exception block
+  }
+};
+
+
+%{
+rapi_bool rapi_read_propPaired_get(const rapi_read* read) {
+    return read->n_alignments > 0 && rapi_alignment_propPaired_get(read->alignments);
+}
+
+rapi_bool rapi_read_mapped_get(const rapi_read* read) {
+    return read->n_alignments > 0 && rapi_alignment_mapped_get(read->alignments);
+}
+
+rapi_bool rapi_read_reverseStrand_get(const rapi_read* read) {
+    return read->n_alignments > 0 && rapi_alignment_reverseStrand_get(read->alignments);
+}
+
+int rapi_read_score_get(const rapi_read* read) {
+    if (read->n_alignments <= 0) {
+        return 0;
+    }
+    else {
+        return read->alignments->score;
+    }
+}
+
+short rapi_read_mapq_get(const rapi_read* read) {
+    if (read->n_alignments <= 0) {
+        return 0;
+    }
+    else {
+        return read->alignments->mapq;
+    }
+}
+
+%}
 
 
 typedef struct rapi_batch {
@@ -334,7 +459,7 @@ rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_rea
 /***************************************/
 
 %nodefaultctor  rapi_aligner_state;
-%nodefaultdtor  rapi_aligner_state;
+//%nodefaultdtor  rapi_aligner_state;
 typedef struct rapi_aligner_state {} rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
 // Typemap settings to return the new aligner state as a return value.

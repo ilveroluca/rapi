@@ -71,12 +71,6 @@ public class TestLowRapi
     String hdr = Rapi.format_sam_hdr(null);
   }
 
-  @Test
-  public void testInstantiateAligner() throws RapiException
-  {
-    aligner_state state = Rapi.aligner_state_init(new opts());
-  }
-
   public static void main(String args[])
   {
     if (args.length == 1)

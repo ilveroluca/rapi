@@ -9,7 +9,7 @@ public class TestLowRapiBatch
 {
   private batch b;
 
-  private static final String[][] some_reads = {
+  public static final String[][] some_reads = {
     { "read_id/1-1", "AGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT", "11##############################" },
     { "read_id/1-2", "TCGATCGATCGATCGATCGATCGATCGATCGA", "12$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" },
     { "read_id/2-1", "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTA", "21##############################" },
