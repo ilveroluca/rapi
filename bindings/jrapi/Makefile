@@ -27,7 +27,7 @@ JAR := build/jrapi.jar
 
 
 # I've seen swig installed under various names.  Look for all of them
-SWIG := $(shell type -P swig swig3 swig3.{0..9})
+SWIG := $(shell type -P swig swig3 swig3.{0..9} | tail  -n 1)
 
 .SUFFIXES:.c .o
 .PHONY: clean
