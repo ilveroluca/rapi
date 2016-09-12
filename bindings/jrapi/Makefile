@@ -34,6 +34,9 @@ SWIG := $(shell type -P swig swig3 swig3.{0..9} | tail  -n 1)
 
 all: jar
 
+debug: CFLAGS += -g -O0
+debug: jar
+
 .c.o:
 	$(CC) -c $(CFLAGS) $(INCLUDES) $(DFLAGS) $< -o $@
 

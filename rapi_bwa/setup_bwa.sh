@@ -28,7 +28,13 @@ fi
 # check whether we're running on Linux
 if type -P uname >/dev/null && [ $(uname) == 'Linux' ]; then
     # if so, add '-fPIC' to CFLAGS
-    sed -e 's/CFLAGS\s*=.*/& -fPIC/' Makefile > Makefile.rapi_edit
+    sed -e 's/CFLAGS\s*=.*/& -fPIC/' \
+			-e '/^all:/a\
+\
+debug: CFLAGS += -g -O0\
+debug: $(PROG)\
+\
+' Makefile > Makefile.rapi_edit
 else
     cp --force Makefile Makefile.rapi_edit
 fi
