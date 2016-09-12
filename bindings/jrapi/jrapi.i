@@ -179,6 +179,22 @@ typedef struct rapi_opts {
   //kvec_t(rapi_param) parameters;
 } rapi_opts;
 
+%extend rapi_opts {
+  rapi_opts(JNIEnv* jenv) {
+    rapi_opts* tmp = rapi_malloc(jenv, sizeof(rapi_opts));
+    if (!tmp) return NULL;
+
+    rapi_error_t error = rapi_opts_init(tmp);
+    if (RAPI_NO_ERROR != error) {
+      do_rapi_throw(jenv, error, "Error initializing RAPI options structure");
+      free(tmp);
+      return NULL;
+    }
+
+    return tmp;
+  }
+};
+
 
 /****** IMMUTABLE *******/
 // Everything from here down is read-only
