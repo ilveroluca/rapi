@@ -124,6 +124,8 @@
     <echo message="Running class ${run.class}" />
     <property name="log4jconfig" location="${test.dir}/log4j.properties" />
     <java classname="${run.class}">
+      <sysproperty key="jrapi.so" value="${jrapi.so}" />
+      <sysproperty key="jrapi.basedir" value="${basedir}" />
       <classpath refid="test.classpath" />
       <sysproperty key="log4j.configuration" value="file://${log4jconfig}"/>
     </java>
