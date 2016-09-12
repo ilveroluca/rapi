@@ -17,7 +17,7 @@ public class TestLowRapiAligner
 
   private opts rapiOpts;
   private ref refObj;
-  private batch reads;
+  private batch_wrap reads;
   private aligner_state aligner;
   private File miniRefPath;
 
@@ -33,15 +33,15 @@ public class TestLowRapiAligner
     rapiOpts = new opts();
     Rapi.init(rapiOpts);
 
-    loadReads();
+    reads = new batch_wrap(2);
+    TestUtils.appendSeqsToBatch(TestUtils.readMiniRefSeqs(), reads);
 
     // load the reference
     miniRefPath = new File(jrapiBaseDir, TestUtils.RELATIVE_MINI_REF);
-    refObj = new ref();
-    Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
+    refObj = new ref(miniRefPath.getAbsolutePath());
 
-    aligner = Rapi.aligner_state_init(rapiOpts);
-    Rapi.align_reads(refObj, reads, 0, reads.getN_frags(), aligner);
+    aligner = new aligner_state(rapiOpts);
+    aligner.alignReads(refObj, reads);
     System.err.println("============ Finished aligning reads");
   }
 
@@ -50,37 +50,17 @@ public class TestLowRapiAligner
   {
     // XXX: ************  need to delete aligner
 
-    Rapi.ref_free(refObj);
-    Rapi.reads_free(reads);
+    refObj.unload();
+    if (reads != null)
+      reads.clear();
     Rapi.shutdown();
-  }
-
-  private void loadReads() throws RapiException, FileNotFoundException, IOException
-  {
-    List<String[]> someReads = TestUtils.readMiniRefSeqs();
-    final int n_fragments = someReads.size();
-
-    reads = new batch();
-    Rapi.reads_alloc(reads, 2, n_fragments);
-
-    for (int i = 0; i < n_fragments; ++i) {
-      String[] pair = someReads.get(i);
-      Rapi.set_read(reads, i, 0, pair[0], pair[1], pair[2], Rapi.QENC_SANGER);
-      Rapi.set_read(reads, i, 1, pair[0], pair[3], pair[4], Rapi.QENC_SANGER);
-    }
-  }
-
-  @Test
-  public void testInstantiateAligner() throws RapiException
-  {
-    aligner_state state = Rapi.aligner_state_init(new opts());
   }
 
   @Test
   public void testReadAttributes() throws RapiException
   {
-    read rapiRead = Rapi.get_read(reads, 0, 0);
-    assertEquals("read_id:1", rapiRead.getId());
+    read rapiRead = reads.getRead(0, 0);
+    assertEquals("read_00", rapiRead.getId());
     // shortcut attributes that access the first alignment
     assertFalse(rapiRead.getPropPaired());
     assertTrue(rapiRead.getMapped());
@@ -92,8 +72,8 @@ public class TestLowRapiAligner
   @Test
   public void testAlignmentStruct() throws RapiException
   {
-    read rapiRead = Rapi.get_read(reads, 0, 0);
-    assertEquals("read_id:1", rapiRead.getId());
+    read rapiRead = reads.getRead(0, 0);
+    assertEquals("read_00", rapiRead.getId());
     assertTrue(rapiRead.getNAlignments() > 0);
 
     alignment aln = rapiRead.getAln(0);
@@ -129,7 +109,7 @@ public class TestLowRapiAligner
       */
 
     // check out reads that don't align perfectly
-    aln = Rapi.get_read(reads, 1, 0).getAln(0);
+    aln = reads.getRead(1, 0).getAln(0);
     assertEquals(60, aln.getMapq());
     assertEquals(51, aln.getScore());
     assertEquals("11M3D49M", aln.getCigarString());
@@ -146,7 +126,7 @@ public class TestLowRapiAligner
     assertEquals(0, aln.getN_gap_opens());
     assertEquals(0, aln.getN_gap_extensions());
 
-    aln = Rapi.get_read(reads, 2, 0).getAln(0);
+    aln = reads.getRead(2, 0).getAln(0);
     assertEquals(60, aln.getMapq());
     assertEquals(48, aln.getScore());
     assertEquals("13M3I44M", aln.getCigarString());
@@ -161,7 +141,7 @@ public class TestLowRapiAligner
       self.assertEqual('57', md_tag)
       */
 
-    aln = Rapi.get_read(reads, 3, 0).getAln(0);
+    aln = reads.getRead(3, 0).getAln(0);
     assertEquals(60, aln.getMapq());
     assertEquals(50, aln.getScore());
     assertEquals("60M", aln.getCigarString());
@@ -174,12 +154,7 @@ public class TestLowRapiAligner
 
   public static void main(String args[])
   {
-    if (args.length == 1)
-      RapiUtils.loadPlugin(args[0]);
-    else
-      RapiUtils.loadPlugin(null);
-
-    org.junit.runner.JUnitCore.main(TestLowRapiAligner.class.getName());
+    TestUtils.testCaseMainMethod(TestLowRapiAligner.class.getName(), args);
   }
 }
 

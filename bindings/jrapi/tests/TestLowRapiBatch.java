@@ -5,16 +5,12 @@ import it.crs4.rapi.RapiUtils;
 import org.junit.*;
 import static org.junit.Assert.*;
 
+import java.util.List;
+
 public class TestLowRapiBatch
 {
-  private batch b;
-
-  public static final String[][] some_reads = {
-    { "read_id/1-1", "AGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT", "11##############################" },
-    { "read_id/1-2", "TCGATCGATCGATCGATCGATCGATCGATCGA", "12$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" },
-    { "read_id/2-1", "GCTAGCTAGCTAGCTAGCTAGCTAGCTAGCTA", "21##############################" },
-    { "read_id/2-2", "CGATCGATCGATCGATCGATCGATCGATCGAT", "22$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$" }
-  };
+  private batch_wrap b;
+  private List<String[]> someReads;
 
   @BeforeClass
   public static void initSharedObj()
@@ -25,106 +21,120 @@ public class TestLowRapiBatch
   @Before
   public void init() throws RapiException
   {
-    Rapi.init(new opts());
+    someReads = TestUtils.getSomeReads();
 
-    b = new batch();
-    Rapi.reads_alloc(b, 2, 1);
+    Rapi.init(new opts());
+    b = new batch_wrap(2);
   }
 
   @After
   public void tearDown() throws RapiException
   {
-    Rapi.reads_free(b);
     Rapi.shutdown();
 
   }
 
   @Test
-  public void testAllocateBatch()
+  public void testInit()
   {
-    // batch already allocated in init()
-    assertEquals(2, b.getN_reads_frag());
-    assertEquals(1, b.getN_frags());
+    assertEquals(2, b.getN_reads_per_frag());
+    assertEquals(0, b.getCapacity());
+    assertEquals(0, b.getLength());
+    assertEquals(0, b.getN_fragments());
+  }
+
+  @Test
+  public void testReserve() throws RapiException
+  {
+    assertEquals(0, b.getCapacity());
+    b.reserve(4);
+    assertEquals(2, b.getN_reads_per_frag());
+    assertEquals(4, b.getCapacity());
+    assertEquals(0, b.getLength());
+    assertEquals(0, b.getN_fragments());
+  }
+
+  @Test
+  public void testAppend() throws RapiException
+  {
+    String[] aRead = someReads.get(0);
+
+    assertEquals(2, b.getN_reads_per_frag());
+
+    assertEquals(0, b.getLength());
+    assertEquals(0, b.getN_fragments());
+
+    b.append(aRead[0], aRead[1], aRead[2], Rapi.QENC_SANGER);
+
+    assertEquals(1, b.getLength());
+    assertEquals(0, b.getN_fragments());
+
+    b.append(aRead[0], aRead[3], aRead[4], Rapi.QENC_SANGER);
+
+    assertEquals(2, b.getLength());
+    assertEquals(1, b.getN_fragments());
+
+    assertTrue(2 <= b.getCapacity());
   }
 
   @Test(expected=RapiOutOfMemoryError.class)
   public void testImpossibleAllocation() throws RapiException
   {
-    b = new batch();
-    Rapi.reads_alloc(b, 2, 2000000000);
+    b.reserve(2000000000);
   }
 
   @Test
-  public void testSetAndGetRead() throws RapiException
+  public void testGetRead() throws RapiException
   {
-    loadSomeReads(1);
+    String[] aRead = someReads.get(0);
+    b.append(aRead[0], aRead[1], aRead[2], Rapi.QENC_SANGER);
+    b.append(aRead[0], aRead[3], aRead[4], Rapi.QENC_SANGER);
 
-    read r_get = Rapi.get_read(b, 0, 0);
+    read r_get = b.getRead(0, 0);
+
     assertNotNull(r_get);
-    assertEquals(some_reads[0][0], r_get.getId());
-    assertEquals(some_reads[0][1], r_get.getSeq());
-    assertEquals(some_reads[0][2], r_get.getQual());
-    assertEquals(some_reads[0][1].length(), r_get.getLength());
+    assertEquals(aRead[0], r_get.getId());
+    assertEquals(aRead[1], r_get.getSeq());
+    assertEquals(aRead[2], r_get.getQual());
+    assertEquals(aRead[1].length(), r_get.getLength());
 
-    r_get = Rapi.get_read(b, 0, 1);
+    r_get = b.getRead(0, 1);
     assertNotNull(r_get);
-    assertEquals(some_reads[1][0], r_get.getId());
-    assertEquals(some_reads[1][1], r_get.getSeq());
-    assertEquals(some_reads[1][2], r_get.getQual());
-
-    Rapi.reads_reserve(b, 2);
-    Rapi.set_read(b, 1, 0, some_reads[2][0], some_reads[2][1], some_reads[2][2], Rapi.QENC_SANGER);
-    Rapi.set_read(b, 1, 1, some_reads[3][0], some_reads[3][1], some_reads[3][2], Rapi.QENC_SANGER);
-
-    r_get = Rapi.get_read(b, 1, 0);
-    assertNotNull(r_get);
-    assertEquals(some_reads[2][0], r_get.getId());
-    assertEquals(some_reads[2][1], r_get.getSeq());
-    assertEquals(some_reads[2][2], r_get.getQual());
-
-    r_get = Rapi.get_read(b, 1, 1);
-    assertNotNull(r_get);
-    assertEquals(some_reads[3][0], r_get.getId());
-    assertEquals(some_reads[3][1], r_get.getSeq());
-    assertEquals(some_reads[3][2], r_get.getQual());
-  }
-
-  // verify out-of-bounds checking
-  @Test(expected=RapiInvalidParamException.class)
-  public void testSetErrors1() throws RapiException {
-    Rapi.set_read(b, 1, 0, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
+    assertEquals(aRead[0], r_get.getId());
+    assertEquals(aRead[3], r_get.getSeq());
+    assertEquals(aRead[4], r_get.getQual());
   }
 
   @Test(expected=RapiInvalidParamException.class)
-  public void testSetErrors2() throws RapiException {
-    Rapi.set_read(b, 0, 2, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-  }
-
-  @Test(expected=RapiInvalidParamException.class)
-  public void testSetErrors3() throws RapiException {
-    Rapi.set_read(b, -1, 0, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-  }
-
-  @Test(expected=RapiInvalidParamException.class)
-  public void testSetErrors4() throws RapiException {
-    Rapi.set_read(b, 0, -1, some_reads[0][0], some_reads[0][1], some_reads[0][2], Rapi.QENC_SANGER);
-  }
-
-  @Test
-  public void testGetErrors() throws RapiException
+  public void testGetError1() throws RapiException
   {
-    loadSomeReads(1);
     // verify out-of-bounds checking
-    read r = Rapi.get_read(b, 0, 0);
-    assertNotNull(r);
-    r = Rapi.get_read(b, 1, 0);
-    assertNull(r);
-    r = Rapi.get_read(b, 0, 2);
-    assertNull(r);
-    r = Rapi.get_read(b, -1, 0);
-    assertNull(r);
-    r = Rapi.get_read(b, 0, -1);
-    assertNull(r);
+    loadSomeReads(1);
+    read r = b.getRead(1, 0);
+  }
+
+  @Test(expected=RapiInvalidParamException.class)
+  public void testGetError2() throws RapiException
+  {
+    // verify out-of-bounds checking
+    loadSomeReads(1);
+    read r = b.getRead(-1, 0);
+  }
+
+  @Test(expected=RapiInvalidParamException.class)
+  public void testGetError3() throws RapiException
+  {
+    // verify out-of-bounds checking
+    loadSomeReads(1);
+    read r = b.getRead(0, 2);
+  }
+
+  @Test(expected=RapiInvalidParamException.class)
+  public void testGetError4() throws RapiException
+  {
+    // verify out-of-bounds checking
+    loadSomeReads(1);
+    read r = b.getRead(0, -1);
   }
 
   @Test
@@ -136,34 +146,43 @@ public class TestLowRapiBatch
 
     String[] lines = output.split("\n");
     assertEquals(4, lines.length);
-  }
-
-
-  private void loadSomeReads(int n_fragments) throws RapiException
-  {
-    if (n_fragments > some_reads.length / 2)
-      throw new IllegalArgumentException("Requested n_fragments (" + n_fragments + ") is greated than number of reads available for test");
-
-    Rapi.reads_reserve(b, n_fragments);
-
-    int z = 0;
-    for (int i = 0; i < n_fragments; ++i) {
-      for (int j = 0; j < 2; ++j) {
-        z = i*2 + j;
-        Rapi.set_read(b, i, j, some_reads[z][0], some_reads[z][1], some_reads[z][2], Rapi.QENC_SANGER);
-      }
+    // compare read ids.  Each element in someReads contains two reads, so two lines of SAM
+    for (int i = 0; i < lines.length / 2; ++i) {
+      assertEquals(someReads.get(i)[0], lines[2*i].split("\t")[0]);
+      assertEquals(someReads.get(i)[0], lines[2*i+1].split("\t")[0]);
     }
   }
 
   @Test
-  public void testReserve() throws RapiException
+  public void testFormatSAMBatchIndexed() throws RapiException
   {
-    assertEquals(1, b.getN_frags());
-    Rapi.reads_reserve(b, 1);
-    assertEquals(1, b.getN_frags());
-    Rapi.reads_reserve(b, 5);
-    assertEquals(5, b.getN_frags());
-    assertEquals(5*2, Rapi.batch_read_capacity(b));
+    loadSomeReads(2);
+    String output = Rapi.format_sam_batch(b, 1); // generate SAM for the 2nd fragment in the batch
+    assertTrue(output.length() > 0);
+
+    String[] lines = output.split("\n");
+    assertEquals(2, lines.length);
+    // compare read ids
+    for (int i = 0; i < lines.length; ++i) {
+      assertEquals(someReads.get(1)[0], lines[i].split("\t")[0]);
+    }
+  }
+
+  private void loadSomeReads(int n_fragments) throws RapiException
+  {
+    if (n_fragments > someReads.size())
+      throw new IllegalArgumentException("Requested n_fragments (" + n_fragments + ") is greated than number of reads available for test");
+
+    for (int i = 0; i < n_fragments; ++i) {
+      String[] fragment = someReads.get(i);
+      b.append(fragment[0], fragment[1], fragment[2], Rapi.QENC_SANGER);
+      b.append(fragment[0], fragment[3], fragment[4], Rapi.QENC_SANGER);
+    }
+  }
+
+  public static void main(String args[])
+  {
+    TestUtils.testCaseMainMethod(TestLowRapiBatch.class.getName(), args);
   }
 }
 

@@ -1,4 +1,8 @@
 
+import it.crs4.rapi.RapiUtils;
+import it.crs4.rapi.lowrapi.RapiException;
+import it.crs4.rapi.lowrapi.RapiConstants;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.FileNotFoundException;
@@ -57,6 +61,30 @@ public class TestUtils
   public static List<String[]> readMiniRefSeqs() throws FileNotFoundException, IOException
   {
     return readSeqs(RELATIVE_MINI_REF_SEQS);
+  }
+
+
+  public static void appendSeqsToBatch(List<String[]> seqs, it.crs4.rapi.lowrapi.batch_wrap batch) throws RapiException
+  {
+    if (batch.getN_reads_per_frag() != 2)
+      throw new RuntimeException("This method assumes batches of paired reads (getN_reads_per_frag == 2)");
+
+    for (String[] fragment: seqs)
+    {
+      batch.append(fragment[0], fragment[1], fragment[2], RapiConstants.QENC_SANGER);
+      batch.append(fragment[0], fragment[3], fragment[4], RapiConstants.QENC_SANGER);
+    }
+  }
+
+
+  public static void testCaseMainMethod(String testName, String[] args)
+  {
+    if (args.length == 1)
+      RapiUtils.loadPlugin(args[0]);
+    else
+      RapiUtils.loadPlugin(null);
+
+    org.junit.runner.JUnitCore.main(testName);
   }
 }
 

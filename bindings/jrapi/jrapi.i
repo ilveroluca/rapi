@@ -74,7 +74,21 @@ void do_rapi_throw(JNIEnv *jenv, rapi_error_t err_code, const char* msg)
     }
 }
 
+/* malloc wrapper that sets a SWIG error in case of failure. */
+void* rapi_malloc(JNIEnv* jenv, size_t nbytes) {
+  void* result = malloc(nbytes);
+  if (!result)
+    do_rapi_throw(jenv, RAPI_MEMORY_ERROR, "Failed to allocate memory");
+
+  return result;
+}
+
 %}
+
+
+// With this typemap we can create wrapper functions that receive the JNIEnv* as an argument,
+// but hiding it from the Java-side API.
+%typemap(in, numinputs=0) JNIEnv* jenv { $1 = jenv; }
 
 
 /* Eliminate the rapi_error_t return value from all functions, turning
@@ -93,7 +107,7 @@ void do_rapi_throw(JNIEnv *jenv, rapi_error_t err_code, const char* msg)
 %define CHECK_RAPI_ERROR(msg)
   if (result != RAPI_NO_ERROR) {
     do_rapi_throw(jenv, result, msg);
-    return $null;
+    //return $null; XXX: I don't think we can return from here.  Swig places resource clean-up code after the snippet
   }
 %enddef
 
@@ -166,18 +180,17 @@ typedef struct rapi_opts {
 } rapi_opts;
 
 
+/****** IMMUTABLE *******/
+// Everything from here down is read-only
+
+%immutable;
+
 ///* Init and tear down library */
 Set_exception_from_error_t(rapi_init)
 rapi_error_t rapi_init(const rapi_opts* opts);
 
 Set_exception_from_error_t(rapi_shutdown)
 rapi_error_t rapi_shutdown(void);
-
-
-/****** IMMUTABLE *******/
-// Everything from here down is read-only
-
-%immutable;
 
 /*
 The char* returned by the following functions are wrapped automatically by
@@ -192,8 +205,11 @@ const char* rapi_plugin_version(void);
  ***************************************/
 
 
+%nodefaultctor rapi_contig;
+%nodefaultdtor rapi_contig;
 typedef struct rapi_contig {
   char * name;
+NEED TO TYPEMAP this uint32_t
   uint32_t len;
   char * assembly_identifier;
   char * species;
@@ -202,19 +218,73 @@ typedef struct rapi_contig {
 } rapi_contig;
 
 
+%nodefaultctor rapi_ref;
 typedef struct rapi_ref {
   char * path;
-  int n_contigs;
 } rapi_ref;
 
 
-/* Load reference */
-Set_exception_from_error_t(rapi_ref_load)
-rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
+%exception rapi_ref::getContig {
+  $action
+  if (result == NULL) {
+    do_rapi_throw(jenv, RAPI_PARAM_ERROR, "index out of bounds");
+  }
+}
 
-/* Free reference */
-Set_exception_from_error_t(rapi_ref_free)
-rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
+%extend rapi_ref {
+  rapi_ref(JNIEnv* jenv, const char* reference_path) {
+    if (reference_path == NULL) {
+        do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Reference path cannot be None");
+        return NULL;
+    }
+
+    rapi_ref* ref = (rapi_ref*) rapi_malloc(jenv, sizeof(rapi_ref));
+    if (!ref) return NULL;
+
+    int error = rapi_ref_load(reference_path, ref);
+    if (error == RAPI_NO_ERROR)
+      return ref;
+    else {
+      free(ref);
+      const char* msg;
+      if (error == RAPI_MEMORY_ERROR)
+        msg = "Insufficient memory available to load the reference.";
+      else if (error == RAPI_GENERIC_ERROR)
+        msg = "Library failed to load reference. Check paths and reference format.";
+      else
+        msg = "";
+
+      do_rapi_throw(jenv, error, msg);
+      return NULL;
+    }
+  }
+
+  void unload() {
+    rapi_error_t error = rapi_ref_free($self);
+    if (error != RAPI_NO_ERROR) {
+      PERROR("Problem destroying reference (error code %d)\n", error);
+    }
+  }
+
+  ~rapi_ref() {
+    // double frees shouldn't cause any problems
+    rapi_ref_unload($self);
+  }
+
+  size_t getNContigs() const { return $self->n_contigs; }
+
+  /* XXX getContig: I worry about memory management here.  We're returning a pointer to the rapi_ref's
+    chunk of memory.  If someone keeps a contig pointer around after freeing the reference there's
+    going to be sparks.
+  */
+  rapi_contig* getContig(int i) {
+    if (i < 0 || i >= $self->n_contigs) {
+      return NULL;
+    }
+    else
+      return $self->contigs + i;
+  }
+};
 
 
 /***************************************/
@@ -359,6 +429,7 @@ rapi_bool rapi_alignment_secondaryAln_get(const rapi_alignment* aln) {
 /***************************************/
 /*      Reads and read batches         */
 /***************************************/
+%nodefaultctor rapi_read;
 typedef struct rapi_read {
   char * id;
   char * seq;
@@ -429,75 +500,255 @@ short rapi_read_mapq_get(const rapi_read* read) {
 %}
 
 
-typedef struct rapi_batch {
-  rapi_ssize_t n_frags;
-  int n_reads_frag;
-} rapi_batch;
+%{ // this declaration is inserted in the C code
+typedef struct rapi_batch_wrap {
+  rapi_batch* batch;
+  rapi_ssize_t len; // number of reads inserted in batch (as opposed to the space reserved)
+} rapi_batch_wrap;
+%}
 
-/* Allocate and load reads */
-Set_exception_from_error_t(rapi_reads_alloc)
-rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
+%{
+int rapi_batch_wrap_n_reads_per_frag_get(const rapi_batch_wrap* self) {
+    return self->batch->n_reads_frag;
+}
 
-Set_exception_from_error_t(rapi_reads_reserve)
-rapi_error_t rapi_reads_reserve(rapi_batch* batch, rapi_ssize_t n_fragments);
+int rapi_batch_wrap_n_fragments_get(const rapi_batch_wrap* self) {
+    return self->len / self->batch->n_reads_frag;
+}
 
-Set_exception_from_error_t(rapi_reads_clear)
-rapi_error_t rapi_reads_clear(rapi_batch* batch);
+int rapi_batch_wrap_length_get(const rapi_batch_wrap* self) {
+    return self->len;
+}
 
-Set_exception_from_error_t(rapi_reads_free)
-rapi_error_t rapi_reads_free(rapi_batch * batch);
+rapi_ssize_t rapi_batch_wrap_capacity_get(const rapi_batch_wrap* wrap) {
+  return rapi_batch_read_capacity(wrap->batch);
+}
 
-rapi_ssize_t rapi_batch_read_capacity(const rapi_batch* batch);
+%}
 
-Set_exception_from_error_t(rapi_set_read)
-rapi_error_t rapi_set_read(rapi_batch * batch, rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
+// This one to the SWIG interpreter.
+// We don't expose any of the struct members through SWIG.
+%nodefaultctor rapi_batch_wrap;
+typedef struct {
+} rapi_batch_wrap;
 
-rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read);
+
+%exception rapi_batch_wrap::getRead {
+  $action
+  if (result == NULL) {
+    do_rapi_throw(jenv, RAPI_PARAM_ERROR, "co-ordinates out of bounds");
+  }
+}
+
+Set_exception_from_error_t(rapi_batch_wrap::reserve);
+Set_exception_from_error_t(rapi_batch_wrap::append);
+Set_exception_from_error_t(rapi_batch_wrap::clear);
+Set_exception_from_error_t(rapi_batch_wrap::setRead);
+
+%extend rapi_batch_wrap {
+  /**
+   * Creates a new read_batch for fragments composed of `n_reads_per_frag` reads.
+   * The function doesn't pre-allocate any space for reads, so either use `append`
+   * to insert reads or call `reserve` before calling `set_read`.
+   */
+  rapi_batch_wrap(JNIEnv* jenv, int n_reads_per_frag) {
+    if (n_reads_per_frag <= 0) {
+      do_rapi_throw(jenv, RAPI_PARAM_ERROR, "number of reads per fragment must be greater than or equal to 0");
+      return NULL;
+    }
+
+    rapi_batch_wrap* wrapper = (rapi_batch_wrap*) rapi_malloc(jenv, sizeof(rapi_batch_wrap));
+    if (!wrapper) return NULL;
+
+    wrapper->batch = (rapi_batch*) rapi_malloc(jenv, sizeof(rapi_batch));
+    if (!wrapper->batch) {
+      free(wrapper);
+      return NULL;
+    }
+
+    wrapper->len = 0;
+
+    rapi_error_t error = rapi_reads_alloc(wrapper->batch, n_reads_per_frag, 0); // zero-sized allocation to initialize
+
+    if (error != RAPI_NO_ERROR) {
+      free(wrapper->batch);
+      free(wrapper);
+      do_rapi_throw(jenv, RAPI_MEMORY_ERROR, "Error allocating space for reads");
+      return NULL;
+    }
+    else
+      return wrapper;
+  }
+
+  ~rapi_batch_wrap() {
+    int error = rapi_reads_free($self->batch);
+    free($self);
+    if (error != RAPI_NO_ERROR) {
+      PERROR("Problem destroying read batch (error code %d)\n", error);
+      // TODO: should we raise exceptions in case of errors when freeing/destroying?
+    }
+  }
+
+  /** Number of reads per fragment */
+  const int n_reads_per_frag;
+
+  /** Number of complete fragments inserted */
+  const int n_fragments;
+
+  /** Number of reads for which we have allocated memory. */
+  const rapi_ssize_t capacity;
+
+  /** Number of reads inserted in batch (as opposed to the space reserved).
+   *  This is actually index + 1 of the "forward-most" read to have been inserted.
+   */
+  const rapi_ssize_t length;
+
+  rapi_read* getRead(JNIEnv* jenv, rapi_ssize_t n_fragment, int n_read)
+  {
+    // Since the underlying code merely checks whether we're indexing
+    // allocated space, we precede it with an additional check whether we're
+    // accessing space where reads have been inserted.
+    //
+    // * In both cases, if the returned value is NULL an IndexError is raised
+    // in the %exception block
+    if (n_fragment * $self->batch->n_reads_frag + n_read >= $self->len) {
+        do_rapi_throw(jenv, RAPI_PARAM_ERROR, "Index out of bounds");
+        return NULL;
+    }
+
+    return rapi_get_read($self->batch, n_fragment, n_read);
+  }
+
+  rapi_error_t reserve(rapi_ssize_t n_reads) {
+    if (n_reads < 0) {
+        PERROR("n_reads must be >= 0");
+        return RAPI_PARAM_ERROR;
+    }
+
+    int n_fragments = n_reads / $self->batch->n_reads_frag;
+    // If the reads don't fit completely in n_fragments, add one more
+    if (n_reads % $self->batch->n_reads_frag != 0)
+      n_fragments +=  1;
+
+    rapi_error_t error = rapi_reads_reserve($self->batch, n_fragments);
+    return error;
+  }
+
+  rapi_error_t append(const char* id, const char* seq, const char* qual, int q_offset)
+  {
+    rapi_error_t error = RAPI_NO_ERROR;
+
+    // if id or seq are NULL set them to the empty string and pass them down to the plugin.
+    if (!id) id = "";
+    if (!seq) seq = "";
+
+    rapi_ssize_t fragment_num = $self->len / $self->batch->n_reads_frag;
+    int read_num = $self->len % $self->batch->n_reads_frag;
+
+    rapi_ssize_t read_capacity = rapi_batch_wrap_capacity_get($self);
+    if (read_capacity < $self->len + 1) {
+      // double the space
+      rapi_ssize_t new_capacity = read_capacity > 0 ? read_capacity * 2 : 2;
+      error = rapi_batch_wrap_reserve($self, new_capacity);
+      if (error != RAPI_NO_ERROR) {
+        return error;
+      }
+    }
+    error = rapi_set_read($self->batch, fragment_num, read_num, id, seq, qual, q_offset);
+    if (error != RAPI_NO_ERROR) {
+      return error;
+    }
+    else
+      ++$self->len;
+
+    return error;
+  }
+
+  rapi_error_t clear() {
+    rapi_error_t error = rapi_reads_clear($self->batch);
+    if (error == RAPI_NO_ERROR)
+      $self->len = 0;
+    return error;
+  }
+
+/*  XXX:  maybe we shouldn't expose this method
+  rapi_error_t setRead(rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset)
+  {
+    // if id or seq are NULL set them to the empty string and pass them down to the plugin.
+    if (!id) id = "";
+    if (!seq) seq = "";
+
+    rapi_error_t error = rapi_set_read($self->batch, n_frag, n_read, id, seq, qual, q_offset);
+    if (error != RAPI_NO_ERROR) {
+      return error;
+    }
+    else {
+      // If the user set a read that is beyond the current batch length, reset the
+      // batch length to the new limit.
+      rapi_ssize_t index = n_frag * $self->batch->n_reads_frag + n_read;
+      if ($self->len <= index)
+        $self->len = index + 1;
+    }
+    return error;
+  }
+*/
+}
 
 /***************************************/
 /*      The aligner                    */
 /***************************************/
 
+%{ // forward declaration of opaque structure (in C-code)
+struct rapi_aligner_state;
+%}
+
 %nodefaultctor  rapi_aligner_state;
 //%nodefaultdtor  rapi_aligner_state;
 typedef struct rapi_aligner_state {} rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
-// Typemap settings to return the new aligner state as a return value.
-// See http://stackoverflow.com/questions/12739331/swig-interface-to-receive-an-opaque-struct-reference-in-java-through-function-ar
-// For an explanation.
-%typemap(in, numinputs=0) rapi_aligner_state** ret_state (rapi_aligner_state *tmp_ptr) {
-  $1 = &tmp_ptr;
-}
+Set_exception_from_error_t(rapi_aligner_state::alignReads);
 
-%typemap(jstype) rapi_error_t rapi_aligner_state_init "$typemap(jstype,rapi_aligner_state*)"
-%typemap(jtype) rapi_error_t rapi_aligner_state_init "$typemap(jtype,rapi_aligner_state*)"
-%typemap(jni) rapi_error_t rapi_aligner_state_init "$typemap(jni,rapi_aligner_state*)";
-%typemap(javaout) rapi_error_t rapi_aligner_state_init "$typemap(javaout,rapi_aligner_state*)";
+%extend rapi_aligner_state {
+  rapi_aligner_state(JNIEnv* jenv, const rapi_opts* opts)
+  {
+    struct rapi_aligner_state* p_state;
+    rapi_error_t error = rapi_aligner_state_init(&p_state, opts);
 
-%typemap(out) rapi_error_t rapi_aligner_state_init ""
-%typemap(argout) rapi_aligner_state ** {
-  *(rapi_aligner_state **)&$result = *$1;
-}
+    if (RAPI_NO_ERROR != error) {
+      do_rapi_throw(jenv, error, "Failed to create aligner state");
+      return NULL;
+    }
+    return p_state;
+  }
 
-Set_exception_from_error_t(rapi_aligner_state_init)
-rapi_error_t rapi_aligner_state_init(rapi_aligner_state** ret_state, const rapi_opts* opts);
+  ~rapi_aligner_state() {
+    rapi_error_t error = rapi_aligner_state_free($self);
+    if (error != RAPI_NO_ERROR)
+      PERROR("Problem destroying aligner state object (error code %d)\n", error);
+  }
+  
+  rapi_error_t alignReads(JNIEnv* jenv, const rapi_ref* ref, rapi_batch_wrap* batch)
+  {
+    if (NULL == ref || NULL == batch) {
+      PERROR("ref and batch arguments must not be NULL\n");
+      return RAPI_PARAM_ERROR;
+    }
 
+    if (batch->len % batch->batch->n_reads_frag != 0) {
+      PERROR("Incomplete fragment in batch! Number of reads appended (%lld) is not a multiple of the number of reads per fragment (%d)\n",
+        batch->len, batch->batch->n_reads_frag);
+      return RAPI_GENERIC_ERROR;
+    }
 
-Set_exception_from_error_t(rapi_align_reads);
-rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
-    rapi_ssize_t start_frag, rapi_ssize_t end_frag, rapi_aligner_state* state );
-
-Set_exception_from_error_t(rapi_aligner_state_free);
-rapi_error_t rapi_aligner_state_free(rapi_aligner_state* state);
+    rapi_ssize_t start_fragment = 0;
+    rapi_ssize_t end_fragment = batch->len / batch->batch->n_reads_frag;
+    return rapi_align_reads(ref, batch->batch, start_fragment, end_fragment, $self);
+  }
+};
 
 /***************************************/
 /*      SAM output                     */
 /***************************************/
-
-// With this typemap we can create wrapper functions that receive the JNIEnv* as an argument,
-// but hiding it from the Java-side API.
-%typemap(in, numinputs=0) JNIEnv* jenv { $1 = jenv; }
-
 
 %newobject format_sam_hdr;
 %inline %{
@@ -516,20 +767,42 @@ char* format_sam_hdr(JNIEnv* jenv, const rapi_ref* ref)
 %}
 
 
+// create overloaded `format_sam_batch` functions -- one that accepts
+// a fragment index and one that doesn't, but is applied to the entire batch.
+%rename(format_sam_batch) format_sam_batch2;
+
 %newobject format_sam_batch;
+%newobject format_sam_batch2;
+
 %inline %{
-char* format_sam_batch(JNIEnv* jenv, const rapi_batch* reads)
+char* format_sam_batch(JNIEnv* jenv, const rapi_batch_wrap* reads, rapi_ssize_t frag_idx)
 {
   if (!reads) {
     do_rapi_throw(jenv, RAPI_PARAM_ERROR, "NULL read_batch pointer!");
     return NULL;
   }
 
+  if (frag_idx >= reads->len / reads->batch->n_reads_frag) {
+    do_rapi_throw(jenv, RAPI_PARAM_ERROR, "Index value out of range");
+    return NULL;
+  }
+
+  int start, end;
+
+  if (frag_idx < 0) {
+    start = 0;
+    end = reads->len / reads->batch->n_reads_frag;
+  }
+  else {
+    start = frag_idx;
+    end = start + 1;
+  }
+
   kstring_t output = { 0, 0, NULL };
   rapi_error_t error = RAPI_NO_ERROR;
 
-  for (rapi_ssize_t i = 0; i < reads->n_frags && error == RAPI_NO_ERROR; ++i) {
-    error = rapi_format_sam_b(reads, i, &output);
+  for (rapi_ssize_t i = start; i < end && error == RAPI_NO_ERROR; ++i) {
+    error = rapi_format_sam_b(reads->batch, i, &output);
     kputc('\n', &output);
   }
   if (error == RAPI_NO_ERROR) {
@@ -541,13 +814,9 @@ char* format_sam_batch(JNIEnv* jenv, const rapi_batch* reads)
     return NULL;
   }
 }
+
+char* format_sam_batch2(JNIEnv* jenv, const rapi_batch_wrap* reads)
+{
+  return format_sam_batch(jenv, reads, -1);
+}
 %}
-
-
-/**************************************************
- ###  Object extensions
- **************************************************/
-
-/***************************************
- ****** other stuff              *******
- ***************************************/

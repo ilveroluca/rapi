@@ -9,11 +9,7 @@ import static org.junit.Assert.*;
 
 public class TestLowRapi
 {
-  private static final String RELATIVE_MINI_REF = "../../tests/mini_ref/mini_ref.fasta";
-  private static File jrapiBaseDir;
-
   private opts rapiOpts;
-  private File miniRefPath;
 
   @BeforeClass
   public static void initSharedObj()
@@ -24,7 +20,6 @@ public class TestLowRapi
   @Before
   public void init() throws RapiException
   {
-    miniRefPath = new File(jrapiBaseDir, RELATIVE_MINI_REF);
     rapiOpts = new opts();
     Rapi.init(rapiOpts);
   }
@@ -43,42 +38,9 @@ public class TestLowRapi
     assertTrue(Rapi.plugin_version().startsWith("0."));
   }
 
-  @Test
-  public void testLoadUnloadRef() throws RapiException
-  {
-    ref refObj = new ref();
-    Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
-
-    assertEquals(1, refObj.getN_contigs());
-
-    Rapi.ref_free(refObj);
-  }
-
-  @Test
-  public void testFormatSAMHeader() throws RapiException
-  {
-    ref refObj = new ref();
-    Rapi.ref_load(miniRefPath.getAbsolutePath(), refObj);
-    String hdr = Rapi.format_sam_hdr(refObj);
-    assertTrue(hdr.startsWith("@SQ"));
-
-    Rapi.ref_free(refObj);
-  }
-
-  @Test(expected=RapiException.class)
-  public void testFormatSAMHeaderError() throws RapiException
-  {
-    String hdr = Rapi.format_sam_hdr(null);
-  }
-
   public static void main(String args[])
   {
-    if (args.length == 1)
-      RapiUtils.loadPlugin(args[0]);
-    else
-      RapiUtils.loadPlugin(null);
-
-    org.junit.runner.JUnitCore.main(TestLowRapi.class.getName());
+    TestUtils.testCaseMainMethod(TestLowRapi.class.getName(), args);
   }
 }
 
