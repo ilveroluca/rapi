@@ -35,6 +35,9 @@ or they won't have effect.
 // the wrapping code
 %include "../rapi_swig_helpers.i"
 
+%include "stdint.i"; // needed to tell swig about types such as uint32_t, uint8_t, etc.
+
+
 %header %{
 #define FQ_EXCEPTION_NAME(name) "it/crs4/rapi/lowrapi/" #name
 
@@ -133,9 +136,6 @@ rapi_error_t is the error type for the RAPI library.
 typedef int rapi_error_t;
 typedef long long rapi_ssize_t;
 
-%typemap(jtype) uint8_t jshort;
-
-
 %inline %{
 typedef int rapi_bool;
 %}
@@ -209,7 +209,6 @@ const char* rapi_plugin_version(void);
 %nodefaultdtor rapi_contig;
 typedef struct rapi_contig {
   char * name;
-NEED TO TYPEMAP this uint32_t
   uint32_t len;
   char * assembly_identifier;
   char * species;
