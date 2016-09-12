@@ -17,6 +17,7 @@
 
 clean:
 	(cd pyrapi && python setup.py clean --all)
+	make -C jrapi clean
 
 
 .PHONY: clean
