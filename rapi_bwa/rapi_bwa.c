@@ -42,7 +42,7 @@ typedef struct {
 	int isize_max;
 	int n_threads;
 	int share_ref_mem;
-    mem_opt_t* bwa_opts;
+	mem_opt_t* bwa_opts;
 } library_opts;
 
 library_opts* _g_library_opts = NULL;
@@ -973,7 +973,7 @@ rapi_error_t rapi_rev_comp(char* seq, int len)
 /********** modified BWA code *****************/
 
 /* Copied directly from bwamem_pair */
-inline int mem_infer_dir(int64_t l_pac, int64_t b1, int64_t b2, int64_t *dist)
+static int mem_infer_dir(int64_t l_pac, int64_t b1, int64_t b2, int64_t *dist)
 {
 	int64_t p2;
 	int r1 = (b1 >= l_pac), r2 = (b2 >= l_pac);
