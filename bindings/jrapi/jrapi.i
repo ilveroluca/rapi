@@ -191,6 +191,12 @@ typedef struct rapi_opts {
 
     return tmp;
   }
+
+  ~rapi_opts(void) {
+    rapi_error_t error = rapi_opts_free($self);
+    if (error != RAPI_NO_ERROR)
+      PERROR("Problem destroying opts object (error code %d)\n", error);
+  }
 };
 
 
@@ -274,27 +280,27 @@ typedef struct rapi_ref {
     }
   }
 
-  void unload() {
+  void unload(void) {
     rapi_error_t error = rapi_ref_free($self);
     if (error != RAPI_NO_ERROR) {
       PERROR("Problem destroying reference (error code %d)\n", error);
     }
   }
 
-  ~rapi_ref() {
+  ~rapi_ref(void) {
     // double frees shouldn't cause any problems
     rapi_ref_unload($self);
   }
 
-  size_t getNContigs() const { return $self->n_contigs; }
+  size_t getNContigs(void) const { return $self->n_contigs; }
 
   /* XXX getContig: I worry about memory management here.  We're returning a pointer to the rapi_ref's
     chunk of memory.  If someone keeps a contig pointer around after freeing the reference there's
     going to be sparks.
   */
-  rapi_contig* getContig(int i) {
+  const rapi_contig* getContig(int i) const {
     if (i < 0 || i >= $self->n_contigs) {
-      return NULL;
+      return NULL; // exception raised at higher level in %exception block
     }
     else
       return $self->contigs + i;
@@ -363,12 +369,15 @@ typedef struct rapi_ref {
 %{
 typedef struct {
     rapi_cigar* ops;
-    size_t len;
+    int len;
 } rapi_cigar_ops;
 %}
 
 
 %nodefaultctor rapi_alignment;
+// Alignments are not to be deleted.  They are attached to the read, which is
+// attached to the batch.  When the batch is freed so is all the rest.
+%nodefaultdtor rapi_alignment;
 
 typedef struct rapi_alignment {
   rapi_contig* contig;
@@ -393,25 +402,25 @@ typedef struct rapi_alignment {
     rapi_bool reverseStrand;
     rapi_bool secondaryAln;
 
-    rapi_cigar_ops getCigarOps() const {
+    rapi_cigar_ops getCigarOps(void) const { // rapi_cigar_ops is then converted to AlignOp[]
         rapi_cigar_ops array;
         array.ops = $self->cigar_ops;
         array.len = $self->n_cigar_ops;
         return array;
     }
 
-    char* getCigarString() const {
+    char* getCigarString(void) const {
         kstring_t output = { 0, 0, NULL };
         rapi_put_cigar($self->n_cigar_ops, $self->cigar_ops, 0, &output);
         // return the string directly. Wrapper will be responsible for freeing it (through %newobject)
         return output.s;
     }
 /*
-    rapi_tag_list get_tags() const {
+    rapi_tag_list get_tags(void) const {
         return $self->tags;
     }
 */
-    int get_rlen() const {
+    int get_rlen(void) const {
       return rapi_get_rlen($self->n_cigar_ops, $self->cigar_ops);
     }
 };
@@ -440,11 +449,15 @@ rapi_bool rapi_alignment_secondaryAln_get(const rapi_alignment* aln) {
 %}
 
 
-
 /***************************************/
 /*      Reads and read batches         */
 /***************************************/
 %nodefaultctor rapi_read;
+
+// Reads are not to be deleted.  They are attached to the read, which is
+// attached to the batch.  When the batch is freed so is all the rest.
+%nodefaultdtor rapi_read;
+
 typedef struct rapi_read {
   char * id;
   char * seq;
@@ -469,13 +482,13 @@ typedef struct rapi_read {
   int score;
   short mapq;
 
-  int getNAlignments() const { return $self->n_alignments; }
+  int getNAlignments(void) const { return $self->n_alignments; }
 
   const rapi_alignment* getAln(int index) const {
     if (index >= 0 && index < $self->n_alignments)
       return $self->alignments + index;
     else
-      return NULL; // exception raise in %exception block
+      return NULL; // exception raised in %exception block
   }
 };
 
@@ -593,7 +606,7 @@ Set_exception_from_error_t(rapi_batch_wrap::setRead);
       return wrapper;
   }
 
-  ~rapi_batch_wrap() {
+  ~rapi_batch_wrap(void) {
     int error = rapi_reads_free($self->batch);
     free($self);
     if (error != RAPI_NO_ERROR) {
@@ -616,9 +629,9 @@ Set_exception_from_error_t(rapi_batch_wrap::setRead);
    */
   const rapi_ssize_t length;
 
-  rapi_read* getRead(JNIEnv* jenv, rapi_ssize_t n_fragment, int n_read)
+  const rapi_read* getRead(JNIEnv* jenv, rapi_ssize_t n_fragment, int n_read) const
   {
-    // Since the underlying code merely checks whether we're indexing
+    // Since the underlying rapi code merely checks whether we're indexing
     // allocated space, we precede it with an additional check whether we're
     // accessing space where reads have been inserted.
     //
@@ -677,7 +690,7 @@ Set_exception_from_error_t(rapi_batch_wrap::setRead);
     return error;
   }
 
-  rapi_error_t clear() {
+  rapi_error_t clear(void) {
     rapi_error_t error = rapi_reads_clear($self->batch);
     if (error == RAPI_NO_ERROR)
       $self->len = 0;
@@ -734,7 +747,7 @@ Set_exception_from_error_t(rapi_aligner_state::alignReads);
     return p_state;
   }
 
-  ~rapi_aligner_state() {
+  ~rapi_aligner_state(void) {
     rapi_error_t error = rapi_aligner_state_free($self);
     if (error != RAPI_NO_ERROR)
       PERROR("Problem destroying aligner state object (error code %d)\n", error);
