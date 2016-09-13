@@ -226,11 +226,11 @@ TypeError: object of type 'ref' has no len()
         return iter;
     }
 
-    ~type##_iter() { free($self); }
+    ~type##_iter(void) { free($self); }
 
-    type##_iter* rapi___iter__() { return $self; }
+    type##_iter* rapi___iter__(void) { return $self; }
 
-    const type* next() {
+    const type* next(void) {
         const type* retval;
         if ($self->n_left) {
             retval = $self->next_item++;
@@ -252,9 +252,9 @@ TypeError: object of type 'ref' has no len()
 The char* returned by the following functions are wrapped automatically by
 SWIG -- the wrapper doesn't try to free the strings since they are "const".
 */
-const char* rapi_aligner_name();
-const char* rapi_aligner_version();
-const char* rapi_plugin_version();
+const char* rapi_aligner_name(void);
+const char* rapi_aligner_version(void);
+const char* rapi_plugin_version(void);
 
 /**** rapi_param ****/
 typedef struct {
@@ -271,14 +271,14 @@ typedef struct {
 %extend rapi_param {
   const char* name; // kstring_t accessed as a const char*
 
-  rapi_param() {
+  rapi_param(void) {
     rapi_param* param = (rapi_param*) rapi_malloc(sizeof(rapi_param));
     if (!param) return NULL;
     rapi_param_init(param);
     return param;
   }
 
-  ~rapi_param() {
+  ~rapi_param(void) {
     rapi_param_free($self);
   }
 };
@@ -311,7 +311,7 @@ typedef struct {
 
 
 %extend rapi_opts {
-  rapi_opts() {
+  rapi_opts(void) {
     rapi_opts* opts = (rapi_opts*) rapi_malloc(sizeof(rapi_opts));
     if (!opts) return NULL;
 
@@ -325,7 +325,7 @@ typedef struct {
     }
   }
 
-  ~rapi_opts() {
+  ~rapi_opts(void) {
     rapi_error_t error = rapi_opts_free($self);
     if (error != RAPI_NO_ERROR) {
       PERROR("Problem destroying opts (error code %d)\n", error);
@@ -335,7 +335,7 @@ typedef struct {
 };
 
 rapi_error_t rapi_init(const rapi_opts* opts);
-rapi_error_t rapi_shutdown();
+rapi_error_t rapi_shutdown(void);
 
 
 /****** IMMUTABLE *******/
@@ -423,24 +423,24 @@ typedef struct {
     }
   }
 
-  void unload() {
+  void unload(void) {
     rapi_error_t error = rapi_ref_free($self);
     if (error != RAPI_NO_ERROR) {
       PERROR("Problem destroying reference (error code %d)\n", error);
     }
   }
 
-  ~rapi_ref() {
+  ~rapi_ref(void) {
     rapi_ref_unload($self);
   }
 
-  size_t rapi___len__() const { return $self->n_contigs; }
+  size_t rapi___len__(void) const { return $self->n_contigs; }
 
   /* XXX: I worry about memory management here.  We're returning a pointer to the rapi_ref's
     chunk of memory.  I don't think there's anything preventing the interpreter from deciding
     to free the underlying memory and making everything blow up.
   */
-  rapi_contig* rapi_get_contig(int i) {
+  const rapi_contig* rapi_get_contig(int i) const {
     if (i < 0 || i >= $self->n_contigs) {
       SWIG_Error(SWIG_IndexError, "index out of bounds");
       return NULL;
@@ -449,9 +449,9 @@ typedef struct {
       return $self->contigs + i;
   }
 
-  rapi_contig* rapi___getitem__(int i) { return rapi_ref_rapi_get_contig($self, i); }
+  const rapi_contig* rapi___getitem__(int i) const { return rapi_ref_rapi_get_contig($self, i); }
 
-  rapi_contig_iter* rapi___iter__() { return new_rapi_contig_iter($self->contigs, $self->n_contigs); }
+  rapi_contig_iter* rapi___iter__(void) const { return new_rapi_contig_iter($self->contigs, $self->n_contigs); }
 };
 
 /***************************************
@@ -633,25 +633,25 @@ typedef struct {
     rapi_bool reverse_strand;
     rapi_bool secondary_aln;
 
-    rapi_cigar_ops get_cigar_ops() const {
+    rapi_cigar_ops get_cigar_ops(void) const {
         rapi_cigar_ops array;
         array.ops = $self->cigar_ops;
         array.len = $self->n_cigar_ops;
         return array;
     }
 
-    char* get_cigar_string() const {
+    char* get_cigar_string(void) const {
         kstring_t output = { 0, 0, NULL };
         rapi_put_cigar($self->n_cigar_ops, $self->cigar_ops, 0, &output);
         // return the string directly to Python who will be responsible for freeing it
         return output.s;
     }
 
-    rapi_tag_list get_tags() const {
+    rapi_tag_list get_tags(void) const {
         return $self->tags;
     }
 
-    int get_rlen() const {
+    int get_rlen(void) const {
       return rapi_get_rlen($self->n_cigar_ops, $self->cigar_ops);
     }
 };
@@ -741,7 +741,7 @@ typedef struct {
 } rapi_read;
 
 %extend rapi_read {
-    size_t rapi___len__() const { return $self->length; }
+    size_t rapi___len__(void) const { return $self->length; }
 
     const rapi_alignment* get_aln(int index) const {
         if (index >= 0 && index < $self->n_alignments)
@@ -750,7 +750,7 @@ typedef struct {
             return NULL; // exception raise in %exception block
     }
 
-    rapi_alignment_iter* iter_aln() const {
+    rapi_alignment_iter* iter_aln(void) const {
         return new_rapi_alignment_iter($self->alignments, $self->n_alignments);
     }
 
@@ -812,7 +812,7 @@ uint8_t rapi_read_mapq_get(const rapi_read* read) {
 %{
 struct rapi_batch_wrap;
 struct read_batch_iter;
-SWIGINTERN struct read_batch_iter* new_read_batch_iter(struct rapi_batch_wrap* batch);
+SWIGINTERN struct read_batch_iter* new_read_batch_iter(const struct rapi_batch_wrap* batch);
 %}
 
 %feature("python:slot", "sq_length", functype="lenfunc") rapi_batch_wrap::rapi___len__;
@@ -846,16 +846,16 @@ rapi_ssize_t rapi_batch_wrap_capacity_get(const rapi_batch_wrap* wrap) {
 
 // This one to the SWIG interpreter.
 // We don't expose any of the struct members through SWIG.
-typedef struct {
+typedef struct rapi_batch_wrap {
 } rapi_batch_wrap;
 
 %{
-typedef struct {
+typedef struct rapi_fragment {
   const rapi_batch* batch;
   rapi_ssize_t fragment_num;
 } rapi_fragment;
 %}
-typedef struct {
+typedef struct rapi_fragment {
 } rapi_fragment;
 
 /* Iterator over fragments in a read batch */
@@ -870,7 +870,7 @@ typedef struct read_batch_iter {
   size_t next_fragment;
 } read_batch_iter;
 %}
-typedef struct {
+typedef struct read_batch_iter {
 } read_batch_iter;
 
 %exception rapi_batch_wrap::get_read {
@@ -916,7 +916,7 @@ typedef struct {
       return wrapper;
   }
 
-  ~rapi_batch_wrap() {
+  ~rapi_batch_wrap(void) {
     rapi_error_t error = rapi_reads_free($self->batch);
     free($self);
     if (error != RAPI_NO_ERROR) {
@@ -937,9 +937,9 @@ typedef struct {
   /** Number of reads inserted in batch (as opposed to the space reserved).
    *  This is actually index + 1 of the "forward-most" read to have been inserted.
    */
-  rapi_ssize_t rapi___len__() const { return $self->len; }
+  rapi_ssize_t rapi___len__(void) const { return $self->len; }
 
-  rapi_read* get_read(rapi_ssize_t n_fragment, int n_read)
+  const rapi_read* get_read(rapi_ssize_t n_fragment, int n_read) const
   {
     // Since the underlying code merely checks whether we're indexing
     // allocated space, we precede it with an additional check whether we're
@@ -999,7 +999,7 @@ typedef struct {
     return error;
   }
 
-  rapi_error_t clear() {
+  rapi_error_t clear(void) {
     rapi_error_t error = rapi_reads_clear($self->batch);
     if (error == RAPI_NO_ERROR)
       $self->len = 0;
@@ -1028,7 +1028,7 @@ typedef struct {
 
   // need the 'struct' keyword in the function prototype because we haven't
   // defined the read_batch_iter struct yet.
-  struct read_batch_iter* rapi___iter__() {
+  struct read_batch_iter* rapi___iter__(void) const {
     return new_read_batch_iter($self);
   }
 }
@@ -1040,7 +1040,7 @@ typedef struct {
 }
 
 %extend read_batch_iter {
-  read_batch_iter(rapi_batch_wrap* batch) {
+  read_batch_iter(const rapi_batch_wrap * batch) {
     if (batch == NULL) {
         SWIG_Error(SWIG_TypeError, "batch cannot be None");
         return NULL;
@@ -1054,11 +1054,11 @@ typedef struct {
     return iter;
   }
 
-  ~read_batch_iter() {
+  ~read_batch_iter(void) {
     free($self);
   }
 
-  read_batch_iter* __iter__() { return $self; }
+  read_batch_iter* __iter__(void) { return $self; }
 
   rapi_fragment next() {
     rapi_fragment fragment;
@@ -1100,7 +1100,7 @@ typedef struct {
     return pState;
   }
 
-  ~rapi_aligner_state() {
+  ~rapi_aligner_state(void) {
     rapi_error_t error = rapi_aligner_state_free($self);
     if (error != RAPI_NO_ERROR)
       PERROR("Problem destroying aligner state object (error code %d)\n", error);
