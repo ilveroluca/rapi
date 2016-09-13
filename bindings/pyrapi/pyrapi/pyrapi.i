@@ -315,7 +315,7 @@ typedef struct {
     rapi_opts* opts = (rapi_opts*) rapi_malloc(sizeof(rapi_opts));
     if (!opts) return NULL;
 
-    int error = rapi_opts_init(opts);
+    rapi_error_t error = rapi_opts_init(opts);
     if (error == RAPI_NO_ERROR)
       return opts;
     else {
@@ -326,7 +326,7 @@ typedef struct {
   }
 
   ~rapi_opts() {
-    int error = rapi_opts_free($self);
+    rapi_error_t error = rapi_opts_free($self);
     if (error != RAPI_NO_ERROR) {
       PERROR("Problem destroying opts (error code %d)\n", error);
       // TODO: should we raise exceptions in case of errors when freeing/destroying?
@@ -405,7 +405,7 @@ typedef struct {
     rapi_ref* ref = (rapi_ref*) rapi_malloc(sizeof(rapi_ref));
     if (!ref) return NULL;
 
-    int error = rapi_ref_load(reference_path, ref);
+    rapi_error_t error = rapi_ref_load(reference_path, ref);
     if (error == RAPI_NO_ERROR)
       return ref;
     else {
@@ -834,7 +834,7 @@ int rapi_batch_wrap_n_reads_per_frag_get(const rapi_batch_wrap* self) {
     return self->batch->n_reads_frag;
 }
 
-int rapi_batch_wrap_n_fragments_get(const rapi_batch_wrap* self) {
+rapi_ssize_t rapi_batch_wrap_n_fragments_get(const rapi_batch_wrap* self) {
     return self->len / self->batch->n_reads_frag;
 }
 
@@ -917,7 +917,7 @@ typedef struct {
   }
 
   ~rapi_batch_wrap() {
-    int error = rapi_reads_free($self->batch);
+    rapi_error_t error = rapi_reads_free($self->batch);
     free($self);
     if (error != RAPI_NO_ERROR) {
       PERROR("Problem destroying read batch (error code %d)\n", error);
@@ -929,7 +929,7 @@ typedef struct {
   const int n_reads_per_frag;
 
   /** Number of complete fragments inserted */
-  const int n_fragments;
+  const rapi_ssize_t n_fragments;
 
   /** Number of reads for which we have allocated memory. */
   const rapi_ssize_t capacity;
