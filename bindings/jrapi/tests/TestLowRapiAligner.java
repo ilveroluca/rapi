@@ -42,7 +42,6 @@ public class TestLowRapiAligner
 
     aligner = new aligner_state(rapiOpts);
     aligner.alignReads(refObj, reads);
-    System.err.println("============ Finished aligning reads");
   }
 
   @After

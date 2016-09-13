@@ -144,8 +144,6 @@ typedef int rapi_bool;
 %typemap(jstype) rapi_bool "boolean";
 %typemap(jni) rapi_bool "jboolean";
 
-// set a default exception handler for all funcition
-
 %mutable;
 
 /**************************************************
@@ -210,7 +208,7 @@ rapi_error_t rapi_shutdown(void);
 
 /*
 The char* returned by the following functions are wrapped automatically by
-SWIG -- the wrapper doesn't try to free the strings since they are "const".
+SWIG -- the wrapper doesn't try to free the strings.
 */
 const char* rapi_aligner_name(void);
 const char* rapi_aligner_version(void);
@@ -221,8 +219,11 @@ const char* rapi_plugin_version(void);
  ***************************************/
 
 
+// rapi_contig provides a view into the rapi_ref.  It must
+// not be freed, and it should only be constructed by the rapi_ref.
 %nodefaultctor rapi_contig;
 %nodefaultdtor rapi_contig;
+
 typedef struct rapi_contig {
   char * name;
   uint32_t len;
@@ -237,7 +238,6 @@ typedef struct rapi_contig {
 typedef struct rapi_ref {
   char * path;
 } rapi_ref;
-
 
 %exception rapi_ref::getContig {
   $action
@@ -461,7 +461,6 @@ typedef struct rapi_read {
 }
 
 %extend rapi_read {
-
   // synthesize some high-level boolean attributes.  These
   // look at the "main" alignment (first one, if any)
   rapi_bool propPaired;
@@ -538,7 +537,6 @@ int rapi_batch_wrap_length_get(const rapi_batch_wrap* self) {
 rapi_ssize_t rapi_batch_wrap_capacity_get(const rapi_batch_wrap* wrap) {
   return rapi_batch_read_capacity(wrap->batch);
 }
-
 %}
 
 // This one to the SWIG interpreter.
@@ -718,7 +716,7 @@ struct rapi_aligner_state;
 %}
 
 %nodefaultctor  rapi_aligner_state;
-//%nodefaultdtor  rapi_aligner_state;
+
 typedef struct rapi_aligner_state {} rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
 
 Set_exception_from_error_t(rapi_aligner_state::alignReads);
