@@ -54,6 +54,14 @@ public class TestLowRapiBatch
     assertEquals(0, b.getN_fragments());
   }
 
+  @Test(expected=RapiOutOfMemoryError.class)
+  public void testImpossibleReserve() throws RapiException
+  {
+    assertEquals(0, b.getCapacity());
+    b.reserve(99999999999L);
+  }
+
+
   @Test
   public void testAppend() throws RapiException
   {

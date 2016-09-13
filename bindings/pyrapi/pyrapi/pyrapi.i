@@ -960,7 +960,7 @@ typedef struct {
         return RAPI_PARAM_ERROR;
     }
 
-    int n_fragments = n_reads / $self->batch->n_reads_frag;
+    rapi_ssize_t n_fragments = n_reads / $self->batch->n_reads_frag;
     // If the reads don't fit completely in n_fragments, add one more
     if (n_reads % $self->batch->n_reads_frag != 0)
       n_fragments +=  1;

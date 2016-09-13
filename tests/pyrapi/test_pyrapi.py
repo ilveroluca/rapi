@@ -166,6 +166,7 @@ class TestPyrapiReadBatch(unittest.TestCase):
         self.assertGreaterEqual(100, self.w.capacity)
         self.assertEquals(0, self.w.n_fragments)
         self.assertEquals(0, len(self.w))
+        self.assertRaises(MemoryError, self.w.reserve, 9999999999)
         self.assertRaises(ValueError, self.w.reserve, -1)
         self.assertRaises(TypeError, self.w.reserve, None)
 
