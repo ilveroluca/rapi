@@ -31,7 +31,6 @@ public class TestLowRapiBatch
   public void tearDown() throws RapiException
   {
     Rapi.shutdown();
-
   }
 
   @Test
