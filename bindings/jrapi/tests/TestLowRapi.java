@@ -33,9 +33,9 @@ public class TestLowRapi
   @Test
   public void testVersions()
   {
-    assertTrue(Rapi.aligner_name().startsWith("bwa-mem"));
-    assertTrue(Rapi.aligner_version().startsWith("0."));
-    assertTrue(Rapi.plugin_version().startsWith("0."));
+    assertTrue(Rapi.getAlignerName().startsWith("bwa-mem"));
+    assertTrue(Rapi.getAlignerVersion().startsWith("0."));
+    assertTrue(Rapi.getPluginVersion().startsWith("0."));
   }
 
   public static void main(String args[])

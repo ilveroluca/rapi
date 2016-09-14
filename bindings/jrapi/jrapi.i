@@ -18,6 +18,10 @@ or they won't have effect.
 %rename("Read")         "rapi_read";
 %rename("Ref")          "rapi_ref";
 
+%rename("getAlignerName")    "rapi_aligner_name";
+%rename("getAlignerVersion") "rapi_aligner_version";
+%rename("getPluginVersion")  "rapi_plugin_version";
+
 %rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
 // rename n_ names to camelcase
 %rename("%(lowercamelcase)s", regextarget=1) "^n_\w+";
@@ -168,6 +172,12 @@ typedef int rapi_bool;
 
 /************ begin wrapping functions and structures **************/
 
+%rename("%(lowercamelcase)s") ignore_unsupported;
+%rename("%(lowercamelcase)s") mapq_min;
+%rename("%(lowercamelcase)s") isize_min;
+%rename("%(lowercamelcase)s") isize_max;
+%rename("%(lowercamelcase)s") share_ref_mem;
+
 %mutable;
 /********* rapi_opts *******/
 typedef struct rapi_opts {
@@ -232,6 +242,8 @@ const char* rapi_plugin_version(void);
  ****** rapi_contig and rapi_ref *******
  ***************************************/
 
+
+%rename("%(lowercamelcase)s") assembly_identifier;
 
 // rapi_contig provides a view into the rapi_ref.  It must
 // not be freed, and it should only be constructed by the rapi_ref.
@@ -543,11 +555,11 @@ typedef struct rapi_batch_wrap {
 %}
 
 %{
-int rapi_batch_wrap_n_reads_per_frag_get(const rapi_batch_wrap* self) {
+int rapi_batch_wrap_nReadsPerFrag_get(const rapi_batch_wrap* self) {
     return self->batch->n_reads_frag;
 }
 
-int rapi_batch_wrap_n_fragments_get(const rapi_batch_wrap* self) {
+int rapi_batch_wrap_nFragments_get(const rapi_batch_wrap* self) {
     return self->len / self->batch->n_reads_frag;
 }
 
@@ -624,10 +636,10 @@ Set_exception_from_error_t(rapi_batch_wrap::setRead);
   }
 
   /** Number of reads per fragment */
-  const int n_reads_per_frag;
+  const int nReadsPerFrag;
 
   /** Number of complete fragments inserted */
-  const int n_fragments;
+  const int nFragments;
 
   /** Number of reads for which we have allocated memory. */
   const rapi_ssize_t capacity;
@@ -784,6 +796,8 @@ Set_exception_from_error_t(rapi_aligner_state::alignReads);
 /*      SAM output                     */
 /***************************************/
 
+%rename("%(lowercamelcase)s") format_sam_hdr;
+
 %newobject format_sam_hdr;
 %inline %{
 char* format_sam_hdr(JNIEnv* jenv, const rapi_ref* ref)
@@ -803,7 +817,8 @@ char* format_sam_hdr(JNIEnv* jenv, const rapi_ref* ref)
 
 // create overloaded `format_sam_batch` functions -- one that accepts
 // a fragment index and one that doesn't, but is applied to the entire batch.
-%rename(format_sam_batch) format_sam_batch2;
+%rename(formatSamBatch) format_sam_batch;
+%rename(formatSamBatch) format_sam_batch2;
 
 %newobject format_sam_batch;
 %newobject format_sam_batch2;

@@ -20,7 +20,7 @@ public class TestLowRapiRef
   public void init() throws RapiException
   {
     optsObj = new Opts();
-    optsObj.setShare_ref_mem(false);
+    optsObj.setShareRefMem(false);
     Rapi.init(optsObj);
     refObj = new Ref(TestUtils.RELATIVE_MINI_REF);
   }
@@ -47,7 +47,7 @@ public class TestLowRapiRef
 
     assertEquals("chr1", c.getName());
     assertEquals(60000, c.getLen());
-    assertNull(c.getAssembly_identifier());
+    assertNull(c.getAssemblyIdentifier());
     assertNull(c.getSpecies());
     assertNull(c.getSpecies());
     assertNull(c.getUri());
@@ -77,14 +77,14 @@ public class TestLowRapiRef
   @Test
   public void testFormatSAMHeader() throws RapiException
   {
-    String hdr = Rapi.format_sam_hdr(refObj);
+    String hdr = Rapi.formatSamHdr(refObj);
     assertTrue(hdr.startsWith("@SQ"));
   }
 
   @Test(expected=RapiException.class)
   public void testFormatSAMHeaderError() throws RapiException
   {
-    String hdr = Rapi.format_sam_hdr(null);
+    String hdr = Rapi.formatSamHdr(null);
   }
 
   public static void main(String args[])

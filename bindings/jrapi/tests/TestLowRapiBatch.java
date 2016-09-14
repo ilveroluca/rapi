@@ -148,7 +148,7 @@ public class TestLowRapiBatch
   public void testFormatSAMBatch() throws RapiException
   {
     loadSomeReads(2);
-    String output = Rapi.format_sam_batch(b);
+    String output = Rapi.formatSamBatch(b);
     assertTrue(output.length() > 0);
 
     String[] lines = output.split("\n");
@@ -164,7 +164,7 @@ public class TestLowRapiBatch
   public void testFormatSAMBatchIndexed() throws RapiException
   {
     loadSomeReads(2);
-    String output = Rapi.format_sam_batch(b, 1); // generate SAM for the 2nd fragment in the batch
+    String output = Rapi.formatSamBatch(b, 1); // generate SAM for the 2nd fragment in the batch
     assertTrue(output.length() > 0);
 
     String[] lines = output.split("\n");
