@@ -1,5 +1,5 @@
 
-package it.crs4.rapi.lowrapi;
+package it.crs4.rapi;
 
 public class RapiOpNotSupportedException extends RapiException
 {

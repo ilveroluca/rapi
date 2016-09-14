@@ -9,16 +9,18 @@ Remove rapi_ prefix from all function and structure names.
 Make sure this general rename comes before the ignore clauses below
 or they won't have effect.
 */
-%rename("NO_ERROR")               "RAPI_NO_ERROR";
-%rename("GENERIC_ERROR")          "RAPI_GENERIC_ERROR";
-%rename("OP_NOT_SUPPORTED_ERROR") "RAPI_OP_NOT_SUPPORTED_ERROR";
-%rename("MEMORY_ERROR")           "RAPI_MEMORY_ERROR";
-%rename("PARAM_ERROR")            "RAPI_PARAM_ERROR";
-%rename("TYPE_ERROR")             "RAPI_TYPE_ERROR";
 
+%rename("AlignerState") "rapi_aligner_state";
+%rename("Alignment")    "rapi_alignment";
+%rename("Batch")        "rapi_batch_wrap";
+%rename("Contig")       "rapi_contig";
+%rename("Opts")         "rapi_opts";
+%rename("Read")         "rapi_read";
+%rename("Ref")          "rapi_ref";
 
 %rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
-
+// rename n_ names to camelcase
+%rename("%(lowercamelcase)s", regextarget=1) "^n_\w+";
 
 // ignore functions from klib
 %rename("$ignore", regextarget=1) "^k";
@@ -31,15 +33,21 @@ or they won't have effect.
 // To get camel case, we'll need to rename the wrapped classes individually.
 // %rename("%(camelcase)s", %$isclass) "";
 
-// First we need to include the helpers, since they're used throughput
-// the wrapping code
-%include "../rapi_swig_helpers.i"
+%header %{
+/* includes injected into the C wrapper code.  */
+#include <stddef.h>
+#include <stdio.h>
+#include <rapi.h>
+#include <rapi_utils.h>
+
+%}
+
 
 %include "stdint.i"; // needed to tell swig about types such as uint32_t, uint8_t, etc.
 
 
 %header %{
-#define FQ_EXCEPTION_NAME(name) "it/crs4/rapi/lowrapi/" #name
+#define FQ_EXCEPTION_NAME(name) "it/crs4/rapi/" #name
 
 const char* rapi_err_to_except(rapi_error_t error_code)
 {

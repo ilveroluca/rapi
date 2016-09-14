@@ -1,5 +1,5 @@
 
-import it.crs4.rapi.lowrapi.*;
+import it.crs4.rapi.*;
 import it.crs4.rapi.RapiUtils;
 
 import org.junit.*;
@@ -9,7 +9,7 @@ import java.util.List;
 
 public class TestLowRapiBatch
 {
-  private batch_wrap b;
+  private Batch b;
   private List<String[]> someReads;
 
   @BeforeClass
@@ -23,8 +23,8 @@ public class TestLowRapiBatch
   {
     someReads = TestUtils.getSomeReads();
 
-    Rapi.init(new opts());
-    b = new batch_wrap(2);
+    Rapi.init(new Opts());
+    b = new Batch(2);
   }
 
   @After
@@ -36,10 +36,10 @@ public class TestLowRapiBatch
   @Test
   public void testInit()
   {
-    assertEquals(2, b.getN_reads_per_frag());
+    assertEquals(2, b.getNReadsPerFrag());
     assertEquals(0, b.getCapacity());
     assertEquals(0, b.getLength());
-    assertEquals(0, b.getN_fragments());
+    assertEquals(0, b.getNFragments());
   }
 
   @Test
@@ -47,10 +47,10 @@ public class TestLowRapiBatch
   {
     assertEquals(0, b.getCapacity());
     b.reserve(4);
-    assertEquals(2, b.getN_reads_per_frag());
+    assertEquals(2, b.getNReadsPerFrag());
     assertEquals(4, b.getCapacity());
     assertEquals(0, b.getLength());
-    assertEquals(0, b.getN_fragments());
+    assertEquals(0, b.getNFragments());
   }
 
   @Test(expected=RapiOutOfMemoryError.class)
@@ -66,20 +66,20 @@ public class TestLowRapiBatch
   {
     String[] aRead = someReads.get(0);
 
-    assertEquals(2, b.getN_reads_per_frag());
+    assertEquals(2, b.getNReadsPerFrag());
 
     assertEquals(0, b.getLength());
-    assertEquals(0, b.getN_fragments());
+    assertEquals(0, b.getNFragments());
 
     b.append(aRead[0], aRead[1], aRead[2], Rapi.QENC_SANGER);
 
     assertEquals(1, b.getLength());
-    assertEquals(0, b.getN_fragments());
+    assertEquals(0, b.getNFragments());
 
     b.append(aRead[0], aRead[3], aRead[4], Rapi.QENC_SANGER);
 
     assertEquals(2, b.getLength());
-    assertEquals(1, b.getN_fragments());
+    assertEquals(1, b.getNFragments());
 
     assertTrue(2 <= b.getCapacity());
   }
@@ -97,7 +97,7 @@ public class TestLowRapiBatch
     b.append(aRead[0], aRead[1], aRead[2], Rapi.QENC_SANGER);
     b.append(aRead[0], aRead[3], aRead[4], Rapi.QENC_SANGER);
 
-    read r_get = b.getRead(0, 0);
+    Read r_get = b.getRead(0, 0);
 
     assertNotNull(r_get);
     assertEquals(aRead[0], r_get.getId());
@@ -117,7 +117,7 @@ public class TestLowRapiBatch
   {
     // verify out-of-bounds checking
     loadSomeReads(1);
-    read r = b.getRead(1, 0);
+    Read r = b.getRead(1, 0);
   }
 
   @Test(expected=RapiInvalidParamException.class)
@@ -125,7 +125,7 @@ public class TestLowRapiBatch
   {
     // verify out-of-bounds checking
     loadSomeReads(1);
-    read r = b.getRead(-1, 0);
+    Read r = b.getRead(-1, 0);
   }
 
   @Test(expected=RapiInvalidParamException.class)
@@ -133,7 +133,7 @@ public class TestLowRapiBatch
   {
     // verify out-of-bounds checking
     loadSomeReads(1);
-    read r = b.getRead(0, 2);
+    Read r = b.getRead(0, 2);
   }
 
   @Test(expected=RapiInvalidParamException.class)
@@ -141,7 +141,7 @@ public class TestLowRapiBatch
   {
     // verify out-of-bounds checking
     loadSomeReads(1);
-    read r = b.getRead(0, -1);
+    Read r = b.getRead(0, -1);
   }
 
   @Test
@@ -153,7 +153,7 @@ public class TestLowRapiBatch
 
     String[] lines = output.split("\n");
     assertEquals(4, lines.length);
-    // compare read ids.  Each element in someReads contains two reads, so two lines of SAM
+    // compare Read ids.  Each element in someReads contains two reads, so two lines of SAM
     for (int i = 0; i < lines.length / 2; ++i) {
       assertEquals(someReads.get(i)[0], lines[2*i].split("\t")[0]);
       assertEquals(someReads.get(i)[0], lines[2*i+1].split("\t")[0]);
@@ -169,7 +169,7 @@ public class TestLowRapiBatch
 
     String[] lines = output.split("\n");
     assertEquals(2, lines.length);
-    // compare read ids
+    // compare Read ids
     for (int i = 0; i < lines.length; ++i) {
       assertEquals(someReads.get(1)[0], lines[i].split("\t")[0]);
     }

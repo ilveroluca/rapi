@@ -1,7 +1,7 @@
 
 import it.crs4.rapi.RapiUtils;
-import it.crs4.rapi.lowrapi.RapiException;
-import it.crs4.rapi.lowrapi.RapiConstants;
+import it.crs4.rapi.RapiException;
+import it.crs4.rapi.RapiConstants;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -64,10 +64,10 @@ public class TestUtils
   }
 
 
-  public static void appendSeqsToBatch(List<String[]> seqs, it.crs4.rapi.lowrapi.batch_wrap batch) throws RapiException
+  public static void appendSeqsToBatch(List<String[]> seqs, it.crs4.rapi.Batch batch) throws RapiException
   {
-    if (batch.getN_reads_per_frag() != 2)
-      throw new RuntimeException("This method assumes batches of paired reads (getN_reads_per_frag == 2)");
+    if (batch.getNReadsPerFrag() != 2)
+      throw new RuntimeException("This method assumes batches of paired reads (getNReadsPerFrag == 2)");
 
     for (String[] fragment: seqs)
     {

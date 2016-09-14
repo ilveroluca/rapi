@@ -1,6 +1,6 @@
 
 
-Package := it.crs4.rapi.lowrapi
+Package := it.crs4.rapi
 
 CC = gcc
 

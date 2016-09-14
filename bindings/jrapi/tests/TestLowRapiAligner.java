@@ -1,5 +1,5 @@
 
-import it.crs4.rapi.lowrapi.*;
+import it.crs4.rapi.*;
 import it.crs4.rapi.RapiUtils;
 import it.crs4.rapi.AlignOp;
 
@@ -15,10 +15,10 @@ public class TestLowRapiAligner
 {
   private static File jrapiBaseDir;
 
-  private opts rapiOpts;
-  private ref refObj;
-  private batch_wrap reads;
-  private aligner_state aligner;
+  private Opts rapiOpts;
+  private Ref refObj;
+  private Batch reads;
+  private AlignerState aligner;
   private File miniRefPath;
 
   @BeforeClass
@@ -30,37 +30,38 @@ public class TestLowRapiAligner
   @Before
   public void init() throws RapiException, IOException
   {
-    rapiOpts = new opts();
+    rapiOpts = new Opts();
     Rapi.init(rapiOpts);
 
-    reads = new batch_wrap(2);
+    reads = new Batch(2);
     TestUtils.appendSeqsToBatch(TestUtils.readMiniRefSeqs(), reads);
 
     // load the reference
     miniRefPath = new File(jrapiBaseDir, TestUtils.RELATIVE_MINI_REF);
-    refObj = new ref(miniRefPath.getAbsolutePath());
+    refObj = new Ref(miniRefPath.getAbsolutePath());
 
-    aligner = new aligner_state(rapiOpts);
+    aligner = new AlignerState(rapiOpts);
     aligner.alignReads(refObj, reads);
   }
 
   @After
   public void tearDown() throws RapiException
   {
-    // XXX: ************  need to delete aligner
-
+    aligner = null;
     refObj.unload();
+    refObj = null;
     if (reads != null)
       reads.clear();
+    reads = null;
     Rapi.shutdown();
   }
 
   @Test
   public void testReadAttributes() throws RapiException
   {
-    read rapiRead = reads.getRead(0, 0);
+    Read rapiRead = reads.getRead(0, 0);
     assertEquals("read_00", rapiRead.getId());
-    // shortcut attributes that access the first alignment
+    // shortcut attributes that access the first Alignment
     assertFalse(rapiRead.getPropPaired());
     assertTrue(rapiRead.getMapped());
     assertFalse(rapiRead.getReverseStrand());
@@ -71,11 +72,11 @@ public class TestLowRapiAligner
   @Test
   public void testAlignmentStruct() throws RapiException
   {
-    read rapiRead = reads.getRead(0, 0);
+    Read rapiRead = reads.getRead(0, 0);
     assertEquals("read_00", rapiRead.getId());
     assertTrue(rapiRead.getNAlignments() > 0);
 
-    alignment aln = rapiRead.getAln(0);
+    Alignment aln = rapiRead.getAln(0);
     assertEquals("chr1", aln.getContig().getName());
     assertEquals(32461, aln.getPos());
     assertEquals("60M", aln.getCigarString());
@@ -94,16 +95,16 @@ public class TestLowRapiAligner
     assertTrue(aln.getMapped());
     assertFalse(aln.getReverseStrand());
     assertFalse(aln.getSecondaryAln());
-    assertEquals(0, aln.getN_mismatches());
-    assertEquals(0, aln.getN_gap_opens());
-    assertEquals(0, aln.getN_gap_extensions());
+    assertEquals(0, aln.getNMismatches());
+    assertEquals(0, aln.getNGapOpens());
+    assertEquals(0, aln.getNGapExtensions());
 
     /* Tags not yet implememnted
     expected_tags = dict(
         MD='60',
         XS=0)
 # the SAM has more tags (NM and AS), but RAPI makes that information
-# available through other members of the alignment structure.
+# available through other members of the Alignment structure.
       self.assertEqual(expected_tags, aln.get_tags())
       */
 
@@ -117,13 +118,13 @@ public class TestLowRapiAligner
         new AlignOp[] { new AlignOp('M', 11), new AlignOp('D', 3), new AlignOp('M', 49) },
         aln.getCigarOps());
 
-    assertEquals(3, aln.getN_mismatches());
+    assertEquals(3, aln.getNMismatches());
     /* XXX: tags not implemented yet
     md_tag = aln.get_tags()['MD']
     assertEquals('11^CCC49', md_tag)
     */
-    assertEquals(0, aln.getN_gap_opens());
-    assertEquals(0, aln.getN_gap_extensions());
+    assertEquals(0, aln.getNGapOpens());
+    assertEquals(0, aln.getNGapExtensions());
 
     aln = reads.getRead(2, 0).getAln(0);
     assertEquals(60, aln.getMapq());
@@ -133,7 +134,7 @@ public class TestLowRapiAligner
     assertArrayEquals(
         new AlignOp[] { new AlignOp('M', 13), new AlignOp('I', 3), new AlignOp('M', 44) },
         aln.getCigarOps());
-    assertEquals(3, aln.getN_mismatches());
+    assertEquals(3, aln.getNMismatches());
 
     /* XXX: tags not implemented yet
       md_tag = aln.get_tags()['MD']
@@ -144,7 +145,7 @@ public class TestLowRapiAligner
     assertEquals(60, aln.getMapq());
     assertEquals(50, aln.getScore());
     assertEquals("60M", aln.getCigarString());
-    assertEquals(2, aln.getN_mismatches());
+    assertEquals(2, aln.getNMismatches());
     /* XXX: tags not implemented yet
       md_tag = aln.get_tags()['MD'];
       assertEquals('15T16C27', md_tag);

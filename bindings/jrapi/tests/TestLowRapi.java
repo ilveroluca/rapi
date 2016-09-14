@@ -1,5 +1,5 @@
 
-import it.crs4.rapi.lowrapi.*;
+import it.crs4.rapi.*;
 import it.crs4.rapi.RapiUtils;
 
 import java.io.File;
@@ -9,7 +9,7 @@ import static org.junit.Assert.*;
 
 public class TestLowRapi
 {
-  private opts rapiOpts;
+  private Opts rapiOpts;
 
   @BeforeClass
   public static void initSharedObj()
@@ -20,7 +20,7 @@ public class TestLowRapi
   @Before
   public void init() throws RapiException
   {
-    rapiOpts = new opts();
+    rapiOpts = new Opts();
     Rapi.init(rapiOpts);
   }
 

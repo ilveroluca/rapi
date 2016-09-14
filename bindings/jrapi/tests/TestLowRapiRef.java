@@ -1,5 +1,5 @@
 
-import it.crs4.rapi.lowrapi.*;
+import it.crs4.rapi.*;
 import it.crs4.rapi.RapiUtils;
 
 import org.junit.*;
@@ -7,8 +7,8 @@ import static org.junit.Assert.*;
 
 public class TestLowRapiRef
 {
-  private opts optsObj;
-  private ref refObj;
+  private Opts optsObj;
+  private Ref refObj;
 
   @BeforeClass
   public static void initSharedObj()
@@ -19,10 +19,10 @@ public class TestLowRapiRef
   @Before
   public void init() throws RapiException
   {
-    optsObj = new opts();
+    optsObj = new Opts();
     optsObj.setShare_ref_mem(false);
     Rapi.init(optsObj);
-    refObj = new ref(TestUtils.RELATIVE_MINI_REF);
+    refObj = new Ref(TestUtils.RELATIVE_MINI_REF);
   }
 
   @After
@@ -42,7 +42,7 @@ public class TestLowRapiRef
   @Test
   public void testContig()
   {
-    contig c = refObj.getContig(0);
+    Contig c = refObj.getContig(0);
     assertNotNull(c);
 
     assertEquals("chr1", c.getName());
