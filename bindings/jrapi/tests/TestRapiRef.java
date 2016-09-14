@@ -5,7 +5,7 @@ import it.crs4.rapi.RapiUtils;
 import org.junit.*;
 import static org.junit.Assert.*;
 
-public class TestLowRapiRef
+public class TestRapiRef
 {
   private Opts optsObj;
   private Ref refObj;
@@ -89,7 +89,7 @@ public class TestLowRapiRef
 
   public static void main(String args[])
   {
-    TestUtils.testCaseMainMethod(TestLowRapiRef.class.getName(), args);
+    TestUtils.testCaseMainMethod(TestRapiRef.class.getName(), args);
   }
 }
 

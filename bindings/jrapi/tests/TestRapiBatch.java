@@ -7,7 +7,7 @@ import static org.junit.Assert.*;
 
 import java.util.List;
 
-public class TestLowRapiBatch
+public class TestRapiBatch
 {
   private Batch b;
   private List<String[]> someReads;
@@ -189,7 +189,7 @@ public class TestLowRapiBatch
 
   public static void main(String args[])
   {
-    TestUtils.testCaseMainMethod(TestLowRapiBatch.class.getName(), args);
+    TestUtils.testCaseMainMethod(TestRapiBatch.class.getName(), args);
   }
 }
 

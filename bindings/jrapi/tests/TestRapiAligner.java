@@ -11,7 +11,7 @@ import java.util.List;
 import org.junit.*;
 import static org.junit.Assert.*;
 
-public class TestLowRapiAligner
+public class TestRapiAligner
 {
   private static File jrapiBaseDir;
 
@@ -154,7 +154,7 @@ public class TestLowRapiAligner
 
   public static void main(String args[])
   {
-    TestUtils.testCaseMainMethod(TestLowRapiAligner.class.getName(), args);
+    TestUtils.testCaseMainMethod(TestRapiAligner.class.getName(), args);
   }
 }
 

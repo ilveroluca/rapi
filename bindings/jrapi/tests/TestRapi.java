@@ -7,7 +7,7 @@ import java.io.File;
 import org.junit.*;
 import static org.junit.Assert.*;
 
-public class TestLowRapi
+public class TestRapi
 {
   private Opts rapiOpts;
 
@@ -40,7 +40,7 @@ public class TestLowRapi
 
   public static void main(String args[])
   {
-    TestUtils.testCaseMainMethod(TestLowRapi.class.getName(), args);
+    TestUtils.testCaseMainMethod(TestRapi.class.getName(), args);
   }
 }
 
