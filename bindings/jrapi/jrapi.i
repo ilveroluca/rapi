@@ -335,7 +335,6 @@ typedef struct rapi_ref {
 %typemap(jni) rapi_cigar_ops  "jobjectArray";
 %typemap(jstype) rapi_cigar_ops  "it.crs4.rapi.AlignOp[]"
 %typemap(jtype) rapi_cigar_ops  "it.crs4.rapi.AlignOp[]"
-//%typemap(javaout) rapi_cigar_ops  "$typemap(javaout,AlignOp[])";
 
 // Map rapi_cigar_ops to an array of cigar ops
 %typemap(out, throws="RapiException") rapi_cigar_ops {
@@ -381,7 +380,7 @@ typedef struct rapi_ref {
 
 /* These 2 typemaps handle the conversion of the jtype to jstype typemap type
    and vice versa */
-%typemap(javain) rapi_cigar_ops "$javainput"
+// XXX: only for input - %typemap(javain) rapi_cigar_ops "$javainput"
 %typemap(javaout) rapi_cigar_ops {
     return $jnicall;
 }
@@ -392,6 +391,174 @@ typedef struct {
     int len;
 } rapi_cigar_ops;
 %}
+
+%typemap(jni) rapi_tag_list  "jobject";
+%typemap(jstype) rapi_tag_list  "java.util.HashMap"
+%typemap(jtype) rapi_tag_list  "java.util.HashMap"
+
+%define BOXING_FUNCTION(primitive, boxname, short_name)
+%{
+jobject box_##primitive(JNIEnv* jenv, primitive v)
+{
+  jclass cls = (*jenv)->FindClass(jenv, boxname);
+  if (!cls) {
+    do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Failed to find " boxname " class");
+    return NULL;
+  }
+
+  jmethodID constr = (*jenv)->GetMethodID(jenv, cls, "<init>", "(" short_name ")V");
+  if (!constr) {
+    do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Could not fetch " boxname " constructor");
+    return NULL;
+  }
+
+  return (*jenv)->NewObject(jenv, cls, constr, v);
+}
+%}
+%enddef
+
+
+// these macros define functions box_long, box_char, and box_double
+BOXING_FUNCTION(long, "java/lang/Long", "J");
+BOXING_FUNCTION(char, "java/lang/Character", "C");
+BOXING_FUNCTION(double, "java/lang/Double", "D");
+
+%{
+/*
+ * Wrap a tag value in a Java Object.
+ *
+ * Generates the appropriate type of Java object based on the tag value type.
+ *
+ * \return NULL in case of error.
+ */
+static jobject rapi_java_tag_value(JNIEnv* jenv, const rapi_tag*const tag)
+{
+  if (tag == NULL) {
+    do_rapi_throw(jenv, RAPI_PARAM_ERROR, "rapi_java_tag_value: Got NULL tag!");
+    return NULL;
+  }
+
+  jobject retval = NULL;
+  rapi_error_t error = RAPI_NO_ERROR;
+
+  switch (tag->type) {
+    case RAPI_VTYPE_CHAR: {
+      char c;
+      error = rapi_tag_get_char(tag, &c);
+      if (error) {
+        PERROR("rapi_tag_get_char returned error %s (%d)\n", rapi_error_name(error), error);
+      }
+      else {
+        retval = box_char(jenv, c);
+      }
+    }
+    break;
+    case RAPI_VTYPE_TEXT: {
+      const kstring_t* s;
+      error = rapi_tag_get_text(tag, &s);
+      if (error) {
+        PERROR("rapi_tag_get_text returned error %s (%d)\n", rapi_error_name(error), error);
+      }
+      else {
+        retval = (*jenv)->NewStringUTF(jenv, s->s);
+      }
+    }
+    break;
+    case RAPI_VTYPE_INT: {
+      long i;
+      error = rapi_tag_get_long(tag, &i);
+      if (error) {
+        PERROR("rapi_tag_get_long returned error %s (%d)\n", rapi_error_name(error), error);
+      }
+      else {
+        retval = box_long(jenv, i);
+      }
+    }
+    break;
+    case RAPI_VTYPE_REAL: {
+      double d;
+      error = rapi_tag_get_dbl(tag, &d);
+      if (error) {
+        PERROR("rapi_tag_get_dbl returned error %s (%d)\n", rapi_error_name(error), error);
+      }
+      else {
+        retval = box_double(jenv, d);
+      }
+    }
+    break;
+    default:
+      PERROR("Unrecognized tag type id %d\n", tag->type);
+  }
+
+  if (error != RAPI_NO_ERROR) {
+    // this handler is for all the rapi_tag_get_* calls.  On the other hand, the Py functions
+    // will set their own exception in case of error.
+    do_rapi_throw(jenv, error, "rapi_java_tag_value: error extracting tag value");
+    return NULL;
+  }
+  // else
+  return retval;
+}
+%}
+
+%typemap(javaout) rapi_tag_list {
+    return $jnicall;
+}
+%typemap(jni) rapi_tag_list  "jobject";
+%typemap(jstype) rapi_tag_list  "java.util.HashMap";
+%typemap(jtype) rapi_tag_list  "java.util.HashMap";
+
+%typemap(out, throws="RapiException") rapi_tag_list {
+  /*
+     Map rapi_tag_list to a Java HashMap<String><Object>
+  */
+  // start by fetching the class and necessary methods
+  //
+  // LP: it may be a good idea to create global references to the classes we use and cache
+  // repeately accessed class, method, and field ids.
+  jclass hashmap_clazz = (*jenv)->FindClass(jenv, "java/util/HashMap");
+  if (!hashmap_clazz) {
+    do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Failed to find the java/util/HashMap class");
+    return $null;
+  }
+  jmethodID op_constr = (*jenv)->GetMethodID(jenv, hashmap_clazz, "<init>", "(I)V");
+  if (!op_constr) {
+    do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Could not fetch HashMap constructor");
+    return $null;
+  }
+
+  jmethodID op_put = (*jenv)->GetMethodID(jenv, hashmap_clazz, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
+  if (!op_put) {
+    do_rapi_throw(jenv, RAPI_TYPE_ERROR, "Could not fetch HashMap put method");
+    return $null;
+  }
+
+  // create new hashmap
+  jobject hm = (*jenv)->NewObject(jenv, hashmap_clazz, op_constr, kv_size($1));
+  if (!hm) {
+    do_rapi_throw(jenv, RAPI_MEMORY_ERROR, "Could not create new HashMap");
+    return $null;
+  }
+
+  // now create the values and insert them
+  for (int i = 0; i < kv_size($1); ++i) {
+    // first create the key
+    jstring key = (*jenv)->NewStringUTF(jenv, kv_A($1, i).key);
+    if (!key) return $null; // fn should have already set the exception
+    // create the value object
+    jobject value = rapi_java_tag_value(jenv, &(kv_A($1, i)));
+    if (!value) return $null;
+    // now put
+    (*jenv)->CallObjectMethod(jenv, hm, op_put, key, value);
+
+    if ((*jenv)->ExceptionOccurred(jenv)) {
+      PERROR("Exception insert tag %s into HashMap\n", kv_A($1, i).key);
+      return $null;
+    }
+  }
+
+  $result = hm;
+}
 
 
 %nodefaultctor rapi_alignment;
@@ -435,11 +602,11 @@ typedef struct rapi_alignment {
         // return the string directly. Wrapper will be responsible for freeing it (through %newobject)
         return output.s;
     }
-/*
-    rapi_tag_list get_tags(void) const {
+
+    rapi_tag_list getTags(void) const {
         return $self->tags;
     }
-*/
+
     int get_rlen(void) const {
       return rapi_get_rlen($self->n_cigar_ops, $self->cigar_ops);
     }
@@ -772,7 +939,7 @@ Set_exception_from_error_t(rapi_aligner_state::alignReads);
     if (error != RAPI_NO_ERROR)
       PERROR("Problem destroying aligner state object (error code %d)\n", error);
   }
-  
+
   rapi_error_t alignReads(JNIEnv* jenv, const rapi_ref* ref, rapi_batch_wrap* batch)
   {
     if (NULL == ref || NULL == batch) {

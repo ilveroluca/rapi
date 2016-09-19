@@ -6,6 +6,7 @@ import it.crs4.rapi.AlignOp;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 
 import org.junit.*;
@@ -99,14 +100,13 @@ public class TestRapiAligner
     assertEquals(0, aln.getNGapOpens());
     assertEquals(0, aln.getNGapExtensions());
 
-    /* Tags not yet implememnted
-    expected_tags = dict(
-        MD='60',
-        XS=0)
-# the SAM has more tags (NM and AS), but RAPI makes that information
-# available through other members of the Alignment structure.
-      self.assertEqual(expected_tags, aln.get_tags())
-      */
+    HashMap<String,Object> expected_tags = new HashMap<String, Object>();
+    expected_tags.put("MD", "60");
+    expected_tags.put("XS", 0L);
+    // the SAM has more tags (NM and AS), but RAPI makes that information
+    // available through other members of the Alignment structure.
+
+    assertEquals(expected_tags, aln.getTags());
 
     // check out reads that don't align perfectly
     aln = reads.getRead(1, 0).getAln(0);
@@ -119,10 +119,10 @@ public class TestRapiAligner
         aln.getCigarOps());
 
     assertEquals(3, aln.getNMismatches());
-    /* XXX: tags not implemented yet
-    md_tag = aln.get_tags()['MD']
-    assertEquals('11^CCC49', md_tag)
-    */
+
+    String md_tag = (String)aln.getTags().get("MD");
+    assertEquals("11^CCC49", md_tag);
+
     assertEquals(0, aln.getNGapOpens());
     assertEquals(0, aln.getNGapExtensions());
 
@@ -136,20 +136,16 @@ public class TestRapiAligner
         aln.getCigarOps());
     assertEquals(3, aln.getNMismatches());
 
-    /* XXX: tags not implemented yet
-      md_tag = aln.get_tags()['MD']
-      self.assertEqual('57', md_tag)
-      */
+    md_tag = (String)aln.getTags().get("MD");
+    assertEquals("57", md_tag);
 
     aln = reads.getRead(3, 0).getAln(0);
     assertEquals(60, aln.getMapq());
     assertEquals(50, aln.getScore());
     assertEquals("60M", aln.getCigarString());
     assertEquals(2, aln.getNMismatches());
-    /* XXX: tags not implemented yet
-      md_tag = aln.get_tags()['MD'];
-      assertEquals('15T16C27', md_tag);
-      */
+    md_tag = (String)aln.getTags().get("MD");
+    assertEquals("15T16C27", md_tag);
   }
 
   public static void main(String args[])
