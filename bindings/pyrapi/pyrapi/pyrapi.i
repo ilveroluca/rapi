@@ -515,7 +515,7 @@ typedef struct {
  *
  * Generates the appropriate type of Python object based on the tag value type.
  *
- * \return NULL in case of error.
+ * \return Sets exception and returns NULL in case of error.
  */
 static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
 {
@@ -571,6 +571,14 @@ static PyObject* rapi_py_tag_value(const rapi_tag*const tag)
         default:
             PERROR("Unrecognized tag type id %d\n", tag->type);
     }
+
+    if (error != RAPI_NO_ERROR) {
+        // this handler is for all the rapi_tag_get_* calls.  On the other hand, the Py functions
+        // will set their own exception in case of error.
+        SWIG_Error(rapi_swig_error_type(error), "rapi_py_tag_value: error extracting tag value");
+        return NULL;
+    }
+    // else
     return retval;
 }
 %}
