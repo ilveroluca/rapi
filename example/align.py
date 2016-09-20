@@ -131,6 +131,7 @@ def main(argv=None):
     plugin = pyrapi.load_aligner('rapi_bwa')
 
     opts = plugin.opts()
+    #opts.share_ref_mem = True
     plugin.init(opts)
     opts.n_threads = options.nthreads
     _log.info("Using the %s aligner plugin, aligner version %s, plugin version %s",
