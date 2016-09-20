@@ -5,6 +5,11 @@ import java.io.File;
 
 public class RapiUtils
 {
+  public static void loadPlugin()
+  {
+    loadPlugin(null);
+  }
+
   public static void loadPlugin(String path)
   {
     String soPath;
