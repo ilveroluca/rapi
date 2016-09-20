@@ -10,7 +10,7 @@ Platform := $(shell uname | tr A-Z a-z)
 JAVA_INCLUDES := -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/$(Platform)
 
 # for dependencies
-JavaFiles = $(shell find $(GENSRC) $(JAVASRC) -type f)
+JavaFiles = $(shell find $(GENSRC) $(JAVASRC) -type f -name '*.java')
 
 INTERFACE := jrapi.i
 ROOT := ../..
