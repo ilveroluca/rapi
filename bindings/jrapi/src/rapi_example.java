@@ -29,7 +29,7 @@ public class rapi_example
 
   public rapi_example() throws RapiException
   {
-		RapiUtils.loadPlugin();
+    RapiUtils.loadPlugin();
     opts = new Opts();
     opts.setShareRefMem(true);
     opts.setNThreads(8);
@@ -55,7 +55,7 @@ public class rapi_example
         if (level >= loglevel) {
           System.err.format(fmt, args);
           System.err.println();
-				}
+        }
       }
       catch (Exception e) {
         System.err.println("Exception raised while trying to log: " + e);
@@ -105,7 +105,7 @@ public class rapi_example
   }
 
   protected void processAlignments(Batch reads) throws RapiException
-	{
+  {
     System.out.append(Rapi.formatSamBatch(reads));
   }
 
@@ -130,7 +130,7 @@ public class rapi_example
     log.debug("Starting to process");
     long startTime = System.nanoTime();
 
-		System.out.append(Rapi.formatSamHdr(ref));
+    System.out.append(Rapi.formatSamHdr(ref));
 
     while (loadBatch(reader, reads)) {
       log.debug("Loaded batch.  Going to align");
