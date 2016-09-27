@@ -32,6 +32,7 @@ public class TestRapiAligner
   public void init() throws RapiException, IOException
   {
     rapiOpts = new Opts();
+    rapiOpts.setShareRefMem(false); // for travis
     Rapi.init(rapiOpts);
 
     reads = new Batch(2);
