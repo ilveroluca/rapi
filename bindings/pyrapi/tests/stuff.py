@@ -21,12 +21,12 @@ import os
 MiniRef = \
         os.path.abspath(
             os.path.join(
-                os.path.dirname(__file__), '../mini_ref/mini_ref.fasta'))
+                os.path.dirname(__file__), '../../../tests/mini_ref/mini_ref.fasta'))
 
 MiniRefSequencesTxt = \
         os.path.abspath(
             os.path.join(
-                os.path.dirname(__file__), '../mini_ref/mini_ref_seqs.txt'))
+                os.path.dirname(__file__), '../../../tests/mini_ref/mini_ref_seqs.txt'))
 
 # we cache the list produced by get_mini_ref_seqs
 _mini_ref_seqs = None

@@ -56,8 +56,9 @@ distclean: clean
 	# Remove automatically built BWA, if it exists
 	rm -rf "$(PWD)/bwa-auto-build"
 
-tests: pyrapi
-	python tests/pyrapi/test_pyrapi.py
+tests: pyrapi jrapi
+	python bindings/pyrapi/tests/test_pyrapi.py
+	(cd bindings/jrapi && ant run-tests)
 
-.PHONY: clean distclean tests pyrapi rapi_bwa example
+.PHONY: clean distclean tests pyrapi jrapi rapi_bwa example
 
