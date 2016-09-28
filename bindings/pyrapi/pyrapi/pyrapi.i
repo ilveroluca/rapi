@@ -14,8 +14,15 @@ started calling swig with the "-builtin" option.
 
 %module rapi
 
-%include "../rapi_swig_helpers.i"
+%header %{
 
+/* includes injected into the C wrapper code.  */
+#include <stddef.h>
+#include <stdio.h>
+#include <rapi.h>
+#include <rapi_utils.h>
+
+%}
 %header %{
 
 /* includes injected into the C wrapper code.  */
