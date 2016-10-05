@@ -207,9 +207,11 @@ static inline int rapi_tag_get_dbl( const rapi_tag* kv, double * value    ) KV_G
  * Options.
  */
 typedef struct rapi_opts {
+
+  /** Tell implementation to ignore unsupported options.
+   * Alternatively, it should give an error */
 	int ignore_unsupported;
-	/* Standard options */
-	// filtering
+	// alignment filtering
 	int mapq_min;
 	int isize_min;
 	int isize_max;
@@ -310,27 +312,47 @@ typedef struct rapi_batch {
 
 /*************************** functions *******************************/
 
-/* Init Options */
+/** Initialize rapi_opts structure */
 rapi_error_t rapi_opts_init( rapi_opts * my_opts );
-
+/** Destroy rapi_opts structure */
 rapi_error_t rapi_opts_free( rapi_opts * my_opts );
 
-/* Init and tear down library */
+/** Initialize library.
+ *
+ * \param opts Options may be provided to the implementation.
+ *
+ * If options are not provided (i.e, `opts` is NULL), the library will use
+ * default values.
+ *
+ * If options are provided, they may be remembered by the library as needed in
+ * other calls.
+ */
 rapi_error_t rapi_init(const rapi_opts* opts);
+
+/** Shutdown library, clearing any allocated resources. */
 rapi_error_t rapi_shutdown(void);
 
-/* Aligner Version */
+/** Get wrapped aligner name */
 const char* rapi_aligner_name(void);
+/** Get wrapped aligner version */
 const char* rapi_aligner_version(void);
+/** Get aligner plug-in version */
 const char* rapi_plugin_version(void);
 
-/* Load reference */
+/** Load a reference.
+ *
+ * The implementation may configure its behaviour based on the options passed
+ * into rapi_init.
+ */
 rapi_error_t rapi_ref_load( const char * reference_path, rapi_ref * ref_struct );
 
-/* Free reference */
+/** Free reference structure and unload reference (if loaded). */
 rapi_error_t rapi_ref_free( rapi_ref * ref_struct );
 
-/* Allocate reads */
+/**
+ * Create read batch configured for `n_reads_fragment` reads per fragment.
+ * Allocate memory for `n_fragments` fragments.
+ */
 rapi_error_t rapi_reads_alloc( rapi_batch * batch, int n_reads_fragment, int n_fragments );
 
 /* Reserve sufficient space for n_fragments.
@@ -380,15 +402,31 @@ static inline rapi_ssize_t rapi_batch_read_capacity(const rapi_batch* batch) {
  */
 rapi_error_t rapi_set_read(rapi_batch * batch, rapi_ssize_t n_frag, int n_read, const char* id, const char* seq, const char* qual, int q_offset);
 
+/**
+ * Get pointer to read at coordinates (n_frag, n_read).
+ *
+ * \param n_frag Index in interval [0, batch->n_frags).
+ * \param n_read Index in interval [0, batch->n_reads_frag).
+ *
+ * \return pointer to rapi_read structure;  NULL in case of error.
+ *
+ * \warning The returned pointer may point to an uninitialized structure if the
+ * space has been allocated (with rapi_reads_reserve or rapi_reads_alloc) but
+ * not set with rapi_set_read.
+ */
+rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read);
 
-/* Align */
-typedef struct rapi_aligner_state rapi_aligner_state; //< opaque structure.  Aligner can use for whatever it wants.
+
+/* Aligner section */
+
+/** Opaque aligner structure.  Aligner can use for whatever it wants. */
+typedef struct rapi_aligner_state rapi_aligner_state;
 
 /**
  * Create the aligner state structure.
  *
  * The library should initialize the aligner based on the options passed to
- * rapi_init().  However, the user can provide new options that superceed the
+ * rapi_init().  However, the user can provide new options that override the
  * library-wide configuration.  Alternatively, \param opts is NULL.
  *
  * \param ret_state Return argument for the new aligner state.
@@ -413,15 +451,27 @@ rapi_error_t rapi_aligner_state_init(struct rapi_aligner_state** ret_state, cons
 rapi_error_t rapi_align_reads( const rapi_ref* ref, rapi_batch* batch,
     rapi_ssize_t start_frag, rapi_ssize_t end_frag, rapi_aligner_state* state );
 
+/** Clear aligner state and free any associated system resources. */
 rapi_error_t rapi_aligner_state_free(struct rapi_aligner_state* state);
 
-rapi_read* rapi_get_read(const rapi_batch* batch, rapi_ssize_t n_frag, int n_read);
-
+/* Utilities section */
 
 long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate);
 
+/** The length of the aligned read in terms of reference bases. */
 int rapi_get_rlen(int n_cigar, const rapi_cigar* cigar_ops);
 
+/**
+ * Write alignment operations in `ops` to a cigar string in `output`.
+ *
+ * \param ops Array of rapi_cigar.
+ * \param n_opts Length of `ops`.
+ * \param force_hard_clip If true, soft clips are converted to hard clips.
+ * \param output String into which the output is appended.
+ *
+ * \note `output` must be initialized prior to calling this function.  The new
+ * cigar string will be appended.
+ */
 void rapi_put_cigar(int n_ops, const rapi_cigar* ops, int force_hard_clip, kstring_t* output);
 
 

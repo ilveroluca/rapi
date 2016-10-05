@@ -22,6 +22,15 @@
 #define PDEBUG(...) { fprintf(stderr, "%s(%d) DEBUG: ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
 #define PERROR(...) { fprintf(stderr, "%s(%d) ERROR: ", __FILE__, __LINE__); fprintf(stderr, __VA_ARGS__); }
 
+
+/**
+ * Compute the reverse complement of a sequence, in place.
+ *
+ * \param seq Array of uppercase characters in set {A, C, G, N, T }.
+ * \param len Lengthof `seq`.
+ *
+ * \note In case of error, the sequence `seq` may be damaged (i.e., partially reverse-complemented.
+ */
 rapi_error_t rapi_rev_comp(char* seq, int len);
 
 #endif

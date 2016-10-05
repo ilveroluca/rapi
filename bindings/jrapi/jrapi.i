@@ -102,7 +102,7 @@ void* rapi_malloc(JNIEnv* jenv, size_t nbytes) {
 
 
 // With this typemap we can create wrapper functions that receive the JNIEnv* as an argument,
-// but hiding it from the Java-side API.
+// but don't show it from the Java-side API.
 %typemap(in, numinputs=0) JNIEnv* jenv { $1 = jenv; }
 
 
@@ -122,7 +122,6 @@ void* rapi_malloc(JNIEnv* jenv, size_t nbytes) {
 %define CHECK_RAPI_ERROR(msg)
   if (result != RAPI_NO_ERROR) {
     do_rapi_throw(jenv, result, msg);
-    //return $null; XXX: I don't think we can return from here.  Swig places resource clean-up code after the snippet
   }
 %enddef
 
@@ -164,8 +163,7 @@ typedef int rapi_bool;
  * typemaps, etc.
  **************************************************/
 %include "../rapi_common.i"
-/**************************************************
- **************************************************/
+/**************************************************/
 
 
 %immutable;
@@ -250,6 +248,11 @@ const char* rapi_plugin_version(void);
 %nodefaultctor rapi_contig;
 %nodefaultdtor rapi_contig;
 
+/**
+ * A Contig is part of a Ref.
+ * The Contig belongs to the Ref that returned it.  If that Ref is unloaded or
+ * destroyed, its Contig objects are no longer valid.
+ */
 typedef struct rapi_contig {
   char * name;
   uint32_t len;
@@ -261,6 +264,11 @@ typedef struct rapi_contig {
 
 
 %nodefaultctor rapi_ref;
+/**
+ * A Reference sequence.  The object provides access
+ * to some meta informatio about the reference and its
+ * Contigs.
+ */
 typedef struct rapi_ref {
   char * path;
 } rapi_ref;
@@ -300,6 +308,10 @@ typedef struct rapi_ref {
     }
   }
 
+  /** Manually unload this Ref from memory.  This method lets you control when to
+   * free the reference memory, which otherwise will only be done upon garbage collection.
+   * This * object is unusable after the method returns.
+   */
   void unload(void) {
     rapi_error_t error = rapi_ref_free($self);
     if (error != RAPI_NO_ERROR) {
@@ -308,16 +320,17 @@ typedef struct rapi_ref {
   }
 
   ~rapi_ref(void) {
-    // double frees shouldn't cause any problems
+    // double unload shouldn't cause any problems
     rapi_ref_unload($self);
   }
 
+  /** Get the number of Contigs in this reference. */
   size_t getNContigs(void) const { return $self->n_contigs; }
 
-  /* XXX getContig: I worry about memory management here.  We're returning a pointer to the rapi_ref's
-    chunk of memory.  If someone keeps a contig pointer around after freeing the reference there's
-    going to be sparks.
-  */
+  /** Get the ith Contig
+   * @warning The Contig points to the Ref's data.  If the Ref is unloaded, the
+   * Contig will become invalid and accessing it results in undefined behaviour.
+   */
   const rapi_contig* getContig(int i) const {
     if (i < 0 || i >= $self->n_contigs) {
       return NULL; // exception raised at higher level in %exception block
@@ -578,7 +591,6 @@ typedef struct rapi_alignment {
 } rapi_alignment;
 
 
-
 %newobject rapi_alignment::getCigarString;
 %extend rapi_alignment {
 
@@ -589,7 +601,8 @@ typedef struct rapi_alignment {
     rapi_bool reverseStrand;
     rapi_bool secondaryAln;
 
-    rapi_cigar_ops getCigarOps(void) const { // rapi_cigar_ops is then converted to AlignOp[]
+    /** Get the alignment as an array of AlignOp */
+    rapi_cigar_ops getCigarOps(void) const {
         rapi_cigar_ops array;
         array.ops = $self->cigar_ops;
         array.len = $self->n_cigar_ops;
@@ -607,6 +620,7 @@ typedef struct rapi_alignment {
         return $self->tags;
     }
 
+    /** The length of the aligned read in terms of reference bases. */
     int get_rlen(void) const {
       return rapi_get_rlen($self->n_cigar_ops, $self->cigar_ops);
     }
@@ -663,8 +677,14 @@ typedef struct rapi_read {
 %extend rapi_read {
   // synthesize some high-level boolean attributes.  These
   // look at the "main" alignment (first one, if any)
+  /** If the read is aligned, returns whether the read is properly paired
+   * according to the best alignment. */
   rapi_bool propPaired;
+  /** If the read is aligned, returns whether the read is mapped
+   * according to the best alignment. */
   rapi_bool mapped;
+  /** If the read is aligned, returns whether the read is aligned to the reverse strand
+   * according to the best alignment. */
   rapi_bool reverseStrand;
   int score;
   short mapq;
