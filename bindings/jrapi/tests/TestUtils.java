@@ -82,7 +82,7 @@ public class TestUtils
     if (args.length == 1)
       RapiUtils.loadPlugin(args[0]);
     else
-      RapiUtils.loadPlugin(null);
+      RapiUtils.loadPlugin();
 
     org.junit.runner.JUnitCore.main(testName);
   }

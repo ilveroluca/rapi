@@ -84,6 +84,8 @@
 
   <target name="package" depends="compile">
     <mkdir dir="${build.dir}"/>
+		<!-- copy the jrapi shared object to the class directory so we pick it up into the jar -->
+		<copy file="${jrapi.so}" todir="${class.dir}" />
 
     <!-- create the jar and include the hadoop-bam jars within it, under the lib directory -->
     <jar destfile="${build.dir}/${jar.file}" manifest="${build.dir}/MANIFEST.MF" >
@@ -102,7 +104,6 @@
     <property name="log4jconfig" location="${test.dir}/log4j.properties" />
 
     <junit showoutput="true" failureproperty="junit.failure" dir="${basedir}" fork="true" printsummary="withOutAndErr">
-      <sysproperty key="jrapi.so" value="${jrapi.so}" />
       <sysproperty key="jrapi.basedir" value="${basedir}" />
       <classpath refid="test.classpath" />
       <formatter type="brief" usefile="false"/>
@@ -124,7 +125,6 @@
     <echo message="Running class ${run.class}" />
     <property name="log4jconfig" location="${test.dir}/log4j.properties" />
     <java classname="${run.class}">
-      <sysproperty key="jrapi.so" value="${jrapi.so}" />
       <sysproperty key="jrapi.basedir" value="${basedir}" />
       <classpath refid="test.classpath" />
       <sysproperty key="log4j.configuration" value="file://${log4jconfig}"/>

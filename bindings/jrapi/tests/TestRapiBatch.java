@@ -15,7 +15,7 @@ public class TestRapiBatch
   @BeforeClass
   public static void initSharedObj()
   {
-    RapiUtils.loadPlugin(null);
+    RapiUtils.loadPlugin();
   }
 
   @Before

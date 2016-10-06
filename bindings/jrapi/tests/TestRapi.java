@@ -14,7 +14,7 @@ public class TestRapi
   @BeforeClass
   public static void initSharedObj()
   {
-    RapiUtils.loadPlugin(null);
+    RapiUtils.loadPlugin();
   }
 
   @Before

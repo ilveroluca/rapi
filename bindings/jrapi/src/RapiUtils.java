@@ -5,32 +5,39 @@ import java.io.File;
 
 public class RapiUtils
 {
+	private static final String SHARED_OBJ_PATH = "/jrapi.so";
+
   public static void loadPlugin()
   {
     loadPlugin(null);
   }
 
-  public static void loadPlugin(String path)
+	public static void loadPlugin(String path)
+	{
+		if (path == null)
+		{
+			try {
+				cz.adamh.utils.NativeUtils.loadLibraryFromJar(SHARED_OBJ_PATH);
+			} catch (java.io.IOException e) {
+				throw new RuntimeException(e.getMessage(), e);
+			}
+		}
+		else
+		{
+			loadPluginFromPath(path);
+		}
+	}
+
+  public static void loadPluginFromPath(String soPath)
   {
-    String soPath;
-    if (path != null)
-      soPath = path;
-    else
-      soPath = System.getProperty("jrapi.so");
+		if (soPath == null)
+			throw new IllegalArgumentException("path must not be null");
 
-    if (soPath != null)
-      System.err.println("Loading shared object from cmd line argument " + soPath);
-    else {
-      System.err.println("jrapi.so path not provided!");
-      System.err.println("Specify the property jrapi.so or pass it as a command line argument");
-      System.exit(1);
-    }
-
-    // load the jrapi shared object
     String absPath = new File(soPath).getAbsolutePath();
-    System.err.println("Loading library file " + absPath);
+		System.err.println("Loading shared object from " + absPath);
     System.load(absPath);
   }
+
 }
 
 // vim: set et sw=2
