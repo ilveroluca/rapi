@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 import org.junit.*;
@@ -147,6 +148,22 @@ public class TestRapiAligner
     assertEquals(2, aln.getNMismatches());
     md_tag = (String)aln.getTags().get("MD");
     assertEquals("15T16C27", md_tag);
+  }
+
+  @Test
+  public void testAlnIterator() throws RapiException
+  {
+    Read rapiRead = reads.getRead(0, 0);
+
+    Iterator<Alignment> it = rapiRead.iterator();
+    assertTrue(it.hasNext());
+
+    Alignment aln = it.next();
+    assertEquals("chr1", aln.getContig().getName());
+    assertEquals(32461, aln.getPos());
+    assertEquals("60M", aln.getCigarString());
+
+    assertFalse(it.hasNext());
   }
 
   public static void main(String args[])

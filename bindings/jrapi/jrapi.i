@@ -658,6 +658,15 @@ rapi_bool rapi_alignment_secondaryAln_get(const rapi_alignment* aln) {
 /***************************************/
 /*      Reads and read batches         */
 /***************************************/
+
+%typemap(javainterfaces) struct rapi_read "Iterable"
+%typemap(javacode) struct rapi_read "
+public java.util.Iterator<Alignment> iterator() {
+  return new ReadAlnIterator(this);
+}
+";
+
+
 %nodefaultctor rapi_read;
 
 // Reads are not to be deleted.  They are attached to the read, which is
