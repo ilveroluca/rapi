@@ -43,9 +43,7 @@ or they won't have effect.
 #include <stdio.h>
 #include <rapi.h>
 #include <rapi_utils.h>
-
 %}
-
 
 %include "stdint.i"; // needed to tell swig about types such as uint32_t, uint8_t, etc.
 
@@ -263,6 +261,13 @@ typedef struct rapi_contig {
 } rapi_contig;
 
 
+%typemap(javainterfaces) struct rapi_ref "Iterable"
+%typemap(javacode) struct rapi_ref "
+public java.util.Iterator<Contig> iterator() {
+  return new RefIterator(this);
+}
+";
+
 %nodefaultctor rapi_ref;
 /**
  * A Reference sequence.  The object provides access
@@ -325,7 +330,7 @@ typedef struct rapi_ref {
   }
 
   /** Get the number of Contigs in this reference. */
-  size_t getNContigs(void) const { return $self->n_contigs; }
+  int getNContigs(void) const { return $self->n_contigs; }
 
   /** Get the ith Contig
    * @warning The Contig points to the Ref's data.  If the Ref is unloaded, the

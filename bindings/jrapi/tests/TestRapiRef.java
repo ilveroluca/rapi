@@ -2,6 +2,8 @@
 import it.crs4.rapi.*;
 import it.crs4.rapi.RapiUtils;
 
+import java.util.Iterator;
+
 import org.junit.*;
 import static org.junit.Assert.*;
 
@@ -64,6 +66,21 @@ public class TestRapiRef
   public void testGetContigOOB2()
   {
     refObj.getContig(-1);
+  }
+
+  @Test
+  public void testContigIterator()
+  {
+    Iterator<Contig> it = refObj.iterator();
+    assertTrue(it.hasNext());
+
+    Contig c = it.next();
+    assertFalse(it.hasNext());
+    assertNotNull(c);
+
+    // verify that we fetched our contig
+    assertEquals("chr1", c.getName());
+    assertEquals(60000, c.getLen());
   }
 
   @Test
