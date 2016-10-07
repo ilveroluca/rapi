@@ -5,6 +5,7 @@ import it.crs4.rapi.RapiUtils;
 import org.junit.*;
 import static org.junit.Assert.*;
 
+import java.util.Iterator;
 import java.util.List;
 
 public class TestRapiBatch
@@ -173,6 +174,52 @@ public class TestRapiBatch
     for (int i = 0; i < lines.length; ++i) {
       assertEquals(someReads.get(1)[0], lines[i].split("\t")[0]);
     }
+  }
+
+  @Test
+  public void testIterator() throws RapiException
+  {
+    loadSomeReads(2);
+    String[] firstReads = someReads.get(0);
+
+    Iterator<Fragment> it = b.iterator();
+    assertTrue(it.hasNext());
+
+    Fragment f = it.next();
+    assertEquals(b.getNReadsPerFrag(), f.getLength());
+
+    assertEquals(firstReads[0], f.get(0).getId());
+    assertEquals(firstReads[0], f.get(1).getId());
+    assertEquals(firstReads[1], f.get(0).getSeq());
+    assertEquals(firstReads[2], f.get(0).getQual());
+    assertEquals(firstReads[3], f.get(1).getSeq());
+    assertEquals(firstReads[4], f.get(1).getQual());
+
+    assertTrue(it.hasNext());
+    it.next();
+    assertFalse(it.hasNext());
+  }
+
+  @Test
+  public void testFragment() throws RapiException
+  {
+    loadSomeReads(1);
+    String[] firstReads = someReads.get(0);
+
+    Fragment f = b.iterator().next();
+    Iterator<Read> fit = f.iterator();
+
+    Read read1 = fit.next();
+    assertEquals(firstReads[0], read1.getId());
+    assertEquals(firstReads[1], read1.getSeq());
+    assertEquals(firstReads[2], read1.getQual());
+
+    Read read2 = fit.next();
+    assertEquals(firstReads[0], read2.getId());
+    assertEquals(firstReads[3], read2.getSeq());
+    assertEquals(firstReads[4], read2.getQual());
+
+    assertFalse(fit.hasNext());
   }
 
   private void loadSomeReads(int n_fragments) throws RapiException

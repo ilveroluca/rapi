@@ -666,7 +666,6 @@ public java.util.Iterator<Alignment> iterator() {
 }
 ";
 
-
 %nodefaultctor rapi_read;
 
 // Reads are not to be deleted.  They are attached to the read, which is
@@ -746,6 +745,14 @@ short rapi_read_mapq_get(const rapi_read* read) {
 }
 
 %}
+
+
+%typemap(javainterfaces) rapi_batch_wrap "Iterable"
+%typemap(javacode) rapi_batch_wrap "
+public java.util.Iterator<Fragment> iterator() {
+  return new BatchIterator(this);
+}
+";
 
 
 %{ // this declaration is inserted in the C code
