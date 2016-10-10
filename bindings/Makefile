@@ -15,9 +15,17 @@
 # SOFTWARE.
 ###############################################################################
 
+all: pyrapi jrapi
+
+pyrapi:
+	(cd pyrapi && python setup.py clean --all && python setup.py build)
+
+jrapi:
+	make -C jrapi
+
 clean:
 	(cd pyrapi && python setup.py clean --all)
 	make -C jrapi clean
 
 
-.PHONY: clean
+.PHONY: pyrapi jrapi clean
