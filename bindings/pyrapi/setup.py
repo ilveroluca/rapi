@@ -18,6 +18,7 @@
 
 from glob import glob
 import os
+import shutil
 import sys
 
 from setuptools import setup, Extension
@@ -76,6 +77,8 @@ class CustomClean(clean):
             for f in glob(os.path.join(my_dir, 'pyrapi', pattern)):
                 log.info("Removing %s", f)
                 os.remove(f)
+        for dirname in ('dist', 'pyrapi.egg-info'):
+            shutil.rmtree(dirname, ignore_errors=True)
         clean.run(self)
 
 
