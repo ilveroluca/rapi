@@ -21,6 +21,7 @@ or they won't have effect.
 %rename("getAlignerName")    "rapi_aligner_name";
 %rename("getAlignerVersion") "rapi_aligner_version";
 %rename("getPluginVersion")  "rapi_plugin_version";
+%rename("getInsertSize")     "rapi_get_insert_size";
 
 %rename("%(strip:[rapi_])s") ""; // e.g., rapi_load_ref -> load_ref
 // rename n_ names to camelcase
@@ -1077,3 +1078,5 @@ char* format_sam_batch2(JNIEnv* jenv, const rapi_batch_wrap* reads)
   return format_sam_batch(jenv, reads, -1);
 }
 %}
+
+long rapi_get_insert_size(const rapi_alignment* read, const rapi_alignment* mate);

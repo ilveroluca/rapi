@@ -177,6 +177,17 @@ public class TestRapiAligner
   }
 
   @Test
+  public void testGetInsertSize()
+  {
+    Alignment aln1 = reads.getRead(0, 0).getAln(0);
+    Alignment aln2 = reads.getRead(0, 1).getAln(0);
+
+    assertEquals(121L, Rapi.getInsertSize(aln1, aln2));
+    assertEquals(-121L, Rapi.getInsertSize(aln2, aln1));
+    assertEquals(0L, Rapi.getInsertSize(aln1, aln1));
+  }
+
+  @Test
   public void testAlnIterator() throws RapiException
   {
     Read rapiRead = reads.getRead(0, 0);
