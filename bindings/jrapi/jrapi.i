@@ -411,10 +411,6 @@ typedef struct {
 } rapi_cigar_ops;
 %}
 
-%typemap(jni) rapi_tag_list  "jobject";
-%typemap(jstype) rapi_tag_list  "java.util.HashMap"
-%typemap(jtype) rapi_tag_list  "java.util.HashMap"
-
 %define BOXING_FUNCTION(primitive, boxname, short_name)
 %{
 jobject box_##primitive(JNIEnv* jenv, primitive v)
@@ -524,8 +520,8 @@ static jobject rapi_java_tag_value(JNIEnv* jenv, const rapi_tag*const tag)
     return $jnicall;
 }
 %typemap(jni) rapi_tag_list  "jobject";
-%typemap(jstype) rapi_tag_list  "java.util.HashMap";
-%typemap(jtype) rapi_tag_list  "java.util.HashMap";
+%typemap(jstype) rapi_tag_list  "java.util.HashMap<String, Object>"
+%typemap(jtype) rapi_tag_list  "java.util.HashMap<String, Object>"
 
 %typemap(out, throws="RapiException") rapi_tag_list {
   /*
