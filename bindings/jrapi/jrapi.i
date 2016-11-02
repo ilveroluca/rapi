@@ -262,7 +262,7 @@ typedef struct rapi_contig {
 } rapi_contig;
 
 
-%typemap(javainterfaces) struct rapi_ref "Iterable"
+%typemap(javainterfaces) struct rapi_ref "Iterable<Contig>"
 %typemap(javacode) struct rapi_ref "
 public java.util.Iterator<Contig> iterator() {
   return new RefIterator(this);
@@ -660,7 +660,7 @@ rapi_bool rapi_alignment_secondaryAln_get(const rapi_alignment* aln) {
 /*      Reads and read batches         */
 /***************************************/
 
-%typemap(javainterfaces) struct rapi_read "Iterable"
+%typemap(javainterfaces) struct rapi_read "Iterable<Alignment>"
 %typemap(javacode) struct rapi_read "
 public java.util.Iterator<Alignment> iterator() {
   return new ReadAlnIterator(this);
@@ -748,7 +748,7 @@ short rapi_read_mapq_get(const rapi_read* read) {
 %}
 
 
-%typemap(javainterfaces) rapi_batch_wrap "Iterable"
+%typemap(javainterfaces) rapi_batch_wrap "Iterable<Fragment>"
 %typemap(javacode) rapi_batch_wrap "
 public java.util.Iterator<Fragment> iterator() {
   return new BatchIterator(this);
