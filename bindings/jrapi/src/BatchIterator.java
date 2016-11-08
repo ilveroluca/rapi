@@ -31,7 +31,6 @@ public class BatchIterator implements java.util.Iterator<Fragment> {
   private Batch batch;
   private long nextFragment;
   private long end;
-  private Fragment frag;
 
   public BatchIterator(Batch b)
   {
@@ -40,7 +39,6 @@ public class BatchIterator implements java.util.Iterator<Fragment> {
     batch = b;
     nextFragment = 0;
     end = batch.getNFragments();
-    frag = new Fragment(batch.getNReadsPerFrag());
   }
 
   public Fragment next()
@@ -48,6 +46,7 @@ public class BatchIterator implements java.util.Iterator<Fragment> {
     if (nextFragment >= end)
       throw new java.util.NoSuchElementException();
 
+    Fragment frag = new Fragment(batch.getNReadsPerFrag());
     for (int i = 0; i < batch.getNReadsPerFrag(); ++i)
       frag.set(i, batch.getRead(nextFragment, i));
 
